@@ -27,7 +27,7 @@ using System;
 
 namespace Mono.Security.Interface
 {
-	public interface IMonoTlsEventSink
+	interface IMonoTlsEventSink
 	{
 		void Error (Exception exception);
 
