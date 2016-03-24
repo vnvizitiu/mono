@@ -243,7 +243,7 @@ static gboolean disable_minor_collections = FALSE;
 static gboolean disable_major_collections = FALSE;
 static gboolean do_verify_nursery = FALSE;
 static gboolean do_dump_nursery_content = FALSE;
-static gboolean enable_nursery_canaries = FALSE;
+static gboolean enable_nursery_canaries = TRUE;
 
 #ifdef HEAVY_STATISTICS
 guint64 stat_objects_alloced_degraded = 0;
