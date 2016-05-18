@@ -4,8 +4,6 @@ project (mono-btls)
 
 cmake_policy(SET CMP0026 OLD)
 
-include (CMakeMacros.txt)
-
 add_subdirectory (@BTLS_ROOT@ boringssl)
 set (CMAKE_INSTALL_PREFIX @prefix@)
 set (CMAKE_MACOSX_RPATH 1)
@@ -71,4 +69,5 @@ install (
 	ARCHIVE DESTINATION lib
 )
 
+include (CMakeMacros.txt)
 CREATE_LIBTOOL_FILE(mono-btls-shared mono-btls-static /lib)
