@@ -2577,6 +2577,8 @@ if test "x$enable_btls" = "xyes"; then
       BTLS_CMAKE_ARGS=
    fi
    AC_SUBST(BTLS_CMAKE_ARGS)
+
+   AC_DEFINE(HAVE_BTLS, 1, [BoringTls is supported])
 fi
 
 AC_ARG_WITH(boringssl, [  --with-boringssl=<boringssl prefix>    Enable the BoringTls provider], enable_boringtls=yes,)

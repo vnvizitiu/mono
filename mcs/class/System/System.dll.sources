@@ -1,5 +1,6 @@
 ../../build/common/SR.cs
 Assembly/AssemblyInfo.cs
+System/MartinTest.cs
 Microsoft.CSharp/CSharpCodeCompiler.cs
 Microsoft.CSharp/CSharpCodeGenerator.cs
 Microsoft.CSharp/CSharpCodeProvider.cs

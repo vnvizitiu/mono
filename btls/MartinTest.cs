@@ -8,6 +8,7 @@ class X
 
 	static void Main ()
 	{
-		mono_btls_martin_test ();
+		// mono_btls_martin_test ();
+		MartinTest.Hello ();
 	}
 }
