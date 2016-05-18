@@ -154,12 +154,13 @@ mono_btls_ssl_ctx_set_ciphers (MonoBtlsSslCtx *ctx, int count, const uint16_t *d
 	STACK_OF(SSL_CIPHER) *ciphers = NULL;
 	struct ssl_cipher_preference_list_st *pref_list = NULL;
 	uint8_t *in_group_flags = NULL;
+	int i;
 
 	ciphers = sk_SSL_CIPHER_new_null ();
 	if (!ciphers)
 		goto err;
 
-	for (int i = 0; i < count; i++) {
+	for (i = 0; i < count; i++) {
 		const SSL_CIPHER *cipher = SSL_get_cipher_by_value (data [i]);
 		if (!cipher) {
 			debug_printf (ctx, "mono_btls_ssl_ctx_set_ciphers(): unknown cipher %02x", data [i]);
