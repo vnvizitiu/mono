@@ -33,3 +33,7 @@
 [submodule "external/nunit-lite"]
 	path = external/nunit-lite
 	url = git://github.com/mono/NUnitLite.git
+[submodule "external/boringssl"]
+	path = external/boringssl
+	url = https://boringssl.googlesource.com/boringssl
+	branch = chromium-stable

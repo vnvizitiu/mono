@@ -1,5 +1,9 @@
 noinst_LTLIBRARIES = libmonoutils.la
 
+if BORINGTLS
+# btls_libs = ../btls/libmonobtls.la
+endif
+
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/mono $(LIBGC_CPPFLAGS) $(GLIB_CFLAGS) $(SHARED_CFLAGS)
 
 if ENABLE_DTRACE
@@ -221,6 +225,7 @@ arch_sources += mono-hwcap-s390x.c mono-hwcap-s390x.h
 endif
 
 libmonoutils_la_SOURCES = $(monoutils_sources) $(arch_sources)
+libmonoutils_la_LIBADD = $(btls_libs)
 libmonoutilsincludedir = $(includedir)/mono-$(API_VER)/mono/utils
 
 libmonoutilsinclude_HEADERS = 	\

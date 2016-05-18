@@ -2564,6 +2564,94 @@ if test "x$enable_nacl_gc" = "xyes"; then
 fi
 AC_SUBST(MONO_NACL_ALIGN_MASK_OFF)
 
+dnl *******************
+dnl ***  BoringSsl  ***
+dnl *******************
+
+AC_ARG_ENABLE(btls, [  --enable-blts              Enable the BoringTls provider], enable_btls=yes,)
+AM_CONDITIONAL(BTLS, test x$enable_btls = xyes)
+
+if test "x$enable_btls" = "xyes"; then
+   AC_PATH_PROG(CMAKE, [cmake], [no])
+   if test "x$CMAKE" = "xno"; then
+     AC_MSG_ERROR("cmake not found")
+   fi
+   
+   BTLS_ROOT=`cd $srcdir/external/boringssl && pwd`
+   AC_SUBST(BTLS_ROOT)
+fi
+
+AC_ARG_WITH(boringssl, [  --with-boringssl=<boringssl prefix>    Enable the BoringTls provider], enable_boringtls=yes,)
+AC_ARG_WITH(boringssl_cflags, [  --with-boringssl-cflags=<cflags>    Where to find the boringssl headers])
+AC_ARG_WITH(boringssl_libs, [  --with-boringssl-libs=<libs>    Override boringssl library selection])
+
+AM_CONDITIONAL(BORINGTLS, test x$enable_boringtls = xyes)
+
+if test "x$enable_boringtls" = "xyes"; then
+   echo "HAVE BORINGSSL"
+
+   if test "x$with_boringssl_cflags" != "x"; then
+      BTLS_CFLAGS="$with_boringssl_cflags"
+   elif test -f "$with_boringssl/include/openssl/ssl.h"; then
+      BTLS_CFLAGS="-I$with_boringssl/include"
+   else
+      AC_MSG_ERROR("Invalid boringssl prefix.")
+   fi
+
+   if test "x$with_boringssl_libs" != "x"; then
+      BTLS_LIBS="$with_boringssl_libs"
+   elif test -f "$with_boringssl/lib/libssl.a"; then
+      BTLS_LIBS="$with_boringssl/lib/libssl.a $with_boringssl/lib/libcrypto.a"
+   elif test -f "$with_boringssl/build/ssl/libssl.a"; then
+      BTLS_LIBS="$with_boringssl/build/crypto/libcrypto.a $with_boringssl/build/ssl/libssl.a"
+   else
+      AC_MSG_ERROR(Cannot find boringssl libraries)
+   fi
+
+   ORIG_CFLAGS=$CFLAGS
+   CFLAGS="$BTLS_CFLAGS $CFLAGS"
+   AC_MSG_CHECKING(boringssl headers)
+   AC_TRY_COMPILE([#include <openssl/ssl.h>],[
+      #if defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x10002000) && defined(OPENSSL_IS_BORINGSSL)
+	  return 0;
+	  #else
+      #error "Wrong boringssl version"
+   #endif
+   ],[
+      AC_MSG_RESULT(yes)
+	  have_boringssl_headers=yes
+   ],[
+      AC_MSG_RESULT(no)
+   ])
+   CFLAGS=$ORIG_CFLAGS
+   if test "x$have_boringssl_headers" != "xyes"; then
+     AC_MSG_ERROR(Boringssl is not installed)
+   fi
+
+   ORIG_LIBS=$LIBS
+   ORIG_CFLAGS=$CFLAGS
+   LIBS="$BTLS_LIBS $LIBS"
+   CFLAGS="$BTLS_CFLAGS $CFLAGS"
+   AC_MSG_CHECKING(boringssl library)
+   AC_TRY_LINK([#include <openssl/ssl.h>],[
+      SSL_CTX_new (TLS_method ());
+   ],[
+      AC_MSG_RESULT(yes)
+	  have_boringssl_libs=yes
+   ],[
+      AC_MSG_RESULT(no)
+   ])
+   LIBS=$ORIG_LIBS
+   CFLAGS=$ORIG_CFLAGS
+   if test "x$have_boringssl_libs" != "xyes"; then
+     AC_MSG_ERROR(Boringssl is not installed)
+   fi
+
+   AC_SUBST(BTLS_CFLAGS)
+   AC_SUBST(BTLS_LIBS)
+   AC_DEFINE(ENABLE_BTLS, 1, [BoringTls provider enabled])
+fi
+
 dnl **************************
 dnl *** AOT cross offsets  ***
 dnl **************************
@@ -3934,6 +4022,8 @@ mono-uninstalled.pc
 acceptance-tests/Makefile
 scripts/mono-find-provides
 scripts/mono-find-requires
+btls/CMakeLists.txt
+btls/Makefile
 mono/Makefile
 mono/utils/Makefile
 mono/metadata/Makefile
