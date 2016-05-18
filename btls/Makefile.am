@@ -3,9 +3,11 @@ BTLS_CFLAGS = -I$(top_srcdir)/external/boringssl/include
 
 BTLS_DEPS = $(BTLS_LIBS) build/Makefile
 
+CMAKE_ARGS = -D CMAKE_INSTALL_PREFIX:PATH=$(prefix) -D BTLS_ROOT:PATH=$(BTLS_ROOT) -D SRC_DIR:PATH=$(srcdir)
+
 build/Makefile:
 	-mkdir -p build
-	(cd build && $(CMAKE) $(abs_top_srcdir)/btls)
+	(cd build && $(CMAKE) $(CMAKE_ARGS) $(abs_top_srcdir)/btls)
 
 $(BTLS_LIBS): build/Makefile
 	$(MAKE) -C build

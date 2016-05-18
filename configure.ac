@@ -4022,7 +4022,6 @@ mono-uninstalled.pc
 acceptance-tests/Makefile
 scripts/mono-find-provides
 scripts/mono-find-requires
-btls/CMakeLists.txt
 btls/Makefile
 mono/Makefile
 mono/utils/Makefile

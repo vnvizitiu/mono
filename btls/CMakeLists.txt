@@ -2,25 +2,24 @@ cmake_minimum_required (VERSION 2.8.10)
 
 project (mono-btls)
 
-cmake_policy(SET CMP0026 OLD)
+# cmake_policy(SET CMP0026 OLD)
 
-add_subdirectory (@BTLS_ROOT@ boringssl)
-set (CMAKE_INSTALL_PREFIX @prefix@)
+add_subdirectory (${BTLS_ROOT} boringssl)
 set (CMAKE_MACOSX_RPATH 1)
-# SET (CMAKE_INSTALL_RPATH @prefix@/lib)
+# SET (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 # SET (CMAKE_SKIP_BUILD_RPATH FALSE)
 # SET (CMAKE_BUILD_WITH_INSTALL_RPATH TRUE) 
 
 include_directories (
-	@srcdir@
-	@BTLS_ROOT@/include
+	${SRC_DIR}
+	${BTLS_ROOT}/include
 )
 
 set (
 	MONO_BTLS_SOURCES
 
 	btls-bio.c
- 	btls-bio.h
+	btls-bio.h
 	btls-key.c
 	btls-key.h
 	btls-pkcs12.c
