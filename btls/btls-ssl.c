@@ -165,7 +165,7 @@ int
 mono_btls_ssl_get_ciphers (MonoBtlsSsl *ptr, uint16_t **data)
 {
 	STACK_OF(SSL_CIPHER) *ciphers;
-	int count;
+	int count, i;
 
 	*data = NULL;
 
@@ -179,7 +179,7 @@ mono_btls_ssl_get_ciphers (MonoBtlsSsl *ptr, uint16_t **data)
 	if (!*data)
 		return 0;
 
-	for (int i = 0; i < count; i++) {
+	for (i = 0; i < count; i++) {
 		const SSL_CIPHER *cipher = sk_SSL_CIPHER_value (ciphers, i);
 		(*data) [i] = (uint16_t) SSL_CIPHER_get_id (cipher);
 	}
