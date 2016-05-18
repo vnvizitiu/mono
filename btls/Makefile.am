@@ -18,7 +18,15 @@ clean-local:
 install-exec-hook: $(BTLS_DEPS)
 	$(MAKE) -C build install
 
-noinst_PROGRAMS = martin-test
+if CROSS_COMPILE
+martin_test_programs =
+else
+martin_test_programs = martin-test
+endif
+
+noinst_PROGRAMS = $(martin_test_programs)
+
+EXTRA_PROGRAMS = martin-test
 
 martin_test_SOURCES = \
 	martin-test.c \
