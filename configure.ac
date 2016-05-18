@@ -2569,16 +2569,25 @@ dnl ***  BoringSsl  ***
 dnl *******************
 
 AC_ARG_ENABLE(btls, [  --enable-blts              Enable the BoringTls provider], enable_btls=yes,)
+AC_ARG_WITH(btls_cmake_args, [  --with-btls-cmake-args         Provide custom cmake args for BoringTls])
+
 AM_CONDITIONAL(BTLS, test x$enable_btls = xyes)
 
 if test "x$enable_btls" = "xyes"; then
    AC_PATH_PROG(CMAKE, [cmake], [no])
    if test "x$CMAKE" = "xno"; then
-     AC_MSG_ERROR("cmake not found")
+      AC_MSG_ERROR("cmake not found")
    fi
    
    BTLS_ROOT=`cd $srcdir/external/boringssl && pwd`
    AC_SUBST(BTLS_ROOT)
+
+   if test "x$with_btls_cmake_args" != "x"; then
+      BTLS_CMAKE_ARGS=$with_btls_cmake_args
+   else
+      BTLS_CMAKE_ARGS=
+   fi
+   AC_SUBST(BTLS_CMAKE_ARGS)
 fi
 
 AC_ARG_WITH(boringssl, [  --with-boringssl=<boringssl prefix>    Enable the BoringTls provider], enable_boringtls=yes,)
