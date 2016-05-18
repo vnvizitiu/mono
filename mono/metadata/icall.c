@@ -8197,6 +8197,19 @@ ves_icall_Microsoft_Win32_NativeMethods_SetPriorityClass (gpointer handle, gint3
 	return SetPriorityClass (handle, priorityClass);
 }
 
+ICALL_EXPORT int
+ves_icall_System_MartinTest_Hello (void)
+{
+#if HAVE_BTLS
+	g_message (G_STRLOC ": Have BTLS!");
+#else
+	g_message (G_STRLOC ": No BTLS!");
+	return -1;
+#endif
+
+	return 0;
+}
+
 #ifndef DISABLE_ICALL_TABLES
 
 #define ICALL_TYPE(id,name,first)
