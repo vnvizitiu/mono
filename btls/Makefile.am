@@ -7,7 +7,7 @@ CMAKE_ARGS = -D CMAKE_INSTALL_PREFIX:PATH=$(prefix) -D BTLS_ROOT:PATH=$(BTLS_ROO
 
 build/Makefile:
 	-mkdir -p build
-	(cd build && $(CMAKE) $(CMAKE_ARGS) $(abs_top_srcdir)/btls)
+	(cd build && $(CMAKE) $(CMAKE_ARGS) $(BTLS_CMAKE_ARGS) $(abs_top_srcdir)/btls)
 
 $(BTLS_LIBS): build/Makefile
 	$(MAKE) -C build
