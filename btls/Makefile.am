@@ -1,4 +1,4 @@
-BTLS_LIBS = build/libmono-btls.la
+BTLS_LIBS = build/libmono-btls-uninstalled.la
 BTLS_CFLAGS = -I$(top_srcdir)/external/boringssl/include
 
 BTLS_DEPS = $(BTLS_LIBS) build/Makefile
@@ -24,4 +24,4 @@ martin_test_SOURCES = \
 	
 martin_test_CFLAGS = -I$(srcdir) $(BTLS_CFLAGS)
 martin_test_LDADD = $(BTLS_LIBS)
-
+martin_test_LDFLAGS = -all-static
