@@ -74,5 +74,6 @@ install (
 )
 
 include (CMakeMacros.txt)
-create_libtool (mono-btls-uninstalled ${PROJECT_SOURCE_DIR}/libmono-btls.la.in mono-btls-shared mono-btls-static ${PROJECT_BINARY_DIR})
-create_libtool (mono-btls ${PROJECT_SOURCE_DIR}/libmono-btls.la.in mono-btls-shared mono-btls-static ${CMAKE_INSTALL_PREFIX}/lib)
+create_libtool (mono-btls-static ${PROJECT_SOURCE_DIR}/libmono-btls.la.in false true mono-btls-shared mono-btls-static ${PROJECT_BINARY_DIR})
+create_libtool (mono-btls-uninstalled ${PROJECT_SOURCE_DIR}/libmono-btls.la.in true false mono-btls-shared mono-btls-static ${PROJECT_BINARY_DIR})
+create_libtool (mono-btls ${PROJECT_SOURCE_DIR}/libmono-btls.la.in true true mono-btls-shared mono-btls-static ${CMAKE_INSTALL_PREFIX}/lib)
