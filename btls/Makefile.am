@@ -5,6 +5,8 @@ BTLS_DEPS = $(BTLS_LIBS) build/Makefile
 
 CMAKE_ARGS = -D CMAKE_INSTALL_PREFIX:PATH=$(prefix) -D BTLS_ROOT:PATH=$(BTLS_ROOT) -D SRC_DIR:PATH=$(srcdir)
 
+all-local: $(BTLS_LIBS)
+
 build/Makefile:
 	-mkdir -p build
 	(cd build && $(CMAKE) $(CMAKE_ARGS) $(BTLS_CMAKE_ARGS) $(abs_top_srcdir)/btls)
