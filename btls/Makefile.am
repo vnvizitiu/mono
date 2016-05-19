@@ -20,7 +20,7 @@ clean-local:
 install-exec-hook: $(BTLS_DEPS)
 	$(MAKE) -C build install
 
-if CROSS_COMPILE
+if PLATFORM_ANDROID
 martin_test_programs =
 else
 martin_test_programs = martin-test
