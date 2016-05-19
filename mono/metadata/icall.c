@@ -7265,17 +7265,21 @@ ves_icall_System_StackFrame_GetILOffsetFromFile (MonoString *path, guint32 metho
 	return il_offset;
 }
 
+#if HAVE_BTLS
+extern void mono_btls_martin_test (void);
+#endif
+
 ICALL_EXPORT int
 ves_icall_System_MartinTest_Hello (void)
 {
 #if HAVE_BTLS
 	g_message (G_STRLOC ": Have BTLS!");
+	mono_btls_martin_test ();
+	return 0;
 #else
 	g_message (G_STRLOC ": No BTLS!");
 	return -1;
 #endif
-
-	return 0;
 }
 
 #ifndef DISABLE_ICALL_TABLES
