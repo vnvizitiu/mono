@@ -4,6 +4,7 @@ ReferenceSources/SR.cs
 Mono.Http/NtlmClient.cs
 ../../../external/referencesource/System/compmod/system/codedom/compiler/GeneratedCodeAttribute.cs
 ../../../external/referencesource/System/compmod/system/codedom/compiler/IndentTextWriter.cs
+System/MartinTest.cs
 System.Diagnostics/DataReceivedEventArgs.cs
 System.Diagnostics/DataReceivedEventHandler.cs
 System.Diagnostics/DefaultTraceListener.cs
