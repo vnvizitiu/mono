@@ -30,6 +30,9 @@
 [submodule "external/Lucene.Net.Light"]
 	path = external/Lucene.Net.Light
 	url = git://github.com/mono/Lucene.Net.Light.git
+[submodule "external/nunit-lite"]
+	path = external/nunit-lite
+	url = git://github.com/mono/NUnitLite.git
 [submodule "external/boringssl"]
 	path = external/boringssl
 	url = git@github.com:mono/boringssl.git
