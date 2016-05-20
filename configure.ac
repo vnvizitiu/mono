@@ -2583,6 +2583,14 @@ if test "x$enable_btls" = "xyes"; then
 	     btls_android=yes
 		 btls_android_abi=arm64-v8a
 		 ;;
+      android-x86)
+	     btls_android=yes
+		 btls_android_abi=x86
+		 ;;
+      android-x64)
+	     btls_android=yes
+		 btls_android_abi=x86_64
+		 ;;
       mac)
 	     btls_android=no
 		 ;;
