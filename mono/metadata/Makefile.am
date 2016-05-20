@@ -39,7 +39,7 @@ endif
 endif
 
 if BTLS
-btls_libs = ../../btls/build/libmono-btls.la
+btls_libs = ../../btls/build/libmono-btls-shared.a
 btls_static_libs = ../../btls/build/libmono-btls-static.la
 endif
 
