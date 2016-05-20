@@ -6,6 +6,7 @@ project (mono-btls)
 
 add_subdirectory (${BTLS_ROOT} boringssl)
 set (CMAKE_MACOSX_RPATH 1)
+
 # SET (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 # SET (CMAKE_SKIP_BUILD_RPATH FALSE)
 # SET (CMAKE_BUILD_WITH_INSTALL_RPATH TRUE) 
@@ -56,24 +57,32 @@ set (
 	${BORINGSSL_OBJECTS}
 )
 
-add_library (mono-btls-shared SHARED ${MONO_BTLS_SOURCES})
-set_target_properties (mono-btls-shared PROPERTIES OUTPUT_NAME mono-btls)
-
-add_library (mono-btls-static STATIC ${MONO_BTLS_SOURCES})
-set_target_properties (mono-btls-static PROPERTIES OUTPUT_NAME mono-btls)
-
-install (
-	TARGETS mono-btls-shared mono-btls-static
-	LIBRARY DESTINATION lib
-	ARCHIVE DESTINATION lib
-)
-
-install (
-	FILES ${PROJECT_BINARY_DIR}/libmono-btls.la
-	DESTINATION lib
-)
+if (BUILD_SHARED_LIBS)
+	add_library (mono-btls-shared SHARED ${MONO_BTLS_SOURCES})
+	set_target_properties (mono-btls-shared PROPERTIES RULE_LAUNCH_LINK
+		"${PROJECT_SOURCE_DIR}/create-object-library.sh ${CMAKE_BINARY_DIR} libmono-btls-objects.a <OBJECTS> --"
+	)
+	install (
+		TARGETS mono-btls-shared
+		LIBRARY DESTINATION lib
+	)
+else ()
+	add_library (mono-btls-static STATIC ${MONO_BTLS_SOURCES})
+	install (
+		TARGETS mono-btls-static
+		ARCHIVE DESTINATION lib
+	)
+endif ()
 
 include (CMakeMacros.txt)
-create_libtool (mono-btls-static ${PROJECT_SOURCE_DIR}/libmono-btls.la.in false true mono-btls-shared mono-btls-static ${PROJECT_BINARY_DIR})
-create_libtool (mono-btls-uninstalled ${PROJECT_SOURCE_DIR}/libmono-btls.la.in true false mono-btls-shared mono-btls-static ${PROJECT_BINARY_DIR})
-create_libtool (mono-btls ${PROJECT_SOURCE_DIR}/libmono-btls.la.in true true mono-btls-shared mono-btls-static ${CMAKE_INSTALL_PREFIX}/lib)
+
+if (BUILD_SHARED_LIBS)
+	create_libtool (mono-btls-shared ${PROJECT_SOURCE_DIR}/libmono-btls.la.in true false mono-btls-shared mono-btls-static ${PROJECT_BINARY_DIR})
+	install (
+		FILES ${PROJECT_BINARY_DIR}/libmono-btls-shared.la
+		DESTINATION lib
+	)
+else ()
+	create_libtool (mono-btls-static ${PROJECT_SOURCE_DIR}/libmono-btls.la.in false true mono-btls-shared mono-btls-static ${PROJECT_BINARY_DIR})
+endif ()
+
