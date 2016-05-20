@@ -27,9 +27,9 @@ clean-local:
 	-rm -rf build-static
 	-rm -rf build-shared
 
-install-exec-hook: $(BTLS_DEPS)
-	$(MAKE) -C build-static install
-	$(MAKE) -C build-shared install
+#install-exec-hook: $(BTLS_DEPS)
+#	$(MAKE) -C build-static install
+#	$(MAKE) -C build-shared install
 
 if PLATFORM_ANDROID
 martin_test_programs =

@@ -62,19 +62,19 @@ if (BUILD_SHARED_LIBS)
 	set_target_properties (mono-btls-shared PROPERTIES RULE_LAUNCH_LINK
 		"${PROJECT_SOURCE_DIR}/create-object-library.sh ${CMAKE_BINARY_DIR} mono-btls-objects.txt libmono-btls-shared.a <OBJECTS> --"
 	)
-	install (
-		TARGETS mono-btls-shared
-		LIBRARY DESTINATION lib
-	)
+#	install (
+#		TARGETS mono-btls-shared
+#		LIBRARY DESTINATION lib
+#	)
 else ()
 	add_library (mono-btls-static STATIC ${MONO_BTLS_SOURCES})
 	set_target_properties (mono-btls-static PROPERTIES RULE_LAUNCH_LINK
 		"${PROJECT_SOURCE_DIR}/create-object-library.sh ${CMAKE_BINARY_DIR} mono-btls-static.txt libmono-btls-static.a <OBJECTS> --"
 	)
-	install (
-		TARGETS mono-btls-static
-		ARCHIVE DESTINATION lib
-	)
+#	install (
+#		TARGETS mono-btls-static
+#		ARCHIVE DESTINATION lib
+#	)
 endif ()
 
 #include (CMakeMacros.txt)
