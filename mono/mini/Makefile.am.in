@@ -7,8 +7,8 @@ libgc_libs=$(monodir)/libgc/libmonogc.la
 libgc_static_libs=$(monodir)/libgc/libmonogc-static.la
 
 if BTLS
-btls_libs = ../../btls/build/libmono-btls.la
-btls_static_libs = ../../btls/build/libmono-btls-static.la
+#btls_libs = ../../btls/build/libmono-btls.la
+#btls_static_libs = ../../btls/build/libmono-btls-static.la
 endif
 
 boehm_libs=	\
