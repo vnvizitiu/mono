@@ -68,6 +68,9 @@ if (BUILD_SHARED_LIBS)
 	)
 else ()
 	add_library (mono-btls-static STATIC ${MONO_BTLS_SOURCES})
+	set_target_properties (mono-btls-static PROPERTIES RULE_LAUNCH_LINK
+		"${PROJECT_SOURCE_DIR}/create-object-library.sh ${CMAKE_BINARY_DIR} mono-btls-static.txt libmono-btls-static.a <OBJECTS> --"
+	)
 	install (
 		TARGETS mono-btls-static
 		ARCHIVE DESTINATION lib

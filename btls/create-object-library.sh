@@ -4,7 +4,9 @@ DIR=$1; shift
 FILELIST=$1; shift
 TARGET=$1; shift
 
-rm -f $FILELIST $TARGET
+test -f $TARGET && exit 0
+
+rm -f $FILELIST
 
 while [ "$1" != "--" ]; do
 	file=$1; shift
