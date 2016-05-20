@@ -2582,8 +2582,37 @@ if test "x$enable_btls" = "xyes"; then
    BTLS_ROOT=`cd $srcdir/external/boringssl && pwd`
    AC_SUBST(BTLS_ROOT)
 
-   if test "x$with_btls_cmake_args" != "x"; then
-      BTLS_CMAKE_ARGS=$with_btls_cmake_args
+   btls_android=no
+   if test "x$with_btls_platform" != "x"; then
+      case "$with_btls_platform" in
+	  android-armv7)
+	     btls_android=yes
+		 btls_android_abi=armeabi-v7a
+	     ;;
+      android-v8a)
+	     btls_android=yes
+		 btls_android_abi=arm64-v8a
+		 ;;
+      android-x86)
+	     btls_android=yes
+		 btls_android_abi=x86
+		 ;;
+      android-x64)
+	     btls_android=yes
+		 btls_android_abi=x86_64
+		 ;;
+      mac)
+	     btls_android=no
+		 ;;
+      *)
+	     AC_MSG_ERROR(Invalid BTLS platform)
+      esac
+   fi
+   if test "x$btls_android" = "xyes"; then
+      BTLS_CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=$BTLS_ROOT/util/android-cmake/android.toolchain.cmake -DANDROID_ABI=\"$btls_android_abi\" -DANDROID_NATIVE_API_LEVEL=12"
+      if test "x$with_btls_android_ndk" != "x"; then
+         BTLS_CMAKE_ARGS="$BTLS_CMAKE_ARGS -DANDROID_NDK=\"$with_btls_android_ndk\""
+      fi
    else
       BTLS_CMAKE_ARGS=
    fi
