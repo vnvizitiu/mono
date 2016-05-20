@@ -39,8 +39,9 @@ endif
 endif
 
 if BTLS
-btls_libs = ../../btls/build/libmono-btls-shared.a
-btls_static_libs = ../../btls/build/libmono-btls-static.la
+btls_static_libs = ../../btls/build-static/libmono-btls-static.a
+btls_file_list := $(shell cat ../../btls/build-shared/mono-btls-objects.txt)
+btls_libs = $(btls_file_list)
 endif
 
 #

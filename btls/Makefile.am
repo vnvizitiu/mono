@@ -11,7 +11,7 @@ all-local: $(BTLS_LIBS)
 
 build-shared/Makefile:
 	-mkdir -p build-shared
-	(cd build-shared && $(CMAKE) $(CMAKE_ARGS) $(BTLS_CMAKE_ARGS) -dBUILD_SHARED_LIBS=1 $(abs_top_srcdir)/btls)
+	(cd build-shared && $(CMAKE) $(CMAKE_ARGS) $(BTLS_CMAKE_ARGS) -DBUILD_SHARED_LIBS=1 $(abs_top_srcdir)/btls)
 
 build-static/Makefile:
 	-mkdir -p build-static

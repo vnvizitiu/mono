@@ -1,17 +1,15 @@
 #!/bin/sh
 
 DIR=$1; shift
+FILELIST=$1; shift
 TARGET=$1; shift
 
-TMPFILE=`mktemp` || exit 1
-trap "rm -f $TMPFILE" EXIT
+rm -f $FILELIST $TARGET
 
 while [ "$1" != "--" ]; do
 	file=$1; shift
-	echo "$file " >> $TMPFILE
+	echo "$DIR/$file " >> $FILELIST
 done
 
-rm -f $TARGET
-(cd $DIR && ar cr $TARGET `cat $TMPFILE`)
-
+(cd $DIR && ar cr $TARGET `cat $FILELIST`)
 
