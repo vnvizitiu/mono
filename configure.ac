@@ -2575,6 +2575,10 @@ if test "x$enable_btls" = "xyes"; then
    btls_android=no
    if test "x$with_btls_platform" != "x"; then
       case "$with_btls_platform" in
+	  android-armv6)
+		btls_android=yes
+		btls_android_abi=armeabi
+		;;
 	  android-armv7)
 	     btls_android=yes
 		 btls_android_abi=armeabi-v7a
