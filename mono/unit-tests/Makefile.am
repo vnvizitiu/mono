@@ -7,17 +7,13 @@ if PLATFORM_DARWIN
 test_ldflags = -framework CoreFoundation -framework Foundation
 endif
 
-if BTLS
-btls_libs = ../../btls/build/libmono-btls.la
-endif
-
 if !CROSS_COMPILE
 if !HOST_WIN32
 if SUPPORT_BOEHM
 
 noinst_LTLIBRARIES = libtestlib.la
 libtestlib_la_SOURCES =
-libtestlib_la_LIBADD = ../metadata/libmonoruntimesgen.la ../sgen/libmonosgen.la ../utils/libmonoutils.la ../io-layer/libwapi.la  $(btls_libs)
+libtestlib_la_LIBADD = ../metadata/libmonoruntimesgen.la ../sgen/libmonosgen.la ../utils/libmonoutils.la ../io-layer/libwapi.la
 
 test_sgen_qsort_SOURCES = test-sgen-qsort.c
 test_sgen_qsort_CFLAGS = $(test_cflags)
