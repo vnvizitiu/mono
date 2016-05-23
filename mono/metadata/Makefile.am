@@ -39,8 +39,8 @@ endif
 endif
 
 if BTLS
-btls_file_list := $(shell cat ../../btls/build-shared/mono-btls-objects.txt)
-btls_static_file_list := $(shell cat ../../btls/build-static/mono-btls-static.txt)
+btls_file_list := $(shell cat ../../btls/build-shared/mono-btls-shared-lo.txt)
+btls_static_file_list := $(shell cat ../../btls/build-static/mono-btls-static-lo.txt)
 btls_libs = $(btls_file_list)
 btls_static_libs = $(btls_static_file_list)
 endif
@@ -322,7 +322,7 @@ pedump_SOURCES =		\
 	pedump.c
 
 pedump_LDADD = libmonoruntime.la ../io-layer/libwapi.la ../utils/libmonoutils.la \
-	$(LIBGC_LIBS) $(GLIB_LIBS) -lm $(LIBICONV) $(PEDUMP_DTRACE_OBJECT) $(btls_static_libs)
+	$(LIBGC_LIBS) $(GLIB_LIBS) -lm $(LIBICONV) $(PEDUMP_DTRACE_OBJECT)
 
 if PLATFORM_DARWIN
 pedump_LDFLAGS=-framework CoreFoundation -framework Foundation
