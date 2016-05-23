@@ -264,7 +264,7 @@ libmonoruntime_la_LIBADD = libmonoruntime-config.la $(btls_libs)
 
 libmonoruntimesgen_la_SOURCES = $(common_sources) $(gc_dependent_sources) $(sgen_sources)
 libmonoruntimesgen_la_CFLAGS = $(SGEN_DEFINES)
-libmonoruntimesgen_la_LIBADD = libmonoruntime-config.la
+libmonoruntimesgen_la_LIBADD = libmonoruntime-config.la $(btls_libs)
 
 libmonoruntime_static_la_SOURCES = $(libmonoruntime_la_SOURCES)
 libmonoruntime_static_la_LDFLAGS = -static

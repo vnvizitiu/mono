@@ -6,16 +6,11 @@ monodir=$(top_builddir)
 libgc_libs=$(monodir)/libgc/libmonogc.la
 libgc_static_libs=$(monodir)/libgc/libmonogc-static.la
 
-if BTLS
-#btls_libs = ../../btls/build/libmono-btls.la
-#btls_static_libs = ../../btls/build/libmono-btls-static.la
-endif
-
 boehm_libs=	\
 	$(monodir)/mono/metadata/libmonoruntime.la	\
 	$(monodir)/mono/io-layer/libwapi.la	\
 	$(monodir)/mono/utils/libmonoutils.la \
-	$(GLIB_LIBS) $(LIBICONV) $(btls_libs) \
+	$(GLIB_LIBS) $(LIBICONV) \
 	$(libgc_libs)
 
 sgen_libs = \
@@ -23,13 +18,13 @@ sgen_libs = \
 	$(monodir)/mono/sgen/libmonosgen.la	\
 	$(monodir)/mono/io-layer/libwapi.la	\
 	$(monodir)/mono/utils/libmonoutils.la \
-	$(GLIB_LIBS) $(LIBICONV) $(btls_libs)
+	$(GLIB_LIBS) $(LIBICONV)
 
 boehm_static_libs=	\
 	$(monodir)/mono/metadata/libmonoruntime-static.la	\
 	$(monodir)/mono/io-layer/libwapi.la	\
 	$(monodir)/mono/utils/libmonoutils.la \
-	$(GLIB_LIBS) $(LIBICONV) $(btls_static_libs) \
+	$(GLIB_LIBS) $(LIBICONV) \
 	$(libgc_static_libs)
 
 sgen_static_libs = \
@@ -37,7 +32,7 @@ sgen_static_libs = \
 	$(monodir)/mono/sgen/libmonosgen-static.la	\
 	$(monodir)/mono/io-layer/libwapi.la	\
 	$(monodir)/mono/utils/libmonoutils.la \
-	$(GLIB_LIBS) $(LIBICONV) $(btls_static_libs)
+	$(GLIB_LIBS) $(LIBICONV)
 
 CLASS=$(mcs_topdir)/class/lib/$(DEFAULT_PROFILE)
 
