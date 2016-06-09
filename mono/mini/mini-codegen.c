@@ -722,6 +722,36 @@ mono_print_ins_index_strbuf (int i, MonoInst *ins)
 	case OP_SEQ_POINT:
 		g_string_append_printf (sbuf, " il: 0x%x%s", (int)ins->inst_imm, ins->flags & MONO_INST_NONEMPTY_STACK ? ", nonempty-stack" : "");
 		break;
+	case OP_COND_EXC_EQ:
+	case OP_COND_EXC_GE:
+	case OP_COND_EXC_GT:
+	case OP_COND_EXC_LE:
+	case OP_COND_EXC_LT:
+	case OP_COND_EXC_NE_UN:
+	case OP_COND_EXC_GE_UN:
+	case OP_COND_EXC_GT_UN:
+	case OP_COND_EXC_LE_UN:
+	case OP_COND_EXC_LT_UN:
+	case OP_COND_EXC_OV:
+	case OP_COND_EXC_NO:
+	case OP_COND_EXC_C:
+	case OP_COND_EXC_NC:
+	case OP_COND_EXC_IEQ:
+	case OP_COND_EXC_IGE:
+	case OP_COND_EXC_IGT:
+	case OP_COND_EXC_ILE:
+	case OP_COND_EXC_ILT:
+	case OP_COND_EXC_INE_UN:
+	case OP_COND_EXC_IGE_UN:
+	case OP_COND_EXC_IGT_UN:
+	case OP_COND_EXC_ILE_UN:
+	case OP_COND_EXC_ILT_UN:
+	case OP_COND_EXC_IOV:
+	case OP_COND_EXC_INO:
+	case OP_COND_EXC_IC:
+	case OP_COND_EXC_INC:
+		g_string_append_printf (sbuf, " %s", ins->inst_p1);
+		break;
 	default:
 		break;
 	}
@@ -850,11 +880,6 @@ spill_vreg (MonoCompile *cfg, MonoBasicBlock *bb, MonoInst **last, MonoInst *ins
 	else
 		mono_regstate_free_int (rs, sel);
 }
-
-/* This isn't defined on older glib versions and on some platforms */
-#ifndef G_GUINT64_FORMAT
-#define G_GUINT64_FORMAT "ul"
-#endif
 
 static int
 get_register_spilling (MonoCompile *cfg, MonoBasicBlock *bb, MonoInst **last, MonoInst *ins, regmask_t regmask, int reg, int bank)

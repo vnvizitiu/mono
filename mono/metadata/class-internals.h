@@ -905,7 +905,7 @@ typedef struct {
 
 extern MonoStats mono_stats;
 
-typedef gpointer (*MonoRemotingTrampoline)       (MonoDomain *domain, MonoMethod *method, MonoRemotingTarget target);
+typedef gpointer (*MonoRemotingTrampoline)       (MonoDomain *domain, MonoMethod *method, MonoRemotingTarget target, MonoError *error);
 typedef gpointer (*MonoDelegateTrampoline)       (MonoDomain *domain, MonoClass *klass);
 
 typedef gboolean (*MonoGetCachedClassInfo) (MonoClass *klass, MonoCachedClassInfo *res);
@@ -1005,7 +1005,7 @@ gpointer
 mono_lookup_dynamic_token_class (MonoImage *image, guint32 token, gboolean check_token, MonoClass **handle_class, MonoGenericContext *context, MonoError *error);
 
 gpointer
-mono_runtime_create_jump_trampoline (MonoDomain *domain, MonoMethod *method, gboolean add_sync_wrapper);
+mono_runtime_create_jump_trampoline (MonoDomain *domain, MonoMethod *method, gboolean add_sync_wrapper, MonoError *error);
 
 gpointer
 mono_runtime_create_delegate_trampoline (MonoClass *klass);
@@ -1097,7 +1097,6 @@ typedef struct {
 	MonoClass *fieldhandle_class;
 	MonoClass *methodhandle_class;
 	MonoClass *systemtype_class;
-	MonoClass *monotype_class;
 	MonoClass *runtimetype_class;
 	MonoClass *exception_class;
 	MonoClass *threadabortexception_class;

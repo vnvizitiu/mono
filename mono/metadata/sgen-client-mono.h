@@ -64,12 +64,7 @@ struct _SgenClientThreadInfo {
 	void *stack_start;
 	void *stack_start_limit;
 
-	/*FIXME pretty please finish killing ARCH_NUM_REGS */
-#ifdef USE_MONO_CTX
 	MonoContext ctx;		/* ditto */
-#else
-	gpointer regs[ARCH_NUM_REGS];	    /* ditto */
-#endif
 };
 
 #else
@@ -694,6 +689,11 @@ sgen_client_binary_protocol_concurrent_sweep_end (long long timestamp)
 {
 }
 
+static void G_GNUC_UNUSED
+sgen_client_binary_protocol_header (long long check, int version, int ptr_size, gboolean little_endian)
+{
+}
+
 int sgen_thread_handshake (BOOL suspend);
 gboolean sgen_suspend_thread (SgenThreadInfo *info);
 gboolean sgen_resume_thread (SgenThreadInfo *info);
@@ -722,6 +722,17 @@ extern MonoNativeTlsKey thread_info_key;
  * We don't need to emit a full barrier since we
  */
 #define EXIT_CRITICAL_REGION  do { mono_atomic_store_release (&IN_CRITICAL_REGION, 0); } while (0)
+
+#ifndef DISABLE_CRITICAL_REGION
+/*
+ * We can only use a critical region in the managed allocator if the JIT supports OP_ATOMIC_STORE_I4.
+ *
+ * TODO: Query the JIT instead of this ifdef hack.
+ */
+#if defined (TARGET_X86) || defined (TARGET_AMD64) || (defined (TARGET_ARM) && defined (HAVE_ARMV7)) || defined (TARGET_ARM64)
+#define MANAGED_ALLOCATOR_CAN_USE_CRITICAL_REGION
+#endif
+#endif
 
 #define SGEN_TV_DECLARE(name) gint64 name
 #define SGEN_TV_GETTIME(tv) tv = mono_100ns_ticks ()
