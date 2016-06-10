@@ -23,11 +23,15 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+#if SECURITY_DEP
 using System;
 using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
-using ObjCRuntime;
+
+#if MONOTOUCH
+using MonoTouch;
+#endif
 
 namespace Mono.Btls
 {
@@ -221,7 +225,9 @@ namespace Mono.Btls
 			}
 		}
 
+#if MONOTOUCH
 		[MonoPInvokeCallback (typeof (BioIOFunc))]
+#endif
 		static int OnRead (IntPtr instance, IntPtr data, int dataLength)
 		{
 			var c = (MonoBtlsBioMono)GCHandle.FromIntPtr (instance).Target;
@@ -233,7 +239,9 @@ namespace Mono.Btls
 			}
 		}
 
+#if MONOTOUCH
 		[MonoPInvokeCallback (typeof (BioIOFunc))]
+#endif
 		static int OnWrite (IntPtr instance, IntPtr data, int dataLength)
 		{
 			var c = (MonoBtlsBioMono)GCHandle.FromIntPtr (instance).Target;
@@ -245,7 +253,9 @@ namespace Mono.Btls
 			}
 		}
 
+#if MONOTOUCH
 		[MonoPInvokeCallback (typeof (BioControlFunc))]
+#endif
 		static long Control (IntPtr instance, ControlCommand command, long arg)
 		{
 			var c = (MonoBtlsBioMono)GCHandle.FromIntPtr (instance).Target;
@@ -344,4 +354,4 @@ namespace Mono.Btls
 		}
 	}
 }
-
+#endif

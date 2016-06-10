@@ -23,11 +23,15 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+#if SECURITY_DEP
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
-using ObjCRuntime;
+
+#if MONOTOUCH
+using MonoTouch;
+#endif
 
 namespace Mono.Btls
 {
@@ -118,28 +122,36 @@ namespace Mono.Btls
 			mono_btls_x509_lookup_method_mono_set_by_fingerprint_func (Handle, byFingerPrintFunc);
 		}
 
+#if MONOTOUCH
 		[MonoPInvokeCallback (typeof (InitFunc))]
+#endif
 		static int OnInit (IntPtr instance)
 		{
 			Console.WriteLine ("LOOKUP METHOD - ON INIT");
 			return 1;
 		}
 
+#if MONOTOUCH
 		[MonoPInvokeCallback (typeof (NewItemFunc))]
+#endif
 		static int OnNewItem (IntPtr instance)
 		{
 			Console.WriteLine ("LOOKUP METHOD - ON NEW ITEM");
 			return 1;
 		}
 
+#if MONOTOUCH
 		[MonoPInvokeCallback (typeof (ShutdownFunc))]
+#endif
 		static int OnShutdown (IntPtr instance)
 		{
 			Console.WriteLine ("LOOKUP METHOD - ON SHUTDOWN");
 			return 1;
 		}
 
+#if MONOTOUCH
 		[MonoPInvokeCallback (typeof (BySubjectFunc))]
+#endif
 		static int OnGetBySubject (IntPtr instance, IntPtr name_ptr, out IntPtr x509_ptr)
 		{
 			try {
@@ -188,7 +200,9 @@ namespace Mono.Btls
 			return x509;
 		}
 
+#if MONOTOUCH
 		[MonoPInvokeCallback (typeof (ByFingerPrintFunc))]
+#endif
 		static int OnGetByFingerPrint (IntPtr instance, IntPtr data_ptr, int len, out IntPtr x509_ptr)
 		{
 			try {
@@ -213,7 +227,7 @@ namespace Mono.Btls
 		MonoBtlsX509 GetByFingerPrint (byte [] fingerprint)
 		{
 			Console.WriteLine ("GET BY FINGERPRINT");
-			DebugHelper.WriteLine ("FINGERPRINT", fingerprint);
+			// DebugHelper.WriteLine ("FINGERPRINT", fingerprint);
 			// var x509 = MartinTest.GetCACertificate ().Copy ();
 			// x509.Test ();
 			// return x509;
@@ -231,4 +245,4 @@ namespace Mono.Btls
 		}
 	}
 }
-
+#endif

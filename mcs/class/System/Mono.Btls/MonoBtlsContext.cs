@@ -23,13 +23,13 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+#if SECURITY_DEP
 #if MONO_SECURITY_ALIAS
 extern alias MonoSecurity;
 #endif
 
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Cryptography.X509Certificates;
@@ -185,7 +185,9 @@ namespace Mono.Btls
 			ctx.SetMaxVersion (maxProtocol);
 
 			if (Settings != null && Settings.EnabledCiphers != null) {
-				var ciphers = Settings.EnabledCiphers.Select (c => (short)c).ToArray ();
+				var ciphers = new short [Settings.EnabledCiphers.Length];
+				for (int i = 0; i < ciphers.Length; i++)
+					ciphers [i] = (short)Settings.EnabledCiphers [i];
 				ctx.SetCiphers (ciphers, true);
 			}
 		}
@@ -279,4 +281,4 @@ namespace Mono.Btls
 		#endregion
 	}
 }
-
+#endif

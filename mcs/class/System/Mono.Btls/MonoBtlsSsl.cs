@@ -23,12 +23,16 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+#if SECURITY_DEP
 using System;
 using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
-using ObjCRuntime;
 using System.Runtime.CompilerServices;
+
+#if MONOTOUCH
+using MonoTouch;
+#endif
 
 namespace Mono.Btls
 {
@@ -184,7 +188,9 @@ namespace Mono.Btls
 
 		delegate int PrintErrorsCallbackFunc (IntPtr str, IntPtr len, IntPtr ctx);
 
+#if MONOTOUCH
 		[MonoPInvokeCallback (typeof (PrintErrorsCallbackFunc))]
+#endif
 		static int PrintErrorsCallback (IntPtr str, IntPtr len, IntPtr ctx)
 		{
 			var sb = (StringBuilder)GCHandle.FromIntPtr (ctx).Target;
@@ -315,4 +321,4 @@ namespace Mono.Btls
 		}
 	}
 }
-
+#endif
