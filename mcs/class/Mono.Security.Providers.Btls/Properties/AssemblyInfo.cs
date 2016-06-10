@@ -24,30 +24,24 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+using System;
 using System.Reflection;
+using System.Resources;
+using System.Security;
+using System.Security.Permissions;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
-// Information about this assembly is defined by the following attributes. 
-// Change them to the values specific to your project.
+// General Information about the system assembly
 
-[assembly: AssemblyTitle ("Mono.Security.Providers.Btls")]
-[assembly: AssemblyDescription ("")]
-[assembly: AssemblyConfiguration ("")]
-[assembly: AssemblyCompany ("")]
-[assembly: AssemblyProduct ("")]
-[assembly: AssemblyCopyright ("Xamarin Inc. (http://www.xamarin.com)")]
-[assembly: AssemblyTrademark ("")]
-[assembly: AssemblyCulture ("")]
+[assembly: AssemblyVersion (Consts.FxVersion)]
 
-// The assembly version has the format "{Major}.{Minor}.{Build}.{Revision}".
-// The form "{Major}.{Minor}.*" will automatically update the build and revision,
-// and "{Major}.{Minor}.{Build}.*" will update just the revision.
-
-[assembly: AssemblyVersion ("1.0.*")]
-
-// The following attributes are used to specify the signing key for the assembly, 
-// if desired. See the Mono documentation for more information about signing.
-
-//[assembly: AssemblyDelaySign(false)]
-//[assembly: AssemblyKeyFile("")]
+[assembly: AssemblyCompany ("MONO development team")]
+[assembly: AssemblyCopyright ("(c) 2016 Xamarin")]
+[assembly: AssemblyDescription ("Mono.Security.Providers.Btls.dll")]
+[assembly: AssemblyProduct ("MONO CLI")]
+[assembly: AssemblyTitle ("Mono.Security.Providers.Btls.dll")]
+[assembly: CLSCompliant (true)]
+[assembly: ComVisible (false)]
+[assembly: NeutralResourcesLanguage ("en-US")]
 
