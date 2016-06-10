@@ -1,0 +1,343 @@
+﻿//
+// X509CertificateImplBtls.cs
+//
+// Author:
+//       Martin Baulig <martin.baulig@xamarin.com>
+//
+// Copyright (c) 2016 Xamarin Inc. (http://www.xamarin.com)
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+using System;
+using System.Text;
+using System.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using MX = Mono.Security.X509;
+
+namespace Mono.Btls
+{
+	class X509CertificateImplBtls : X509Certificate2Impl
+	{
+		MonoBtlsX509 x509;
+		MonoBtlsKey privateKey;
+		X500DistinguishedName subjectName;
+		X500DistinguishedName issuerName;
+		PublicKey publicKey;
+		bool archived;
+		bool disallowFallback;
+
+		public X509CertificateImplBtls (MonoBtlsX509 x509, bool disallowFallback = false)
+		{
+			this.disallowFallback = disallowFallback;
+			this.x509 = x509.Copy ();
+		}
+
+		internal X509CertificateImplBtls (MonoBtlsX509 x509, MonoBtlsKey key, bool disallowFallback = false)
+		{
+			this.disallowFallback = disallowFallback;
+			this.x509 = x509.Copy ();
+			this.privateKey = key != null ? key.Copy () : null;
+		}
+
+		internal X509CertificateImplBtls (byte[] data, MonoBtlsX509Format format, bool disallowFallback = false)
+		{
+			this.disallowFallback = disallowFallback;
+			x509 = MonoBtlsX509.LoadFromData (data, format);
+		}
+
+		public override bool IsValid {
+			get { return x509 != null && x509.IsValid; }
+		}
+
+		public override IntPtr Handle {
+			get { return x509.Handle.DangerousGetHandle (); }
+		}
+
+		public override IntPtr GetNativeAppleCertificate ()
+		{
+			return IntPtr.Zero;
+		}
+
+		internal MonoBtlsX509 X509 {
+			get {
+				ThrowIfContextInvalid ();
+				return x509;
+			}
+		}
+
+		internal MonoBtlsKey NativePrivateKey {
+			get {
+				ThrowIfContextInvalid ();
+				return privateKey;
+			}
+		}
+
+		public override X509CertificateImpl Clone ()
+		{
+			ThrowIfContextInvalid ();
+			return new X509CertificateImplBtls (x509, privateKey, disallowFallback);
+		}
+
+		public override bool Equals (X509CertificateImpl other, out bool result)
+		{
+			var otherBoringImpl = other as X509CertificateImplBtls;
+			if (otherBoringImpl == null) {
+				result = false;
+				return false;
+			}
+
+			result = MonoBtlsX509.Compare (X509, otherBoringImpl.X509) == 0;
+			return true;
+		}
+
+		protected override byte [] GetCertHash (bool lazy)
+		{
+			return X509.GetCertHash ();
+		}
+
+		public override byte [] GetRawCertData ()
+		{
+			return X509.GetRawData ();
+		}
+
+		public override string GetSubjectName (bool legacyV1Mode)
+		{
+			if (legacyV1Mode)
+				return SubjectName.Decode (X500DistinguishedNameFlags.None);
+			return SubjectName.Name;
+		}
+
+		public override string GetIssuerName (bool legacyV1Mode)
+		{
+			if (legacyV1Mode)
+				return IssuerName.Decode (X500DistinguishedNameFlags.None);
+			return IssuerName.Name;
+		}
+
+		public override DateTime GetValidFrom ()
+		{
+			return X509.GetNotBefore ().ToLocalTime ();
+		}
+
+		public override DateTime GetValidUntil ()
+		{
+			return X509.GetNotAfter ().ToLocalTime ();
+		}
+
+		public override byte[] GetPublicKey ()
+		{
+			return X509.GetPublicKeyData ();
+		}
+
+		public override byte[] GetSerialNumber ()
+		{
+			return X509.GetSerialNumber (true);
+		}
+
+		public override string GetKeyAlgorithm ()
+		{
+			return PublicKey.Oid.Value;
+		}
+
+		public override byte[] GetKeyAlgorithmParameters ()
+		{
+			return PublicKey.EncodedParameters.RawData;
+		}
+
+		public override byte [] Export (X509ContentType contentType, byte [] password)
+		{
+			ThrowIfContextInvalid ();
+
+			switch (contentType) {
+			case X509ContentType.Cert:
+				return GetRawCertData ();
+			case X509ContentType.Pfx: // this includes Pkcs12
+				// TODO
+				throw new NotSupportedException ();
+			case X509ContentType.SerializedCert:
+				// TODO
+				throw new NotSupportedException ();
+			default:
+				string msg = Locale.GetText ("This certificate format '{0}' cannot be exported.", contentType);
+				throw new CryptographicException (msg);
+			}
+		}
+
+		public override string ToString (bool full)
+		{
+			ThrowIfContextInvalid ();
+
+			if (!full) {
+				var summary = GetSubjectName (false);
+				return string.Format ("[X509Certificate: {0}]", summary);
+			}
+
+			string nl = Environment.NewLine;
+			StringBuilder sb = new StringBuilder ();
+			sb.AppendFormat ("[Subject]{0}  {1}{0}{0}", nl, GetSubjectName (false));
+
+			sb.AppendFormat ("[Issuer]{0}  {1}{0}{0}", nl, GetIssuerName (false));
+			sb.AppendFormat ("[Not Before]{0}  {1}{0}{0}", nl, GetValidFrom ().ToLocalTime ());
+			sb.AppendFormat ("[Not After]{0}  {1}{0}{0}", nl, GetValidUntil ().ToLocalTime ());
+			sb.AppendFormat ("[Thumbprint]{0}  {1}{0}", nl, X509Helper.ToHexString (GetCertHash ()));
+
+			sb.Append (nl);
+			return sb.ToString ();
+		}
+
+		protected override void Dispose (bool disposing)
+		{
+			if (x509 != null) {
+				x509.Dispose ();
+				x509 = null;
+			}
+		}
+
+		#region X509Certificate2Impl
+
+		X509Certificate2Impl fallback;
+
+		void MustFallback ()
+		{
+			if (disallowFallback)
+				throw new InvalidOperationException ();
+			if (fallback != null)
+				return;
+			fallback = X509Helper2.Import (GetRawCertData (), null, X509KeyStorageFlags.DefaultKeySet);
+		}
+
+		internal X509Certificate2Impl FallbackImpl {
+			get {
+				MustFallback ();
+				return fallback;
+			}
+		}
+
+		[MonoTODO]
+		public override bool Archived {
+			get {
+				ThrowIfContextInvalid ();
+				return archived;
+			}
+			set {
+				ThrowIfContextInvalid ();
+				archived = value;
+			}
+		}
+
+		public override X509ExtensionCollection Extensions {
+			get { return FallbackImpl.Extensions; }
+		}
+
+		public override bool HasPrivateKey {
+			get { return FallbackImpl.HasPrivateKey; }
+		}
+
+		public override X500DistinguishedName IssuerName {
+			get {
+				ThrowIfContextInvalid ();
+				if (issuerName == null) {
+					using (var xname = x509.GetIssuerName ()) {
+						var encoding = xname.GetRawData (false);
+						var canonEncoding = xname.GetRawData (true);
+						var name = MonoBtlsUtils.FormatName (xname, true, ", ", true);
+						issuerName = new X500DistinguishedName (encoding, canonEncoding, name);
+					}
+				}
+				return issuerName;
+			}
+		}
+
+		public override AsymmetricAlgorithm PrivateKey {
+			get { return FallbackImpl.PrivateKey; }
+			set { FallbackImpl.PrivateKey = value; }
+		}
+
+		public override PublicKey PublicKey {
+			get {
+				ThrowIfContextInvalid ();
+				if (publicKey == null) {
+					var keyAsn = X509.GetPublicKeyAsn1 ();
+					var keyParamAsn = X509.GetPublicKeyParameters ();
+					publicKey = new PublicKey (keyAsn.Oid, keyParamAsn, keyAsn);
+				}
+				return publicKey;
+			}
+		}
+
+		public override Oid SignatureAlgorithm {
+			get {
+				ThrowIfContextInvalid ();
+				return X509.GetSignatureAlgorithm ();
+			}
+		}
+
+		public override X500DistinguishedName SubjectName {
+			get {
+				ThrowIfContextInvalid ();
+				if (subjectName == null) {
+					using (var xname = x509.GetSubjectName ()) {
+						var encoding = xname.GetRawData (false);
+						var canonEncoding = xname.GetRawData (true);
+						var name = MonoBtlsUtils.FormatName (xname, true, ", ", true);
+						subjectName = new X500DistinguishedName (encoding, canonEncoding, name);
+					}
+				}
+				return subjectName;
+			}
+		}
+
+		public override int Version {
+			get { return X509.GetVersion (); }
+		}
+
+		public override string GetNameInfo (X509NameType nameType, bool forIssuer)
+		{
+			return FallbackImpl.GetNameInfo (nameType, forIssuer);
+		}
+
+		public override void Import (byte [] rawData, string password, X509KeyStorageFlags keyStorageFlags)
+		{
+			FallbackImpl.Import (rawData, password, keyStorageFlags);
+		}
+
+		public override byte [] Export (X509ContentType contentType, string password)
+		{
+			return FallbackImpl.Export (contentType, password);
+		}
+
+		public override bool Verify (X509Certificate2 thisCertificate)
+		{
+			return FallbackImpl.Verify (thisCertificate);
+		}
+
+		public override void Reset ()
+		{
+			subjectName = null;
+			issuerName = null;
+			archived = false;
+			publicKey = null;
+			if (fallback != null)
+				fallback.Reset ();
+		}
+
+		#endregion
+	}
+}
+
