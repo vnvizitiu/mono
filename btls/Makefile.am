@@ -1,11 +1,11 @@
 BTLS_STATIC_LIBS = build-static/libmono-btls-static.a
 BTLS_SHARED_LIBS = build-shared/libmono-btls-shared.la
 BTLS_LIBS = $(BTLS_STATIC_LIBS) $(BTLS_SHARED_LIBS)
-BTLS_CFLAGS = -I$(top_srcdir)/external/boringssl/include -I$(srcdir)
+BTLS_CFLAGS = -I$(top_srcdir)/external/boringssl/include
 
 BTLS_DEPS = $(BTLS_LIBS) build-shared/Makefile build-static/Makefile
 
-CMAKE_ARGS = -D CMAKE_INSTALL_PREFIX:PATH=$(prefix) -D BTLS_ROOT:PATH=$(BTLS_ROOT) -D SRC_DIR:PATH=$(srcdir)
+CMAKE_ARGS = -D CMAKE_INSTALL_PREFIX:PATH=$(prefix) -D BTLS_ROOT:PATH=$(BTLS_ROOT) -D SRC_DIR:PATH=$(abs_top_srcdir)/btls
 
 all-local: $(BTLS_LIBS)
 
@@ -31,7 +31,7 @@ clean-local:
 #	$(MAKE) -C build-static install
 #	$(MAKE) -C build-shared install
 
-if CROSS_COMPILE
+if BTLS_ANDROID
 martin_test_programs =
 else
 martin_test_programs = martin-test

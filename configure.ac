@@ -2575,6 +2575,7 @@ AC_ARG_WITH(btls_android_ndk, [  --with-btls-android-ndk        Android NDK for 
 
 AM_CONDITIONAL(BTLS, test x$enable_btls = xyes)
 
+btls_android=no
 if test "x$enable_btls" = "xyes"; then
    AC_PATH_PROG(CMAKE, [cmake], [no])
    if test "x$CMAKE" = "xno"; then
@@ -2584,7 +2585,6 @@ if test "x$enable_btls" = "xyes"; then
    BTLS_ROOT=`cd $srcdir/external/boringssl && pwd`
    AC_SUBST(BTLS_ROOT)
 
-   btls_android=no
    if test "x$with_btls_platform" != "x"; then
       case "$with_btls_platform" in
       android-armv6)
@@ -2626,6 +2626,8 @@ if test "x$enable_btls" = "xyes"; then
 
    AC_DEFINE(HAVE_BTLS, 1, [BoringTls is supported])
 fi
+
+AM_CONDITIONAL(BTLS_ANDROID, test x$btls_android = xyes)
 
 dnl **************************
 dnl *** AOT cross offsets  ***
