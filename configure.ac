@@ -2565,8 +2565,13 @@ dnl *******************
 dnl ***  BoringSsl  ***
 dnl *******************
 
+dnl **************
+dnl ***  Btls  ***
+dnl **************
+
 AC_ARG_ENABLE(btls, [  --enable-blts              Enable the BoringTls provider], enable_btls=yes,)
-AC_ARG_WITH(btls_cmake_args, [  --with-btls-cmake-args         Provide custom cmake args for BoringTls])
+AC_ARG_WITH(btls_platform, [  --with-btls-platform           BoringTls on Android])
+AC_ARG_WITH(btls_android_ndk, [  --with-btls-android-ndk        Android NDK for BoringTls])
 
 AM_CONDITIONAL(BTLS, test x$enable_btls = xyes)
 
@@ -2582,9 +2587,13 @@ if test "x$enable_btls" = "xyes"; then
    btls_android=no
    if test "x$with_btls_platform" != "x"; then
       case "$with_btls_platform" in
-	  android-armv7)
+      android-armv6)
 	     btls_android=yes
-		 btls_android_abi=armeabi-v7a
+	     btls_android_abi=armeabi
+	     ;;
+      android-armv7)
+	     btls_android=yes
+	     btls_android_abi=armeabi-v7a
 	     ;;
       android-v8a)
 	     btls_android=yes
@@ -2616,77 +2625,6 @@ if test "x$enable_btls" = "xyes"; then
    AC_SUBST(BTLS_CMAKE_ARGS)
 
    AC_DEFINE(HAVE_BTLS, 1, [BoringTls is supported])
-fi
-
-AC_ARG_WITH(boringssl, [  --with-boringssl=<boringssl prefix>    Enable the BoringTls provider], enable_boringtls=yes,)
-AC_ARG_WITH(boringssl_cflags, [  --with-boringssl-cflags=<cflags>    Where to find the boringssl headers])
-AC_ARG_WITH(boringssl_libs, [  --with-boringssl-libs=<libs>    Override boringssl library selection])
-
-AM_CONDITIONAL(BORINGTLS, test x$enable_boringtls = xyes)
-
-if test "x$enable_boringtls" = "xyes"; then
-   echo "HAVE BORINGSSL"
-
-   if test "x$with_boringssl_cflags" != "x"; then
-      BTLS_CFLAGS="$with_boringssl_cflags"
-   elif test -f "$with_boringssl/include/openssl/ssl.h"; then
-      BTLS_CFLAGS="-I$with_boringssl/include"
-   else
-      AC_MSG_ERROR("Invalid boringssl prefix.")
-   fi
-
-   if test "x$with_boringssl_libs" != "x"; then
-      BTLS_LIBS="$with_boringssl_libs"
-   elif test -f "$with_boringssl/lib/libssl.a"; then
-      BTLS_LIBS="$with_boringssl/lib/libssl.a $with_boringssl/lib/libcrypto.a"
-   elif test -f "$with_boringssl/build/ssl/libssl.a"; then
-      BTLS_LIBS="$with_boringssl/build/crypto/libcrypto.a $with_boringssl/build/ssl/libssl.a"
-   else
-      AC_MSG_ERROR(Cannot find boringssl libraries)
-   fi
-
-   ORIG_CFLAGS=$CFLAGS
-   CFLAGS="$BTLS_CFLAGS $CFLAGS"
-   AC_MSG_CHECKING(boringssl headers)
-   AC_TRY_COMPILE([#include <openssl/ssl.h>],[
-      #if defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER == 0x10002000) && defined(OPENSSL_IS_BORINGSSL)
-	  return 0;
-	  #else
-      #error "Wrong boringssl version"
-   #endif
-   ],[
-      AC_MSG_RESULT(yes)
-	  have_boringssl_headers=yes
-   ],[
-      AC_MSG_RESULT(no)
-   ])
-   CFLAGS=$ORIG_CFLAGS
-   if test "x$have_boringssl_headers" != "xyes"; then
-     AC_MSG_ERROR(Boringssl is not installed)
-   fi
-
-   ORIG_LIBS=$LIBS
-   ORIG_CFLAGS=$CFLAGS
-   LIBS="$BTLS_LIBS $LIBS"
-   CFLAGS="$BTLS_CFLAGS $CFLAGS"
-   AC_MSG_CHECKING(boringssl library)
-   AC_TRY_LINK([#include <openssl/ssl.h>],[
-      SSL_CTX_new (TLS_method ());
-   ],[
-      AC_MSG_RESULT(yes)
-	  have_boringssl_libs=yes
-   ],[
-      AC_MSG_RESULT(no)
-   ])
-   LIBS=$ORIG_LIBS
-   CFLAGS=$ORIG_CFLAGS
-   if test "x$have_boringssl_libs" != "xyes"; then
-     AC_MSG_ERROR(Boringssl is not installed)
-   fi
-
-   AC_SUBST(BTLS_CFLAGS)
-   AC_SUBST(BTLS_LIBS)
-   AC_DEFINE(ENABLE_BTLS, 1, [BoringTls provider enabled])
 fi
 
 dnl **************************

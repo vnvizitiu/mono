@@ -1,7 +1,7 @@
 BTLS_STATIC_LIBS = build-static/libmono-btls-static.a
 BTLS_SHARED_LIBS = build-shared/libmono-btls-shared.la
 BTLS_LIBS = $(BTLS_STATIC_LIBS) $(BTLS_SHARED_LIBS)
-BTLS_CFLAGS = -I$(top_srcdir)/external/boringssl/include
+BTLS_CFLAGS = -I$(top_srcdir)/external/boringssl/include -I$(srcdir)
 
 BTLS_DEPS = $(BTLS_LIBS) build-shared/Makefile build-static/Makefile
 
