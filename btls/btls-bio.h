@@ -20,10 +20,10 @@ typedef int (* MonoBtlsIOFunc) (const void *instance, const void *buf, int size)
 typedef long (* MonoBtlsControlFunc) (const void *instance, MonoBtlsControlCommand command, long arg);
 
 BIO *
-mono_btls_bio_new (void);
+mono_btls_bio_mono_new (void);
 
 void
-mono_btls_bio_initialize (BIO *bio, const void *instance,
+mono_btls_bio_mono_initialize (BIO *bio, const void *instance,
 			      MonoBtlsIOFunc read_func, MonoBtlsIOFunc write_func,
 			      MonoBtlsControlFunc control_func);
 
@@ -49,7 +49,7 @@ void
 mono_btls_bio_free (BIO *bio);
 
 BIO *
-mono_btls_bio_new_mem (void);
+mono_btls_bio_mem_new (void);
 
 int
 mono_btls_bio_mem_get_data (BIO *bio, void **data);

@@ -27,6 +27,7 @@
 using System;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Mono.Btls
@@ -35,43 +36,48 @@ namespace Mono.Btls
 	{
 		internal class BoringPkcs12Handle : MonoBtlsHandle
 		{
+			public BoringPkcs12Handle (IntPtr handle)
+				: base (handle, true)
+			{
+			}
+
 			protected override bool ReleaseHandle ()
 			{
 				mono_btls_pkcs12_free (handle);
 				return true;
 			}
-
-			[DllImport (DLL)]
-			extern static void mono_btls_pkcs12_free (IntPtr handle);
 		}
 
 		new internal BoringPkcs12Handle Handle {
 			get { return (BoringPkcs12Handle)base.Handle; }
 		}
 
-		[DllImport (DLL)]
-		extern static BoringPkcs12Handle mono_btls_pkcs12_new ();
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_pkcs12_free (IntPtr handle);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_pkcs12_get_count (BoringPkcs12Handle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_pkcs12_new ();
 
-		[DllImport (DLL)]
-		extern static MonoBtlsX509.BoringX509Handle mono_btls_pkcs12_get_cert (BoringPkcs12Handle Handle, int index);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_pkcs12_get_count (IntPtr handle);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_pkcs12_add_cert (BoringPkcs12Handle chain, MonoBtlsX509.BoringX509Handle x509);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_pkcs12_get_cert (IntPtr Handle, int index);
 
-		[DllImport (DLL)]
-		extern unsafe static int mono_btls_pkcs12_import (BoringPkcs12Handle chain, void* data, int len, IntPtr password);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_pkcs12_add_cert (IntPtr chain, IntPtr x509);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_pkcs12_has_private_key (BoringPkcs12Handle pkcs12);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern unsafe static int mono_btls_pkcs12_import (IntPtr chain, void* data, int len, IntPtr password);
 
-		[DllImport (DLL)]
-		extern static MonoBtlsKey.BoringKeyHandle mono_btls_pkcs12_get_private_key (BoringPkcs12Handle pkcs12);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_pkcs12_has_private_key (IntPtr pkcs12);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_pkcs12_get_private_key (IntPtr pkcs12);
 
 		internal MonoBtlsPkcs12 ()
-			: base (mono_btls_pkcs12_new ())
+			: base (new BoringPkcs12Handle (mono_btls_pkcs12_new ()))
 		{
 		}
 
@@ -83,16 +89,16 @@ namespace Mono.Btls
 		MonoBtlsKey privateKey;
 
 		public int Count {
-			get { return mono_btls_pkcs12_get_count (Handle); }
+			get { return mono_btls_pkcs12_get_count (Handle.DangerousGetHandle ()); }
 		}
 
 		public MonoBtlsX509 GetCertificate (int index)
 		{
 			if (index >= Count)
 				throw new IndexOutOfRangeException ();
-			var handle = mono_btls_pkcs12_get_cert (Handle, index);
-			CheckError (handle != null);
-			return new MonoBtlsX509 (handle);
+			var handle = mono_btls_pkcs12_get_cert (Handle.DangerousGetHandle (), index);
+			CheckError (handle != IntPtr.Zero);
+			return new MonoBtlsX509 (new MonoBtlsX509.BoringX509Handle (handle));
 		}
 
 #if MARTIN_TEST
@@ -112,7 +118,9 @@ namespace Mono.Btls
 
 		public void AddCertificate (MonoBtlsX509 x509)
 		{
-			mono_btls_pkcs12_add_cert (Handle, x509.Handle);
+			mono_btls_pkcs12_add_cert (
+				Handle.DangerousGetHandle (),
+				x509.Handle.DangerousGetHandle ());
 		}
 
 		public unsafe void Import (byte[] buffer, string password)
@@ -121,7 +129,9 @@ namespace Mono.Btls
 			fixed (void* ptr = buffer)
 			try {
 				passptr = Marshal.StringToHGlobalAnsi (password ?? string.Empty);
-				var ret = mono_btls_pkcs12_import (Handle, ptr, buffer.Length, passptr);
+				var ret = mono_btls_pkcs12_import (
+					Handle.DangerousGetHandle (), ptr,
+					buffer.Length, passptr);
 				CheckError (ret);
 			} finally {
 				if (passptr != IntPtr.Zero)
@@ -130,7 +140,7 @@ namespace Mono.Btls
 		}
 
 		public bool HasPrivateKey {
-			get { return mono_btls_pkcs12_has_private_key (Handle) != 0; }
+			get { return mono_btls_pkcs12_has_private_key (Handle.DangerousGetHandle ()) != 0; }
 		}
 
 		public MonoBtlsKey GetPrivateKey ()
@@ -138,9 +148,9 @@ namespace Mono.Btls
 			if (!HasPrivateKey)
 				throw new InvalidOperationException ();
 			if (privateKey == null) {
-				var handle = mono_btls_pkcs12_get_private_key (Handle);
-				CheckError (handle != null && !handle.IsInvalid);
-				privateKey = new MonoBtlsKey (handle);
+				var handle = mono_btls_pkcs12_get_private_key (Handle.DangerousGetHandle ());
+				CheckError (handle != IntPtr.Zero);
+				privateKey = new MonoBtlsKey (new MonoBtlsKey.BoringKeyHandle (handle));
 			}
 			return privateKey;
 		}

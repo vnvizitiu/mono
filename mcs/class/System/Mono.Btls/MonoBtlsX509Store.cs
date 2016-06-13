@@ -35,77 +35,122 @@ namespace Mono.Btls
 	{
 		internal class BoringX509StoreHandle : MonoBtlsHandle
 		{
+			public BoringX509StoreHandle (IntPtr handle)
+				: base (handle, true)
+			{
+			}
+
 			protected override bool ReleaseHandle ()
 			{
 				mono_btls_x509_store_free (handle);
 				return true;
 			}
-
-			[DllImport (DLL)]
-			extern static void mono_btls_x509_store_free (IntPtr handle);
 		}
 
 		new internal BoringX509StoreHandle Handle {
 			get { return (BoringX509StoreHandle)base.Handle; }
 		}
 
-		[DllImport (DLL)]
-		extern static BoringX509StoreHandle mono_btls_x509_store_new ();
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_store_new ();
 
-		[DllImport (DLL)]
-		extern static BoringX509StoreHandle mono_btls_x509_store_from_ctx (IntPtr ctx);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_store_from_ctx (IntPtr ctx);
 
-		[DllImport (DLL)]
-		extern static BoringX509StoreHandle mono_btls_x509_store_from_ssl_ctx (MonoBtlsSslCtx.BoringSslCtxHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_store_from_ssl_ctx (IntPtr handle);
 
-		[DllImport (DLL, CharSet = CharSet.Auto)]
-		extern static int mono_btls_x509_store_load_locations (BoringX509StoreHandle handle, string file, string path);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_store_load_locations (IntPtr handle, IntPtr file, IntPtr path);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_store_set_default_paths (BoringX509StoreHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_store_set_default_paths (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_store_add_cert (IntPtr handle, IntPtr x509);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_store_get_count (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_x509_store_free (IntPtr handle);
 
 		public void LoadLocations (string file, string path)
 		{
-			var ret = mono_btls_x509_store_load_locations (Handle, file, path);
-			CheckError (ret);
+			IntPtr filePtr = IntPtr.Zero;
+			IntPtr pathPtr = IntPtr.Zero;
+			try {
+				if (file != null)
+					filePtr = Marshal.StringToHGlobalAnsi (file);
+				if (path != null)
+					pathPtr = Marshal.StringToHGlobalAnsi (path);
+				var ret = mono_btls_x509_store_load_locations (
+					Handle.DangerousGetHandle (), filePtr, pathPtr);
+				CheckError (ret);
+			} finally {
+				if (filePtr != IntPtr.Zero)
+					Marshal.FreeHGlobal (filePtr);
+				if (pathPtr != IntPtr.Zero)
+					Marshal.FreeHGlobal (pathPtr);
+			}
 		}
 
 		public void SetDefaultPaths ()
 		{
-			var ret = mono_btls_x509_store_set_default_paths (Handle);
+			var ret = mono_btls_x509_store_set_default_paths (Handle.DangerousGetHandle ());
 			CheckError (ret);
 		}
 
+		static BoringX509StoreHandle Create_internal ()
+		{
+			var handle = mono_btls_x509_store_new ();
+			if (handle == IntPtr.Zero)
+				throw new MonoBtlsException ();
+			return new BoringX509StoreHandle (handle);
+		}
+
+		static BoringX509StoreHandle Create_internal (IntPtr store_ctx)
+		{
+			var handle = mono_btls_x509_store_from_ssl_ctx (store_ctx);
+			if (handle == IntPtr.Zero)
+				throw new MonoBtlsException ();
+			return new BoringX509StoreHandle (handle);
+		}
+
+		static BoringX509StoreHandle Create_internal (MonoBtlsSslCtx.BoringSslCtxHandle ctx)
+		{
+			var handle = mono_btls_x509_store_from_ssl_ctx (ctx.DangerousGetHandle ());
+			if (handle == IntPtr.Zero)
+				throw new MonoBtlsException ();
+			return new BoringX509StoreHandle (handle);
+		}
+
 		internal MonoBtlsX509Store ()
-			: base (mono_btls_x509_store_new ())
+			: base (Create_internal ())
 		{
 		}
 
 		internal MonoBtlsX509Store (IntPtr store_ctx)
-			: base (mono_btls_x509_store_from_ctx (store_ctx))
+			: base (Create_internal (store_ctx))
 		{
 		}
 
-		internal MonoBtlsX509Store (MonoBtlsSslCtx.BoringSslCtxHandle handle)
-			: base (mono_btls_x509_store_from_ssl_ctx (handle))
+		internal MonoBtlsX509Store (MonoBtlsSslCtx.BoringSslCtxHandle ctx)
+			: base (Create_internal (ctx))
 		{
 		}
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_store_add_cert (BoringX509StoreHandle handle, MonoBtlsX509.BoringX509Handle x509);
 
 		public void AddTrustAnchor (MonoBtlsX509 x509)
 		{
-			var ret = mono_btls_x509_store_add_cert (Handle, x509.Handle);
+			var ret = mono_btls_x509_store_add_cert (
+				Handle.DangerousGetHandle (),
+				x509.Handle.DangerousGetHandle ());
 			CheckError (ret);
 		}
 
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_store_get_count (BoringX509StoreHandle handle);
-
 		public int GetCount ()
 		{
-			return mono_btls_x509_store_get_count (Handle);
+			return mono_btls_x509_store_get_count (Handle.DangerousGetHandle ());
 		}
 
 		internal void AddTrustedRoots ()

@@ -43,6 +43,7 @@ btls_file_list := $(shell cat ../../btls/build-shared/mono-btls-shared-lo.txt)
 btls_static_file_list := $(shell cat ../../btls/build-static/mono-btls-static-lo.txt)
 btls_libs = $(btls_file_list)
 btls_static_libs = $(btls_static_file_list)
+btls_cflags = -I$(top_srcdir)/external/boringssl/include -I$(top_srcdir)/btls
 endif
 
 #
@@ -77,7 +78,7 @@ else
 noinst_LTLIBRARIES = libmonoruntime-config.la $(boehm_libraries) $(sgen_libraries)
 endif
 
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/mono $(LIBGC_CPPFLAGS) $(GLIB_CFLAGS) $(SHARED_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/mono $(LIBGC_CPPFLAGS) $(GLIB_CFLAGS) $(SHARED_CFLAGS) $(btls_cflags)
 
 #
 # Make sure any prefix changes are updated in the binaries too.

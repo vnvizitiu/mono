@@ -27,6 +27,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 #if MONOTOUCH
@@ -48,6 +49,11 @@ namespace Mono.Btls
 
 		protected internal class BoringBioHandle : MonoBtlsHandle
 		{
+			public BoringBioHandle (IntPtr handle)
+				: base (handle, true)
+			{
+			}
+
 			protected override bool ReleaseHandle ()
 			{
 				if (handle != IntPtr.Zero) {
@@ -57,8 +63,6 @@ namespace Mono.Btls
 				return true;
 			}
 
-			[DllImport (DLL)]
-			extern static void mono_btls_bio_free (IntPtr handle);
 		}
 
 		public static MonoBtlsBio CreateMonoStream (Stream stream)
@@ -66,23 +70,26 @@ namespace Mono.Btls
 			return new MonoBtlsBioMonoStream (stream, false);
 		}
 
-		[DllImport (DLL)]
-		extern static int mono_btls_bio_read (BoringBioHandle bio, IntPtr data, int len);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_bio_read (IntPtr bio, IntPtr data, int len);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_bio_write (BoringBioHandle bio, IntPtr data, int len);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_bio_write (IntPtr bio, IntPtr data, int len);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_bio_flush (BoringBioHandle bio);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_bio_flush (IntPtr bio);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_bio_indent (BoringBioHandle bio, uint indent, uint max_indent);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_bio_indent (IntPtr bio, uint indent, uint max_indent);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_bio_hexdump (BoringBioHandle bio, IntPtr data, int len, uint indent);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_bio_hexdump (IntPtr bio, IntPtr data, int len, uint indent);
 
-		[DllImport (DLL)]
-		extern static void mono_btls_bio_print_errors (BoringBioHandle bio);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_bio_print_errors (IntPtr bio);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_bio_free (IntPtr handle);
 
 		public int Read (byte[] buffer, int offset, int size)
 		{
@@ -91,12 +98,16 @@ namespace Mono.Btls
 			if (data == IntPtr.Zero)
 				throw new OutOfMemoryException ();
 
+			bool release = false;
 			try {
-				var ret = mono_btls_bio_read (Handle, data, size);
+				Handle.DangerousAddRef (ref release);
+				var ret = mono_btls_bio_read (Handle.DangerousGetHandle (), data, size);
 				if (ret > 0)
 					Marshal.Copy (data, buffer,offset, ret);
 				return ret;
 			} finally {
+				if (release)
+					Handle.DangerousRelease ();
 				Marshal.FreeHGlobal (data);
 			}
 		}
@@ -108,10 +119,14 @@ namespace Mono.Btls
 			if (data == IntPtr.Zero)
 				throw new OutOfMemoryException ();
 
+			bool release = false;
 			try {
+				Handle.DangerousAddRef (ref release);
 				Marshal.Copy (buffer, offset, data, size);
-				return mono_btls_bio_write (Handle, data, size);
+				return mono_btls_bio_write (Handle.DangerousGetHandle (), data, size);
 			} finally {
+				if (release)
+					Handle.DangerousRelease ();
 				Marshal.FreeHGlobal (data);
 			}
 		}
@@ -119,13 +134,27 @@ namespace Mono.Btls
 		public int Flush ()
 		{
 			CheckThrow ();
-			return mono_btls_bio_flush (Handle);
+			bool release = false;
+			try {
+				Handle.DangerousAddRef (ref release);
+				return mono_btls_bio_flush (Handle.DangerousGetHandle ());
+			} finally {
+				if (release)
+					Handle.DangerousRelease ();
+			}
 		}
 
 		public int Indent (uint indent, uint max_indent)
 		{
 			CheckThrow ();
-			return mono_btls_bio_indent (Handle, indent, max_indent);
+			bool release = false;
+			try {
+				Handle.DangerousAddRef (ref release);
+				return mono_btls_bio_indent (Handle.DangerousGetHandle (), indent, max_indent);
+			} finally {
+				if (release)
+					Handle.DangerousRelease ();
+			}
 		}
 
 		public int HexDump (byte[] buffer, uint indent)
@@ -135,10 +164,14 @@ namespace Mono.Btls
 			if (data == IntPtr.Zero)
 				throw new OutOfMemoryException ();
 
+			bool release = false;
 			try {
+				Handle.DangerousAddRef (ref release);
 				Marshal.Copy (buffer, 0, data, buffer.Length);
-				return mono_btls_bio_hexdump (Handle, data, buffer.Length, indent);
+				return mono_btls_bio_hexdump (Handle.DangerousGetHandle (), data, buffer.Length, indent);
 			} finally {
+				if (release)
+					Handle.DangerousRelease ();
 				Marshal.FreeHGlobal (data);
 			}
 		}
@@ -146,31 +179,45 @@ namespace Mono.Btls
 		public void PrintErrors ()
 		{
 			CheckThrow ();
-			mono_btls_bio_print_errors (Handle);
+			bool release = false;
+			try {
+				Handle.DangerousAddRef (ref release);
+				mono_btls_bio_print_errors (Handle.DangerousGetHandle ());
+			} finally {
+				if (release)
+					Handle.DangerousRelease ();
+			}
 		}
 	}
 
 	class MonoBtlsBioMemory : MonoBtlsBio
 	{
-		[DllImport (DLL)]
-		extern static BoringBioHandle mono_btls_bio_new_mem ();
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_bio_mem_new ();
 
-		[DllImport (DLL)]
-		extern static int mono_btls_bio_mem_get_data (BoringBioHandle handle, out IntPtr data);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_bio_mem_get_data (IntPtr handle, out IntPtr data);
 
 		public MonoBtlsBioMemory ()
-			: base (mono_btls_bio_new_mem ())
+			: base (new BoringBioHandle (mono_btls_bio_mem_new ()))
 		{
 		}
 
 		public byte[] GetData ()
 		{
 			IntPtr data;
-			var size = mono_btls_bio_mem_get_data (Handle, out data);
-			CheckError (size > 0);
-			var buffer = new byte [size];
-			Marshal.Copy (data, buffer, 0, size);
-			return buffer;
+			bool release = false;
+			try {
+				Handle.DangerousAddRef (ref release);
+				var size = mono_btls_bio_mem_get_data (Handle.DangerousGetHandle (), out data);
+				CheckError (size > 0);
+				var buffer = new byte[size];
+				Marshal.Copy (data, buffer, 0, size);
+				return buffer;
+			} finally {
+				if (release)
+					Handle.DangerousRelease ();
+			}
 		}
 	}
 
@@ -181,16 +228,22 @@ namespace Mono.Btls
 		BioIOFunc readFunc;
 		BioIOFunc writeFunc;
 		BioControlFunc controlFunc;
+		IntPtr readFuncPtr;
+		IntPtr writeFuncPtr;
+		IntPtr controlFuncPtr;
 
 		public MonoBtlsBioMono ()
-			: base (mono_btls_bio_new ())
+			: base (new BoringBioHandle (mono_btls_bio_mono_new ()))
 		{
 			handle = GCHandle.Alloc (this);
 			instance = GCHandle.ToIntPtr (handle);
 			readFunc = OnRead;
 			writeFunc = OnWrite;
 			controlFunc = Control;
-			mono_btls_bio_initialize (Handle, instance, readFunc, writeFunc, controlFunc);
+			readFuncPtr = Marshal.GetFunctionPointerForDelegate (readFunc);
+			writeFuncPtr = Marshal.GetFunctionPointerForDelegate (writeFunc);
+			controlFuncPtr = Marshal.GetFunctionPointerForDelegate (controlFunc);
+			mono_btls_bio_mono_initialize (Handle.DangerousGetHandle (), instance, readFuncPtr, writeFuncPtr, controlFuncPtr);
 		}
 
 		enum ControlCommand {
@@ -200,11 +253,11 @@ namespace Mono.Btls
 		delegate int BioIOFunc (IntPtr bio, IntPtr data, int dataLength);
 		delegate long BioControlFunc (IntPtr bio, ControlCommand command, long arg);
 
-		[DllImport (DLL)]
-		extern static BoringBioHandle mono_btls_bio_new ();
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_bio_mono_new ();
 
-		[DllImport (DLL)]
-		extern static void mono_btls_bio_initialize (BoringBioHandle handle, IntPtr instance, BioIOFunc readFunc, BioIOFunc writeFunc, BioControlFunc controlFunc);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_bio_mono_initialize (IntPtr handle, IntPtr instance, IntPtr readFunc, IntPtr writeFunc, IntPtr controlFunc);
 
 		protected abstract int OnRead (IntPtr data, int dataLength);
 

@@ -32,8 +32,6 @@ namespace Mono.Btls
 {
 	abstract class MonoBtlsObject : IDisposable
 	{
-		internal const string DLL = "MonoBtls";
-
 		internal MonoBtlsObject (MonoBtlsHandle handle)
 		{
 			this.handle = handle;
@@ -43,6 +41,11 @@ namespace Mono.Btls
 		{
 			internal MonoBtlsHandle ()
 				: base (IntPtr.Zero, true)
+			{
+			}
+
+			internal MonoBtlsHandle (IntPtr handle, bool ownsHandle)
+				: base (handle, ownsHandle)
 			{
 			}
 
@@ -96,7 +99,7 @@ namespace Mono.Btls
 			CheckError (ret == 1, callerName);
 		}
 
-		[DllImport (DLL)]
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_free (IntPtr data);
 
 		protected void FreeDataPtr (IntPtr data)

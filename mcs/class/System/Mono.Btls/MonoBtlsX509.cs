@@ -28,6 +28,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
@@ -38,6 +39,11 @@ namespace Mono.Btls
 	{
 		internal class BoringX509Handle : MonoBtlsHandle
 		{
+			public BoringX509Handle (IntPtr handle)
+				: base (handle, true)
+			{
+			}
+
 			protected override bool ReleaseHandle ()
 			{
 				if (handle != IntPtr.Zero)
@@ -50,9 +56,6 @@ namespace Mono.Btls
 				var retval = Interlocked.Exchange (ref handle, IntPtr.Zero);
 				return retval;
 			}
-
-			[DllImport (DLL)]
-			extern static void mono_btls_x509_free (IntPtr handle);
 		}
 
 		new internal BoringX509Handle Handle {
@@ -64,24 +67,77 @@ namespace Mono.Btls
 		{
 		}
 
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_up_ref (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_x509_test (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_from_data (IntPtr data, int len, MonoBtlsX509Format format);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_get_subject_name (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_get_issuer_name (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_subject_name_string (IntPtr handle, IntPtr buffer, int size);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_issuer_name_string (IntPtr handle, IntPtr buffer, int size);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_raw_data (IntPtr handle, IntPtr bio);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_cmp (IntPtr a, IntPtr b);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_hash (IntPtr handle, out IntPtr data);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static long mono_btls_x509_get_not_before (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static long mono_btls_x509_get_not_after (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_public_key (IntPtr handle, IntPtr bio);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_serial_number (IntPtr handle, IntPtr data, int size, int mono_style);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_version (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_signature_algorithm (IntPtr handle, IntPtr buffer, int size);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_public_key_asn1 (IntPtr handle, IntPtr oid, int oid_size, out IntPtr data, out int size);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_public_key_parameters (IntPtr handle, IntPtr oid, int oid_size, out IntPtr data, out int size);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_get_pubkey (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_x509_free (IntPtr handle);
+
 		public void Test ()
 		{
-			mono_btls_x509_test (Handle);
+			mono_btls_x509_test (Handle.DangerousGetHandle ());
 		}
 
 		internal MonoBtlsX509 Copy ()
 		{
-			return new MonoBtlsX509 (mono_btls_x509_up_ref (Handle));
+			var copy = mono_btls_x509_up_ref (Handle.DangerousGetHandle ());
+			CheckError (copy != IntPtr.Zero);
+			return new MonoBtlsX509 (new BoringX509Handle (copy));
 		}
-
-		[DllImport (DLL)]
-		extern static BoringX509Handle mono_btls_x509_up_ref (BoringX509Handle handle);
-
-		[DllImport (DLL)]
-		extern static void mono_btls_x509_test (BoringX509Handle handle);
-
-		[DllImport (DLL)]
-		extern static BoringX509Handle mono_btls_x509_from_data (IntPtr data, int len, MonoBtlsX509Format format);
 
 		public static MonoBtlsX509 LoadFromData (byte[] buffer, MonoBtlsX509Format format)
 		{
@@ -92,93 +148,63 @@ namespace Mono.Btls
 			try {
 				Marshal.Copy (buffer, 0, data, buffer.Length);
 				var x509 = mono_btls_x509_from_data (data, buffer.Length, format);
-				if (x509 == null || x509.IsInvalid)
+				if (x509 == IntPtr.Zero)
 					throw new MonoBtlsException ("Failed to read certificate from data.");
 
-				return new MonoBtlsX509 (x509);
+				return new MonoBtlsX509 (new BoringX509Handle (x509));
 			} finally {
 				Marshal.FreeHGlobal (data);
 			}
 		}
 
-		[DllImport (DLL)]
-		extern static MonoBtlsX509Name.BoringX509NameHandle mono_btls_x509_get_subject_name (BoringX509Handle handle);
-
-		[DllImport (DLL)]
-		extern static MonoBtlsX509Name.BoringX509NameHandle mono_btls_x509_get_issuer_name (BoringX509Handle handle);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_subject_name_string (BoringX509Handle handle, StringBuilder buffer, int size);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_issuer_name_string (BoringX509Handle handle, StringBuilder buffer, int size);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_raw_data (BoringX509Handle handle, MonoBtlsBio.BoringBioHandle bio);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_cmp (BoringX509Handle a, BoringX509Handle b);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_hash (BoringX509Handle handle, out IntPtr data);
-
-		[DllImport (DLL)]
-		extern static long mono_btls_x509_get_not_before (BoringX509Handle handle);
-
-		[DllImport (DLL)]
-		extern static long mono_btls_x509_get_not_after (BoringX509Handle handle);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_public_key (BoringX509Handle handle, MonoBtlsBio.BoringBioHandle bio);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_serial_number (BoringX509Handle handle, IntPtr data, int size, int mono_style);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_version (BoringX509Handle handle);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_signature_algorithm (BoringX509Handle handle, StringBuilder buffer, int size);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_public_key_asn1 (BoringX509Handle handle, StringBuilder oid, int oid_size, out IntPtr data, out int size);
-
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_get_public_key_parameters (BoringX509Handle handle, StringBuilder oid, int oid_size, out IntPtr data, out int size);
-
-		[DllImport (DLL)]
-		extern static MonoBtlsKey.BoringKeyHandle mono_btls_x509_get_pubkey (BoringX509Handle handle);
-
 		public MonoBtlsX509Name GetSubjectName ()
 		{
-			return new MonoBtlsX509Name (mono_btls_x509_get_subject_name (Handle));
+			var handle = mono_btls_x509_get_subject_name (Handle.DangerousGetHandle ());
+			CheckError (handle != IntPtr.Zero);
+			return new MonoBtlsX509Name (new MonoBtlsX509Name.BoringX509NameHandle (handle, false));
 		}
 
 		public string GetSubjectNameString ()
 		{
-			var sb = new StringBuilder (4096);
-			var ret = mono_btls_x509_get_subject_name_string (Handle, sb, sb.Capacity);
-			CheckError (ret);
-			return sb.ToString ();
+			const int size = 4096;
+			var data = Marshal.AllocHGlobal (size);
+			try {
+				var ret = mono_btls_x509_get_subject_name_string (
+					Handle.DangerousGetHandle (), data, size);
+				CheckError (ret);
+				return Marshal.PtrToStringAnsi (data);
+			} finally {
+				Marshal.FreeHGlobal (data);
+			}
 		}
 
 		public MonoBtlsX509Name GetIssuerName ()
 		{
-			return new MonoBtlsX509Name (mono_btls_x509_get_issuer_name (Handle));
+			var handle = mono_btls_x509_get_issuer_name (Handle.DangerousGetHandle ());
+			CheckError (handle != IntPtr.Zero);
+			return new MonoBtlsX509Name (new MonoBtlsX509Name.BoringX509NameHandle (handle, false));
 		}
 
 		public string GetIssuerNameString ()
 		{
-			var sb = new StringBuilder (4096);
-			var ret = mono_btls_x509_get_issuer_name_string (Handle, sb, sb.Capacity);
-			CheckError (ret);
-			return sb.ToString ();
+			const int size = 4096;
+			var data = Marshal.AllocHGlobal (size);
+			try {
+				var ret = mono_btls_x509_get_issuer_name_string (
+					Handle.DangerousGetHandle (), data, size);
+				CheckError (ret);
+				return Marshal.PtrToStringAnsi (data);
+			} finally {
+				Marshal.FreeHGlobal (data);
+			}
 		}
 
 		public byte[] GetRawData ()
 		{
 			using (var bio = new MonoBtlsBioMemory ()) {
-				var ret = mono_btls_x509_get_raw_data (Handle, bio.Handle);
+				var ret = mono_btls_x509_get_raw_data (
+					Handle.DangerousGetHandle (),
+					bio.Handle.DangerousGetHandle ());
 				CheckError (ret);
 				return bio.GetData ();
 			}
@@ -186,13 +212,15 @@ namespace Mono.Btls
 
 		public static int Compare (MonoBtlsX509 a, MonoBtlsX509 b)
 		{
-			return mono_btls_x509_cmp (a.Handle, b.Handle);
+			return mono_btls_x509_cmp (
+				a.Handle.DangerousGetHandle (),
+				b.Handle.DangerousGetHandle ());
 		}
 
 		public byte[] GetCertHash ()
 		{
 			IntPtr data;
-			var ret = mono_btls_x509_get_hash (Handle, out data);
+			var ret = mono_btls_x509_get_hash (Handle.DangerousGetHandle (), out data);
 			CheckError (ret > 0);
 			var buffer = new byte [ret];
 			Marshal.Copy (data, buffer, 0, ret);
@@ -201,20 +229,22 @@ namespace Mono.Btls
 
 		public DateTime GetNotBefore ()
 		{
-			var ticks = mono_btls_x509_get_not_before (Handle);
+			var ticks = mono_btls_x509_get_not_before (Handle.DangerousGetHandle ());
 			return new DateTime (1970, 1, 1).AddSeconds (ticks);
 		}
 
 		public DateTime GetNotAfter ()
 		{
-			var ticks = mono_btls_x509_get_not_after (Handle);
+			var ticks = mono_btls_x509_get_not_after (Handle.DangerousGetHandle ());
 			return new DateTime (1970, 1, 1).AddSeconds (ticks);
 		}
 
 		public byte[] GetPublicKeyData ()
 		{
 			using (var bio = new MonoBtlsBioMemory ()) {
-				var ret = mono_btls_x509_get_public_key (Handle, bio.Handle);
+				var ret = mono_btls_x509_get_public_key (
+					Handle.DangerousGetHandle (),
+					bio.Handle.DangerousGetHandle ());
 				CheckError (ret > 0);
 				return bio.GetData ();
 			}
@@ -225,7 +255,9 @@ namespace Mono.Btls
 			int size = 256;
 			IntPtr data = Marshal.AllocHGlobal (size);
 			try {
-				var ret = mono_btls_x509_get_serial_number (Handle, data, size, mono_style ? 1 : 0);
+				var ret = mono_btls_x509_get_serial_number (
+					Handle.DangerousGetHandle (), data,
+					size, mono_style ? 1 : 0);
 				CheckError (ret > 0);
 				var buffer = new byte [ret];
 				Marshal.Copy (data, buffer, 0, ret);
@@ -238,24 +270,41 @@ namespace Mono.Btls
 
 		public int GetVersion ()
 		{
-			return mono_btls_x509_get_version (Handle);
+			return mono_btls_x509_get_version (Handle.DangerousGetHandle ());
 		}
 
 		public Oid GetSignatureAlgorithm ()
 		{
-			var sb = new StringBuilder (256);
-			var ret = mono_btls_x509_get_signature_algorithm (Handle, sb, sb.Capacity);
-			CheckError (ret > 0);
-			return new Oid (sb.ToString ());
+			int size = 256;
+			IntPtr data = Marshal.AllocHGlobal (size);
+			try {
+				var ret = mono_btls_x509_get_signature_algorithm (
+					Handle.DangerousGetHandle (), data, size);
+				CheckError (ret > 0);
+				return new Oid (Marshal.PtrToStringAnsi (data));
+			} finally {
+				Marshal.FreeHGlobal (data);
+			}
 		}
 
 		public AsnEncodedData GetPublicKeyAsn1 ()
 		{
 			int size;
 			IntPtr data;
-			var oid = new StringBuilder (256);
-			var ret = mono_btls_x509_get_public_key_asn1 (Handle, oid, oid.Capacity, out data, out size);
-			CheckError (ret);
+
+			int oidSize = 256;
+			var oidData = Marshal.AllocHGlobal (256);
+			string oid;
+
+			try {
+				var ret = mono_btls_x509_get_public_key_asn1 (
+					Handle.DangerousGetHandle (), oidData, oidSize,
+					out data, out size);
+				CheckError (ret);
+				oid = Marshal.PtrToStringAnsi (oidData);
+			} finally {
+				Marshal.FreeHGlobal (oidData);
+			}
 
 			try {
 				var buffer = new byte[size];
@@ -271,9 +320,20 @@ namespace Mono.Btls
 		{
 			int size;
 			IntPtr data;
-			var oid = new StringBuilder (256);
-			var ret = mono_btls_x509_get_public_key_parameters (Handle, oid, oid.Capacity, out data, out size);
-			CheckError (ret);
+
+			int oidSize = 256;
+			var oidData = Marshal.AllocHGlobal (256);
+			string oid;
+
+			try {
+				var ret = mono_btls_x509_get_public_key_parameters (
+					Handle.DangerousGetHandle (), oidData, oidSize,
+					out data, out size);
+				CheckError (ret);
+				oid = Marshal.PtrToStringAnsi (oidData);
+			} finally {
+				Marshal.FreeHGlobal (oidData);
+			}
 
 			try {
 				var buffer = new byte[size];
@@ -287,9 +347,9 @@ namespace Mono.Btls
 
 		public MonoBtlsKey GetPublicKey ()
 		{
-			var handle = mono_btls_x509_get_pubkey (Handle);
-			CheckError (handle != null && !handle.IsInvalid);
-			return new MonoBtlsKey (handle);
+			var handle = mono_btls_x509_get_pubkey (Handle.DangerousGetHandle ());
+			CheckError (handle != IntPtr.Zero);
+			return new MonoBtlsKey (new MonoBtlsKey.BoringKeyHandle (handle));
 		}
 	}
 }

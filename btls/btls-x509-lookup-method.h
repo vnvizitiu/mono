@@ -20,10 +20,10 @@ typedef int (* MonoBtlsLookupMethod_BySubject) (const void *instance, MonoBtlsX5
 typedef int (* MonoBtlsLookupMethod_ByFingerPrint) (const void *instance, unsigned char *bytes, int len, X509 **ret);
 
 MonoBtlsX509LookupMethod *
-mono_btls_x509_lookup_method_new_mono (void);
+mono_btls_x509_lookup_method_mono_new (void);
 
 void
-mono_btls_x509_lookup_method_init_mono (MonoBtlsX509LookupMethod *method,
+mono_btls_x509_lookup_method_mono_init (MonoBtlsX509LookupMethod *method,
 					    const void *instance,
 					    MonoBtlsLookupMethod_NewItem new_item_func,
 					    MonoBtlsLookupMethod_Init init_func,

@@ -36,8 +36,8 @@ namespace Mono.Btls
 	{
 		internal class BoringKeyHandle : MonoBtlsHandle
 		{
-			internal BoringKeyHandle ()
-				: base ()
+			internal BoringKeyHandle (IntPtr handle)
+				: base (handle, true)
 			{
 			}
 
@@ -46,25 +46,25 @@ namespace Mono.Btls
 				mono_btls_key_free (handle);
 				return true;
 			}
-
-			[DllImport (DLL)]
-			extern static void mono_btls_key_free (IntPtr handle);
 		}
 
-		[DllImport (DLL)]
-		extern static BoringKeyHandle mono_btls_key_up_ref (BoringKeyHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_key_free (IntPtr handle);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_key_get_bytes (BoringKeyHandle handle, out IntPtr data, out int size, int include_private_bits);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_key_up_ref (IntPtr handle);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_key_get_bits (BoringKeyHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_key_get_bytes (IntPtr handle, out IntPtr data, out int size, int include_private_bits);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_key_is_rsa (BoringKeyHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_key_get_bits (IntPtr handle);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_key_test (BoringKeyHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_key_is_rsa (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_key_test (IntPtr handle);
 
 		new internal BoringKeyHandle Handle {
 			get { return (BoringKeyHandle)base.Handle; }
@@ -80,7 +80,7 @@ namespace Mono.Btls
 			int size;
 			IntPtr data;
 
-			var ret = mono_btls_key_get_bytes (Handle, out data, out size, include_private_bits ? 1 : 0);
+			var ret = mono_btls_key_get_bytes (Handle.DangerousGetHandle (), out data, out size, include_private_bits ? 1 : 0);
 			CheckError (ret);
 
 			var buffer = new byte [size];
@@ -91,15 +91,15 @@ namespace Mono.Btls
 
 		public void Test ()
 		{
-			mono_btls_key_test (Handle);
+			mono_btls_key_test (Handle.DangerousGetHandle ());
 		}
 
 		public MonoBtlsKey Copy ()
 		{
 			CheckThrow ();
-			var copy = mono_btls_key_up_ref (Handle);
-			CheckError (copy != null && !copy.IsInvalid);
-			return new MonoBtlsKey (copy);
+			var copy = mono_btls_key_up_ref (Handle.DangerousGetHandle ());
+			CheckError (copy != IntPtr.Zero);
+			return new MonoBtlsKey (new BoringKeyHandle (copy));
 		}
 	}
 }

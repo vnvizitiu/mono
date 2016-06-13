@@ -28,6 +28,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
@@ -38,6 +39,11 @@ namespace Mono.Btls
 	{
 		internal class BoringX509RevokedHandle : MonoBtlsHandle
 		{
+			public BoringX509RevokedHandle (IntPtr handle)
+				: base (handle, true)
+			{
+			}
+
 			protected override bool ReleaseHandle ()
 			{
 				if (handle != IntPtr.Zero)
@@ -50,9 +56,6 @@ namespace Mono.Btls
 				var retval = Interlocked.Exchange (ref handle, IntPtr.Zero);
 				return retval;
 			}
-
-			[DllImport (DLL)]
-			extern static void mono_btls_x509_revoked_free (IntPtr handle);
 		}
 
 		new internal BoringX509RevokedHandle Handle {
@@ -64,24 +67,28 @@ namespace Mono.Btls
 		{
 		}
 
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_revoked_get_serial_number (BoringX509RevokedHandle handle, IntPtr data, int size);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_revoked_get_serial_number (IntPtr handle, IntPtr data, int size);
 
-		[DllImport (DLL)]
-		extern static long mono_btls_x509_revoked_get_revocation_date (BoringX509RevokedHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static long mono_btls_x509_revoked_get_revocation_date (IntPtr handle);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_revoked_get_reason (BoringX509RevokedHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_revoked_get_reason (IntPtr handle);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_x509_revoked_get_sequence (BoringX509RevokedHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_revoked_get_sequence (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_x509_revoked_free (IntPtr handle);
 
 		public byte[] GetSerialNumber ()
 		{
 			int size = 256;
 			IntPtr data = Marshal.AllocHGlobal (size);
 			try {
-				var ret = mono_btls_x509_revoked_get_serial_number (Handle, data, size);
+				var ret = mono_btls_x509_revoked_get_serial_number (
+					Handle.DangerousGetHandle (), data, size);
 				CheckError (ret > 0);
 				var buffer = new byte[ret];
 				Marshal.Copy (data, buffer, 0, ret);
@@ -94,20 +101,20 @@ namespace Mono.Btls
 
 		public DateTime GetRevocationDate ()
 		{
-			var ticks = mono_btls_x509_revoked_get_revocation_date (Handle);
+			var ticks = mono_btls_x509_revoked_get_revocation_date (
+				Handle.DangerousGetHandle ());
 			return new DateTime (1970, 1, 1).AddSeconds (ticks);
 		}
 
 		public int GetReason ()
 		{
-			return mono_btls_x509_revoked_get_reason (Handle);
+			return mono_btls_x509_revoked_get_reason (Handle.DangerousGetHandle ());
 		}
 
 		public int GetSequence ()
 		{
-			return mono_btls_x509_revoked_get_sequence (Handle);
+			return mono_btls_x509_revoked_get_sequence (Handle.DangerousGetHandle ());
 		}
 	}
-
 }
 #endif

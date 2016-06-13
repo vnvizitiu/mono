@@ -59,11 +59,20 @@ mono_btls_x509_name_get_raw_data (MonoBtlsX509Name *name, void **buffer, int use
 long
 mono_btls_x509_name_hash (MonoBtlsX509Name *name);
 
+long
+mono_btls_x509_name_hash_old (MonoBtlsX509Name *name);
+
+int
+mono_btls_x509_name_get_entry_count (MonoBtlsX509Name *name);
+
 MonoBtlsX509NameEntryType
 mono_btls_x509_name_get_entry_type (MonoBtlsX509Name *name, int index);
 
 int
 mono_btls_x509_name_get_entry_oid (MonoBtlsX509Name *name, int index, char *buffer, int size);
+
+int
+mono_btls_x509_name_get_entry_oid_data (MonoBtlsX509Name *name, int index, const void **data);
 
 int
 mono_btls_x509_name_get_entry_value (MonoBtlsX509Name *name, int index, unsigned char **str);

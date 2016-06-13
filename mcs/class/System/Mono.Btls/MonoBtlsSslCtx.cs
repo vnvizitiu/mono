@@ -25,6 +25,7 @@
 // THE SOFTWARE.
 #if SECURITY_DEP
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Mono.Btls
@@ -33,54 +34,61 @@ namespace Mono.Btls
 	{
 		internal class BoringSslCtxHandle : MonoBtlsHandle
 		{
+			public BoringSslCtxHandle (IntPtr handle)
+				: base (handle, true)
+			{
+			}
+
 			protected override bool ReleaseHandle ()
 			{
 				mono_btls_ssl_ctx_free (handle);
 				return true;
 			}
-
-			[DllImport (DLL)]
-			extern static int mono_btls_ssl_ctx_free (IntPtr handle);
 		}
 
 		new internal BoringSslCtxHandle Handle {
 			get { return (BoringSslCtxHandle)base.Handle; }
 		}
 
-		[DllImport (DLL)]
-		extern static BoringSslCtxHandle mono_btls_ssl_ctx_new ();
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_ssl_ctx_new ();
 
-		[DllImport (DLL)]
-		extern static BoringSslCtxHandle mono_btls_ssl_ctx_up_ref (BoringSslCtxHandle handle);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_ssl_ctx_free (IntPtr handle);
 
-		[DllImport (DLL)]
-		extern static void mono_btls_ssl_ctx_set_debug_bio (BoringSslCtxHandle handle, MonoBtlsBio.BoringBioHandle bio);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_ssl_ctx_up_ref (IntPtr handle);
 
-		[DllImport (DLL)]
-		extern static void mono_btls_ssl_ctx_set_cert_verify_callback (BoringSslCtxHandle handle, NativeVerifyFunc func);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_ssl_ctx_set_debug_bio (IntPtr handle, IntPtr bio);
 
-		[DllImport (DLL)]
-		extern static void mono_btls_ssl_ctx_set_min_version (BoringSslCtxHandle handle, int version);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_ssl_ctx_set_cert_verify_callback (IntPtr handle, IntPtr func);
 
-		[DllImport (DLL)]
-		extern static void mono_btls_ssl_ctx_set_max_version (BoringSslCtxHandle handle, int version);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_ssl_ctx_set_min_version (IntPtr handle, int version);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_ssl_ctx_is_cipher_supported (BoringSslCtxHandle handle, short value);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_ssl_ctx_set_max_version (IntPtr handle, int version);
 
-		[DllImport (DLL)]
-		extern static int mono_btls_ssl_ctx_set_ciphers (BoringSslCtxHandle handle, int count, IntPtr data, int allow_unsupported);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_ssl_ctx_is_cipher_supported (IntPtr handle, short value);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_ssl_ctx_set_ciphers (IntPtr handle, int count, IntPtr data, int allow_unsupported);
 
 		delegate int NativeVerifyFunc (int preverify_ok, IntPtr ctx);
 
 		NativeVerifyFunc verifyFunc;
+		IntPtr verifyFuncPtr;
 		MonoBtlsVerifyCallback verifyCallback;
 		MonoBtlsX509Store store;
 
 		public MonoBtlsSslCtx ()
-			: base (mono_btls_ssl_ctx_new ())
+			: base (new BoringSslCtxHandle (mono_btls_ssl_ctx_new ()))
 		{
 			verifyFunc = NativeVerifyCallback;
+			verifyFuncPtr = Marshal.GetFunctionPointerForDelegate (verifyFunc);
 			store = new MonoBtlsX509Store (Handle);
 		}
 
@@ -88,12 +96,14 @@ namespace Mono.Btls
 			: base (handle)
 		{
 			verifyFunc = NativeVerifyCallback;
+			verifyFuncPtr = Marshal.GetFunctionPointerForDelegate (verifyFunc);
 			store = new MonoBtlsX509Store (Handle);
 		}
 
 		internal MonoBtlsSslCtx Copy ()
 		{
-			return new MonoBtlsSslCtx (mono_btls_ssl_ctx_up_ref (Handle));
+			var copy = mono_btls_ssl_ctx_up_ref (Handle.DangerousGetHandle ());
+			return new MonoBtlsSslCtx (new BoringSslCtxHandle (copy));
 		}
 
 		public MonoBtlsX509Store CertificateStore {
@@ -116,7 +126,7 @@ namespace Mono.Btls
 		public void SetDebugBio (MonoBtlsBio bio)
 		{
 			CheckThrow ();
-			mono_btls_ssl_ctx_set_debug_bio (Handle, bio.Handle);
+			mono_btls_ssl_ctx_set_debug_bio (Handle.DangerousGetHandle (), bio.Handle.DangerousGetHandle ());
 		}
 
 		public void SetVerifyCallback (MonoBtlsVerifyCallback callback)
@@ -124,25 +134,25 @@ namespace Mono.Btls
 			CheckThrow ();
 
 			verifyCallback = callback;
-			mono_btls_ssl_ctx_set_cert_verify_callback (Handle, verifyFunc);
+			mono_btls_ssl_ctx_set_cert_verify_callback (Handle.DangerousGetHandle (), verifyFuncPtr);
 		}
 
 		public void SetMinVersion (int version)
 		{
 			CheckThrow ();
-			mono_btls_ssl_ctx_set_min_version (Handle, version);
+			mono_btls_ssl_ctx_set_min_version (Handle.DangerousGetHandle (), version);
 		}
 
 		public void SetMaxVersion (int version)
 		{
 			CheckThrow ();
-			mono_btls_ssl_ctx_set_max_version (Handle, version);
+			mono_btls_ssl_ctx_set_max_version (Handle.DangerousGetHandle (), version);
 		}
 
 		public bool IsCipherSupported (short value)
 		{
 			CheckThrow ();
-			return mono_btls_ssl_ctx_is_cipher_supported (Handle, value) != 0;
+			return mono_btls_ssl_ctx_is_cipher_supported (Handle.DangerousGetHandle (), value) != 0;
 		}
 
 		public void SetCiphers (short[] ciphers, bool allow_unsupported)
@@ -152,7 +162,8 @@ namespace Mono.Btls
 			try {
 				Marshal.Copy (ciphers, 0, data, ciphers.Length);
 				var ret = mono_btls_ssl_ctx_set_ciphers (
-					Handle, ciphers.Length, data, allow_unsupported ? 1 : 0);
+					Handle.DangerousGetHandle (),
+					ciphers.Length, data, allow_unsupported ? 1 : 0);
 				CheckError (ret > 0);
 			} finally {
 				Marshal.FreeHGlobal (data);

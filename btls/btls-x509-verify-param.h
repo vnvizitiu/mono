@@ -74,5 +74,8 @@ mono_btls_x509_verify_param_set_depth (MonoBtlsX509VerifyParam *param, int depth
 int
 mono_btls_x509_verify_param_set_time (MonoBtlsX509VerifyParam *param, long time);
 
+char *
+mono_btls_x509_verify_param_get_peername (MonoBtlsX509VerifyParam *param);
+
 #endif /* defined(__btls__btls_x509_verify_param__) */
 

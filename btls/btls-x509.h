@@ -76,6 +76,9 @@ int
 mono_btls_x509_get_public_key (X509 *x509, BIO *bio);
 
 int
+mono_btls_x509_get_public_key_parameters (X509 *x509, char *out_oid, int oid_len, uint8_t **buffer, int *size);
+
+int
 mono_btls_x509_get_serial_number (X509 *x509, char *buffer, int size, int mono_style);
 
 int

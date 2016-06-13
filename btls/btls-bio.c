@@ -97,7 +97,7 @@ static const BIO_METHOD mono_method = {
 };
 
 BIO *
-mono_btls_bio_new (void)
+mono_btls_bio_mono_new (void)
 {
 	BIO *bio;
 	MonoBtlsBio *monoBio;
@@ -119,7 +119,7 @@ mono_btls_bio_new (void)
 }
 
 void
-mono_btls_bio_initialize (BIO *bio, const void *instance,
+mono_btls_bio_mono_initialize (BIO *bio, const void *instance,
 			      MonoBtlsIOFunc read_func, MonoBtlsIOFunc write_func,
 			      MonoBtlsControlFunc control_func)
 {
@@ -176,7 +176,7 @@ mono_btls_bio_free (BIO *bio)
 }
 
 BIO *
-mono_btls_bio_new_mem (void)
+mono_btls_bio_mem_new (void)
 {
 	return BIO_new (BIO_s_mem ());
 }

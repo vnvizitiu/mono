@@ -39,25 +39,30 @@ namespace Mono.Btls
 	{
 		internal class BoringX509LookupMethodHandle : MonoBtlsHandle
 		{
+			public BoringX509LookupMethodHandle (IntPtr handle)
+				: base (handle, true)
+			{
+			}
+
 			protected override bool ReleaseHandle ()
 			{
 				mono_btls_x509_lookup_method_free (handle);
 				return true;
 			}
-
-			[DllImport (DLL)]
-			extern static void mono_btls_x509_lookup_method_free (IntPtr handle);
 		}
 
 		new internal BoringX509LookupMethodHandle Handle {
 			get { return (BoringX509LookupMethodHandle)base.Handle; }
 		}
 
-		[DllImport (DLL)]
-		extern static BoringX509LookupMethodHandle mono_btls_x509_lookup_method_by_file ();
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_lookup_method_by_file ();
 
-		[DllImport (DLL)]
-		extern static BoringX509LookupMethodHandle mono_btls_x509_lookup_method_by_hash_dir ();
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_lookup_method_by_hash_dir ();
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_x509_lookup_method_free (IntPtr handle);
 
 		internal MonoBtlsX509LookupMethod (BoringX509LookupMethodHandle handle)
 			: base (handle)
@@ -66,12 +71,18 @@ namespace Mono.Btls
 
 		public static MonoBtlsX509LookupMethod ByFile ()
 		{
-			return new MonoBtlsX509LookupMethod (mono_btls_x509_lookup_method_by_file ());
+			var handle = mono_btls_x509_lookup_method_by_file ();
+			if (handle == IntPtr.Zero)
+				return null;
+			return new MonoBtlsX509LookupMethod (new BoringX509LookupMethodHandle (handle));
 		}
 
 		public static MonoBtlsX509LookupMethod ByHashDir ()
 		{
-			return new MonoBtlsX509LookupMethod (mono_btls_x509_lookup_method_by_hash_dir ());
+			var handle = mono_btls_x509_lookup_method_by_hash_dir ();
+			if (handle == IntPtr.Zero)
+				return null;
+			return new MonoBtlsX509LookupMethod (new BoringX509LookupMethodHandle (handle));
 		}
 	}
 
@@ -83,21 +94,21 @@ namespace Mono.Btls
 		delegate int BySubjectFunc (IntPtr instance, IntPtr name, out IntPtr x509_ptr);
 		delegate int ByFingerPrintFunc (IntPtr instance, IntPtr bytes, int len, out IntPtr x509_ptr);
 
-		[DllImport (DLL)]
-		extern static BoringX509LookupMethodHandle mono_btls_x509_lookup_method_new_mono ();
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_lookup_method_mono_new ();
 
-		[DllImport (DLL)]
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_lookup_method_mono_set_by_subject_func (
-			BoringX509LookupMethodHandle handle, BySubjectFunc by_subject_func);
+			IntPtr handle, IntPtr by_subject_func);
 
-		[DllImport (DLL)]
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_lookup_method_mono_set_by_fingerprint_func (
-			BoringX509LookupMethodHandle handle, ByFingerPrintFunc by_fingerprint_func);
+			IntPtr handle, IntPtr by_fingerprint_func);
 
-		[DllImport (DLL)]
-		extern static void mono_btls_x509_lookup_method_init_mono (
-			BoringX509LookupMethodHandle handle, IntPtr instance,
-			NewItemFunc new_item_func, InitFunc init_func, ShutdownFunc shutdown_func);
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_x509_lookup_method_mono_init (
+			IntPtr handle, IntPtr instance,
+			IntPtr new_item_func, IntPtr init_func, IntPtr shutdown_func);
 
 		GCHandle handle;
 		IntPtr instance;
@@ -106,9 +117,14 @@ namespace Mono.Btls
 		ShutdownFunc shutdownFunc;
 		BySubjectFunc bySubjectFunc;
 		ByFingerPrintFunc byFingerPrintFunc;
+		IntPtr initFuncPtr;
+		IntPtr newItemFuncPtr;
+		IntPtr shutdownFuncPtr;
+		IntPtr bySubjectFuncPtr;
+		IntPtr byFingerPrintFuncPtr;
 
 		internal MonoBtlsX509LookupMethodMono ()
-			: base (mono_btls_x509_lookup_method_new_mono ())
+			: base (new BoringX509LookupMethodHandle (mono_btls_x509_lookup_method_mono_new ()))
 		{
 			handle = GCHandle.Alloc (this);
 			instance = GCHandle.ToIntPtr (handle);
@@ -117,9 +133,18 @@ namespace Mono.Btls
 			shutdownFunc = OnShutdown;
 			bySubjectFunc = OnGetBySubject;
 			byFingerPrintFunc = OnGetByFingerPrint;
-			mono_btls_x509_lookup_method_init_mono (Handle, instance, newItemFunc, initFunc, shutdownFunc);
-			mono_btls_x509_lookup_method_mono_set_by_subject_func (Handle, bySubjectFunc);
-			mono_btls_x509_lookup_method_mono_set_by_fingerprint_func (Handle, byFingerPrintFunc);
+			initFuncPtr = Marshal.GetFunctionPointerForDelegate (initFunc);
+			newItemFuncPtr = Marshal.GetFunctionPointerForDelegate (newItemFunc);
+			shutdownFuncPtr = Marshal.GetFunctionPointerForDelegate (shutdownFunc);
+			bySubjectFuncPtr = Marshal.GetFunctionPointerForDelegate (bySubjectFunc);
+			byFingerPrintFuncPtr = Marshal.GetFunctionPointerForDelegate (byFingerPrintFunc);
+			mono_btls_x509_lookup_method_mono_init (
+				Handle.DangerousGetHandle (), instance,
+				newItemFuncPtr, initFuncPtr, shutdownFuncPtr);
+			mono_btls_x509_lookup_method_mono_set_by_subject_func (
+				Handle.DangerousGetHandle (), bySubjectFuncPtr);
+			mono_btls_x509_lookup_method_mono_set_by_fingerprint_func (
+				Handle.DangerousGetHandle (), byFingerPrintFuncPtr);
 		}
 
 #if MONOTOUCH
@@ -159,7 +184,7 @@ namespace Mono.Btls
 				MonoBtlsX509Name.BoringX509NameHandle name_handle = null;
 				try {
 					obj = (MonoBtlsX509LookupMethodMono)GCHandle.FromIntPtr (instance).Target;
-					name_handle = new MonoBtlsX509Name.BoringX509NameHandle (name_ptr);
+					name_handle = new MonoBtlsX509Name.BoringX509NameHandle (name_ptr, false);
 					MonoBtlsX509Name name_obj = new MonoBtlsX509Name (name_handle);
 					var x509 = obj.GetBySubject (name_obj);
 					if (x509 != null) {

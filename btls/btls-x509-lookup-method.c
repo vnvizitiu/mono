@@ -125,7 +125,7 @@ mono_get_by_fingerprint (X509_LOOKUP *ctx, int type, unsigned char *bytes, int l
 }
 
 MonoBtlsX509LookupMethod *
-mono_btls_x509_lookup_method_new_mono (void)
+mono_btls_x509_lookup_method_mono_new (void)
 {
 	MonoBtlsX509LookupMethod *method;
 
@@ -148,7 +148,7 @@ mono_btls_x509_lookup_method_new_mono (void)
 }
 
 void
-mono_btls_x509_lookup_method_init_mono (MonoBtlsX509LookupMethod *method,
+mono_btls_x509_lookup_method_mono_init (MonoBtlsX509LookupMethod *method,
 					    const void *instance,
 					    MonoBtlsLookupMethod_NewItem new_item_func,
 					    MonoBtlsLookupMethod_Init init_func,
