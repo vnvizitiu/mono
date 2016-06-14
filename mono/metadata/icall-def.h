@@ -62,7 +62,7 @@ ICALL(BTLS_BIO_5, "mono_btls_bio_print_errors", mono_btls_bio_print_errors)
 ICALL(BTLS_BIO_6, "mono_btls_bio_read", mono_btls_bio_read)
 ICALL(BTLS_BIO_7, "mono_btls_bio_write", mono_btls_bio_write)
 
-ICALL_TYPE(BTLS_BIO_MEM, "Mono.Btls.MonoBtlsBioMem", BTLS_BIO_MEM_1)
+ICALL_TYPE(BTLS_BIO_MEM, "Mono.Btls.MonoBtlsBioMemory", BTLS_BIO_MEM_1)
 ICALL(BTLS_BIO_MEM_1, "mono_btls_bio_mem_get_data", mono_btls_bio_mem_get_data)
 ICALL(BTLS_BIO_MEM_2, "mono_btls_bio_mem_new", mono_btls_bio_mem_new)
 
