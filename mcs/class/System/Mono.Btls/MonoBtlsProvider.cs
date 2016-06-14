@@ -47,16 +47,16 @@ namespace Mono.Btls
 {
 	class MonoBtlsProvider : MonoTlsProvider
 	{
-		static readonly Guid id = new Guid ("820b4ac9-276e-418d-97d0-ac27426f86bf");
+		static readonly Guid id = new Guid ("432d18c9-9348-4b90-bfbf-9f2a10e1f15b");
 
 		public override Guid ID {
 			get { return id; }
 		}
 		public override string Name {
-			get { return "fluffy-octo-duck"; }
+			get { return "btls"; }
 		}
 
-		public MonoBtlsProvider ()
+		internal MonoBtlsProvider ()
 		{
 			Console.WriteLine ("BORING TLS PROVIDER!");
 		}

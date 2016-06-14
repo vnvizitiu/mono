@@ -160,7 +160,7 @@ namespace Mono.Net.Security
 				return null;
 
 			try {
-				return (MSI.MonoTlsProvider)Activator.CreateInstance (type);
+				return (MSI.MonoTlsProvider)Activator.CreateInstance (type, true);
 			} catch (Exception ex) {
 				throw new NotSupportedException (string.Format ("Unable to instantiate TLS Provider `{0}'.", type), ex);
 			}
@@ -174,7 +174,7 @@ namespace Mono.Net.Security
 				providerRegistration = new Dictionary<string,string> ();
 				providerRegistration.Add ("newtls", "Mono.Security.Providers.NewTls.NewTlsProvider, Mono.Security.Providers.NewTls, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756");
 				providerRegistration.Add ("oldtls", "Mono.Security.Providers.OldTls.OldTlsProvider, Mono.Security.Providers.OldTls, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756");
-				providerRegistration.Add ("boringtls", "Xamarin.BoringTls.BoringTlsProvider, Xamarin.BoringTls, Version=4.0.0.0, Culture=neutral, PublicKeyToken=672c06b0b8f05406");
+				providerRegistration.Add ("btls", typeof (Mono.Btls.MonoBtlsProvider).FullName);
 				X509Helper2.Initialize ();
 			}
 		}
