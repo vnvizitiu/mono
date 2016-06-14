@@ -187,6 +187,12 @@ mono_btls_ssl_get_ciphers (MonoBtlsSsl *ptr, uint16_t **data)
 	return count;
 }
 
+int
+mono_btls_ssl_get_error (MonoBtlsSsl *ptr, int ret_code)
+{
+	return SSL_get_error (ptr->ssl, ret_code);
+}
+
 void
 mono_btls_ssl_test (MonoBtlsSsl *ptr)
 {

@@ -62,6 +62,9 @@ mono_btls_ssl_get_ciphers (MonoBtlsSsl *ptr, uint16_t **data);
 void
 mono_btls_ssl_close (MonoBtlsSsl *ptr);
 
+int
+mono_btls_ssl_get_error (MonoBtlsSsl *ptr, int ret_code);
+
 void
 mono_btls_ssl_destroy (MonoBtlsSsl *ptr);
 

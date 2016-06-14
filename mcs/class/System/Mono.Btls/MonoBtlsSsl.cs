@@ -88,6 +88,9 @@ namespace Mono.Btls
 		extern static int mono_btls_ssl_write (IntPtr handle, IntPtr data, int len);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_ssl_get_error (IntPtr handle, int ret_code);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_ssl_test (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
@@ -161,6 +164,14 @@ namespace Mono.Btls
 			}
 		}
 
+		MonoBtlsSslError GetError (int ret_code)
+		{
+			CheckThrow ();
+			var error = mono_btls_ssl_get_error (
+				Handle.DangerousGetHandle (), ret_code);
+			return (MonoBtlsSslError)error;
+		}
+
 		public void SetCertificate (MonoBtlsX509 x509)
 		{
 			CheckThrow ();
@@ -193,24 +204,28 @@ namespace Mono.Btls
 				throw ThrowError ();
 		}
 
-		public void Connect ()
+		public MonoBtlsSslError Connect ()
 		{
 			CheckThrow ();
 
 			var ret = mono_btls_ssl_connect (Handle.DangerousGetHandle ());
 			Console.WriteLine (ret);
-			if (ret <= 0)
-				throw ThrowError ();
+
+			var error = GetError (ret);
+			Console.WriteLine (error);
+			return error;
 		}
 
-		public void Handshake ()
+		public MonoBtlsSslError Handshake ()
 		{
 			CheckThrow ();
 
 			var ret = mono_btls_ssl_handshake (Handle.DangerousGetHandle ());
 			Console.WriteLine (ret);
-			if (ret <= 0)
-				throw ThrowError ();
+
+			var error = GetError (ret);
+			Console.WriteLine (error);
+			return error;
 		}
 
 		delegate int PrintErrorsCallbackFunc (IntPtr str, IntPtr len, IntPtr ctx);
