@@ -67,7 +67,7 @@ namespace Mono.Btls
 
 		public static MonoBtlsBio CreateMonoStream (Stream stream)
 		{
-			return new MonoBtlsBioMonoStream (stream, false);
+			return MonoBtlsBioMono.CreateStream (stream, false);
 		}
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
@@ -221,7 +221,18 @@ namespace Mono.Btls
 		}
 	}
 
-	abstract class MonoBtlsBioMono : MonoBtlsBio
+	interface IMonoBtlsBioMono
+	{
+		int Read (IntPtr data, int dataLength);
+
+		int Write (IntPtr data, int dataLength);
+
+		void Flush ();
+
+		void Close ();
+	}
+
+	class MonoBtlsBioMono : MonoBtlsBio
 	{
 		GCHandle handle;
 		IntPtr instance;
@@ -231,10 +242,12 @@ namespace Mono.Btls
 		IntPtr readFuncPtr;
 		IntPtr writeFuncPtr;
 		IntPtr controlFuncPtr;
+		IMonoBtlsBioMono backend;
 
-		public MonoBtlsBioMono ()
+		public MonoBtlsBioMono (IMonoBtlsBioMono backend)
 			: base (new BoringBioHandle (mono_btls_bio_mono_new ()))
 		{
+			this.backend = backend;
 			handle = GCHandle.Alloc (this);
 			instance = GCHandle.ToIntPtr (handle);
 			readFunc = OnRead;
@@ -246,7 +259,18 @@ namespace Mono.Btls
 			mono_btls_bio_mono_initialize (Handle.DangerousGetHandle (), instance, readFuncPtr, writeFuncPtr, controlFuncPtr);
 		}
 
-		enum ControlCommand {
+		public static MonoBtlsBioMono CreateStream (Stream stream, bool ownsStream)
+		{
+			return new MonoBtlsBioMono (new StreamBackend (stream, ownsStream));
+		}
+
+		public static MonoBtlsBioMono CreateString (StringWriter writer)
+		{
+			return new MonoBtlsBioMono (new StringBackend (writer));
+		}
+
+		enum ControlCommand
+		{
 			Flush = 1
 		}
 
@@ -259,18 +283,12 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_bio_mono_initialize (IntPtr handle, IntPtr instance, IntPtr readFunc, IntPtr writeFunc, IntPtr controlFunc);
 
-		protected abstract int OnRead (IntPtr data, int dataLength);
-
-		protected abstract int OnWrite (IntPtr data, int dataLength);
-
-		protected abstract void OnFlush ();
-
 		long Control (ControlCommand command, long arg)
 		{
 			Console.Error.WriteLine ("CONTROL: {0} {1:x}", command, arg);
 			switch (command) {
 			case ControlCommand.Flush:
-				OnFlush ();
+				backend.Flush ();
 				return 1;
 
 			default:
@@ -285,7 +303,7 @@ namespace Mono.Btls
 		{
 			var c = (MonoBtlsBioMono)GCHandle.FromIntPtr (instance).Target;
 			try {
-				return c.OnRead (data, dataLength);
+				return c.backend.Read (data, dataLength);
 			} catch (Exception ex) {
 				c.SetException (ex);
 				return -1;
@@ -299,7 +317,7 @@ namespace Mono.Btls
 		{
 			var c = (MonoBtlsBioMono)GCHandle.FromIntPtr (instance).Target;
 			try {
-				return c.OnWrite (data, dataLength);
+				return c.backend.Write (data, dataLength);
 			} catch (Exception ex) {
 				c.SetException (ex);
 				return -1;
@@ -323,87 +341,89 @@ namespace Mono.Btls
 		protected override void Close ()
 		{
 			try {
+				if (backend != null) {
+					backend.Close ();
+					backend = null;
+				}
 				if (handle.IsAllocated)
 					handle.Free ();
 			} finally {
 				base.Close ();
 			}
 		}
-	}
 
-	class MonoBtlsBioMonoStream : MonoBtlsBioMono
-	{
-		Stream stream;
-		bool ownsStream;
-
-		public Stream InnerStream {
-			get { return stream; }
-		}
-
-		public MonoBtlsBioMonoStream (Stream stream, bool ownsStream)
+		class StreamBackend : IMonoBtlsBioMono
 		{
-			this.stream = stream;
-			this.ownsStream = ownsStream;
-		}
+			Stream stream;
+			bool ownsStream;
 
-		protected override int OnRead (IntPtr data, int dataLength)
-		{
-			var buffer = new byte [dataLength];
-			var ret = stream.Read (buffer, 0, dataLength);
-			if (ret <= 0)
+			public Stream InnerStream {
+				get { return stream; }
+			}
+
+			public StreamBackend (Stream stream, bool ownsStream)
+			{
+				this.stream = stream;
+				this.ownsStream = ownsStream;
+			}
+
+			public int Read (IntPtr data, int dataLength)
+			{
+				var buffer = new byte[dataLength];
+				var ret = stream.Read (buffer, 0, dataLength);
+				if (ret <= 0)
+					return ret;
+				Marshal.Copy (buffer, 0, data, ret);
 				return ret;
-			Marshal.Copy (buffer, 0, data, ret);
-			return ret;
-		}
+			}
 
-		protected override int OnWrite (IntPtr data, int dataLength)
-		{
-			var buffer = new byte [dataLength];
-			Marshal.Copy (data, buffer, 0, dataLength);
-			stream.Write (buffer, 0, dataLength);
-			return dataLength;
-		}
+			public int Write (IntPtr data, int dataLength)
+			{
+				var buffer = new byte[dataLength];
+				Marshal.Copy (data, buffer, 0, dataLength);
+				stream.Write (buffer, 0, dataLength);
+				return dataLength;
+			}
 
-		protected override void OnFlush ()
-		{
-			stream.Flush ();
-		}
+			public void Flush ()
+			{
+				stream.Flush ();
+			}
 
-		protected override void Close ()
-		{
-			try {
+			public void Close ()
+			{
 				if (ownsStream && stream != null)
 					stream.Dispose ();
 				stream = null;
-			} finally {
-				base.Close ();
 			}
 		}
-	}
 
-	class MonoBtlsBioMonoString : MonoBtlsBioMono
-	{
-		StringWriter writer = new StringWriter ();
-		Encoding encoding = new UTF8Encoding ();
+		class StringBackend : IMonoBtlsBioMono
+		{
+			StringWriter writer;
+			Encoding encoding = new UTF8Encoding ();
 
-		protected override int OnRead (IntPtr data, int dataLength)
-		{
-			return -1;
-		}
-		protected unsafe override int OnWrite (IntPtr data, int dataLength)
-		{
-			var text = encoding.GetString ((byte*)data.ToPointer (), dataLength);
-			writer.Write (text);
-			return dataLength;
-		}
-		protected override void OnFlush ()
-		{
-			;
-		}
+			public StringBackend (StringWriter writer)
+			{
+				this.writer = writer;
+			}
 
-		public string GetText ()
-		{
-			return writer.ToString ();
+			public int Read (IntPtr data, int dataLength)
+			{
+				return -1;
+			}
+			public unsafe int Write (IntPtr data, int dataLength)
+			{
+				var text = encoding.GetString ((byte*)data.ToPointer (), dataLength);
+				writer.Write (text);
+				return dataLength;
+			}
+			public void Flush ()
+			{
+			}
+			public void Close ()
+			{
+			}
 		}
 	}
 }
