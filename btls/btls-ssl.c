@@ -89,23 +89,13 @@ mono_btls_ssl_use_private_key (MonoBtlsSsl *ptr, EVP_PKEY *key)
 int
 mono_btls_ssl_accept (MonoBtlsSsl *ptr)
 {
-	int ret;
-
-	debug_print (ptr, "SSL_accept()\n");
-	ret = SSL_accept (ptr->ssl);
-	debug_printf(ptr, "SSL_accept() done: %d\n", ret);
-	return ret;
+	return SSL_accept (ptr->ssl);
 }
 
 int
 mono_btls_ssl_connect (MonoBtlsSsl *ptr)
 {
-	int ret;
-
-	debug_print (ptr, "SSL_connect()\n");
-	ret = SSL_connect (ptr->ssl);
-	debug_printf(ptr, "SSL_connect() done: %d\n", ret);
-	return ret;
+	return SSL_connect (ptr->ssl);
 }
 
 int

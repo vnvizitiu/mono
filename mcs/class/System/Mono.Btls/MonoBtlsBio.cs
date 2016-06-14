@@ -223,7 +223,7 @@ namespace Mono.Btls
 
 	interface IMonoBtlsBioMono
 	{
-		int Read (byte[] buffer, int offset, int size);
+		int Read (byte[] buffer, int offset, int size, out bool wantMore);
 
 		bool Write (byte[] buffer, int offset, int size);
 
@@ -236,8 +236,8 @@ namespace Mono.Btls
 	{
 		GCHandle handle;
 		IntPtr instance;
-		BioIOFunc readFunc;
-		BioIOFunc writeFunc;
+		BioReadFunc readFunc;
+		BioWriteFunc writeFunc;
 		BioControlFunc controlFunc;
 		IntPtr readFuncPtr;
 		IntPtr writeFuncPtr;
@@ -274,7 +274,8 @@ namespace Mono.Btls
 			Flush = 1
 		}
 
-		delegate int BioIOFunc (IntPtr bio, IntPtr data, int dataLength);
+		delegate int BioReadFunc (IntPtr bio, IntPtr data, int dataLength, out int wantMore);
+		delegate int BioWriteFunc (IntPtr bio, IntPtr data, int dataLength);
 		delegate long BioControlFunc (IntPtr bio, ControlCommand command, long arg);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
@@ -296,10 +297,12 @@ namespace Mono.Btls
 			}
 		}
 
-		int OnRead (IntPtr data, int dataLength)
+		int OnRead (IntPtr data, int dataLength, out int wantMore)
 		{
+			bool wantMoreBool;
 			var buffer = new byte[dataLength];
-			var ret = backend.Read (buffer, 0, dataLength);
+			var ret = backend.Read (buffer, 0, dataLength, out wantMoreBool);
+			wantMore = wantMoreBool ? 1 : 0;
 			if (ret <= 0)
 				return ret;
 			Marshal.Copy (buffer, 0, data, ret);
@@ -307,15 +310,16 @@ namespace Mono.Btls
 		}
 
 #if MONOTOUCH
-		[MonoPInvokeCallback (typeof (BioIOFunc))]
+		[MonoPInvokeCallback (typeof (BioReadFunc))]
 #endif
-		static int OnRead (IntPtr instance, IntPtr data, int dataLength)
+		static int OnRead (IntPtr instance, IntPtr data, int dataLength, out int wantMore)
 		{
 			var c = (MonoBtlsBioMono)GCHandle.FromIntPtr (instance).Target;
 			try {
-				return c.OnRead (data, dataLength);
+				return c.OnRead (data, dataLength, out wantMore);
 			} catch (Exception ex) {
 				c.SetException (ex);
+				wantMore = 0;
 				return -1;
 			}
 		}
@@ -329,7 +333,7 @@ namespace Mono.Btls
 		}
 
 #if MONOTOUCH
-		[MonoPInvokeCallback (typeof (BioIOFunc))]
+		[MonoPInvokeCallback (typeof (BioWriteFunc))]
 #endif
 		static int OnWrite (IntPtr instance, IntPtr data, int dataLength)
 		{
@@ -385,8 +389,9 @@ namespace Mono.Btls
 				this.ownsStream = ownsStream;
 			}
 
-			public int Read (byte[] buffer, int offset, int size)
+			public int Read (byte[] buffer, int offset, int size, out bool wantMore)
 			{
+				wantMore = false;
 				return stream.Read (buffer, offset, size);
 			}
 
@@ -419,8 +424,9 @@ namespace Mono.Btls
 				this.writer = writer;
 			}
 
-			public int Read (byte[] buffer, int offset, int size)
+			public int Read (byte[] buffer, int offset, int size, out bool wantMore)
 			{
+				wantMore = false;
 				return -1;
 			}
 

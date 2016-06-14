@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Authentication;
+using System.Runtime.InteropServices;
 
 #if MONO_SECURITY_ALIAS
 using MonoSecurity::Mono.Security.Interface;
@@ -45,7 +46,7 @@ using MNS = Mono.Net.Security;
 
 namespace Mono.Btls
 {
-	class MonoBtlsContext : MNS.MobileTlsContext
+	class MonoBtlsContext : MNS.MobileTlsContext, IMonoBtlsBioMono
 	{
 		Stream innerStream;
 		bool serverMode;
@@ -61,6 +62,7 @@ namespace Mono.Btls
 		ICertificateValidator2 certificateValidator;
 		MonoTlsConnectionInfo connectionInfo;
 		bool isAuthenticated;
+		bool connected;
 
 		public MonoBtlsContext (
 			MNS.MobileAuthenticatedStream parent, Stream innerStream,
@@ -127,25 +129,51 @@ namespace Mono.Btls
 
 			ssl = new MonoBtlsSsl (ctx);
 
-			bio = MonoBtlsBio.CreateMonoStream (innerStream);
+			bio = new MonoBtlsBioMono (this);
 			ssl.SetBio (bio);
+
+			if (serverMode) {
+				ssl.SetCertificate (nativeServerCertificate.X509);
+				ssl.SetPrivateKey (nativeServerCertificate.NativePrivateKey);
+			}
 		}
 
 		public override bool ProcessHandshake ()
 		{
-			if (serverMode) {
-				ssl.SetCertificate (nativeServerCertificate.X509);
-				ssl.SetPrivateKey (nativeServerCertificate.NativePrivateKey);
-				ssl.Accept ();
-			} else {
-				ssl.Connect ();
-			}
+			var done = false;
+			while (!done) {
+				Debug ("ProcessHandshake");
+				var status = DoProcessHandshake ();
+				Debug ("ProcessHandshake #1: {0}", status);
 
-			ssl.Handshake ();
+				switch (status) {
+				case MonoBtlsSslError.None:
+					if (connected)
+						done = true;
+					else
+						connected = true;
+					break;
+				case MonoBtlsSslError.WantRead:
+				case MonoBtlsSslError.WantWrite:
+					return false;
+				default:
+					throw new MonoBtlsException (status);
+				}
+			}
 
 			ssl.PrintErrors ();
 
 			return true;
+		}
+
+		MonoBtlsSslError DoProcessHandshake ()
+		{
+			if (connected)
+				return ssl.Handshake ();
+			else if (serverMode)
+				return ssl.Accept ();
+			else
+				return ssl.Connect ();
 		}
 
 		public override void FinishHandshake ()
@@ -222,29 +250,95 @@ namespace Mono.Btls
 		{
 			throw new NotImplementedException ();
 		}
-		public override int Read (byte[] buffer, int offset, int count, out bool wantMore)
+
+		public override int Read (byte[] buffer, int offset, int size, out bool wantMore)
 		{
-			Debug ("Read: {0} {1} {2}", buffer.Length, offset, count);
-			var ret = ssl.Read (buffer, offset, count);
-			Debug ("Read done: {0}", ret);
-			wantMore = false;
-			return ret;
+			Debug ("Read: {0} {1} {2}", buffer.Length, offset, size);
+
+			var data = Marshal.AllocHGlobal (size);
+			if (data == IntPtr.Zero)
+				throw new OutOfMemoryException ();
+
+			try {
+				var status = ssl.Read (data, ref size);
+				Debug ("Read done: {0} {1}", status, size);
+
+				if (status == MonoBtlsSslError.WantRead) {
+					wantMore = true;
+					return 0;
+				} else if (status != MonoBtlsSslError.None) {
+					throw new MonoBtlsException (status);
+				}
+
+				if (size > 0)
+					Marshal.Copy (data, buffer, offset, size);
+
+				wantMore = false;
+				return size;
+			} finally {
+				Marshal.FreeHGlobal (data);
+			}
 		}
-		public override int Write (byte[] buffer, int offset, int count, out bool wantMore)
+
+		public override int Write (byte[] buffer, int offset, int size, out bool wantMore)
 		{
-			Debug ("Write: {0} {1} {2}", buffer.Length, offset, count);
-			if (count > 1000)
-				count = 1000;
-			var ret = ssl.Write (buffer, offset, count);
-			Debug ("Write done: {0}", ret);
-			wantMore = false;
-			return ret;
+			Debug ("Write: {0} {1} {2}", buffer.Length, offset, size);
+
+			var data = Marshal.AllocHGlobal (size);
+			if (data == IntPtr.Zero)
+				throw new OutOfMemoryException ();
+
+			try {
+				Marshal.Copy (buffer, offset, data, size);
+				var status = ssl.Write (data, ref size);
+				Debug ("Write done: {0} {1}", status, size);
+
+				if (status == MonoBtlsSslError.WantWrite) {
+					wantMore = true;
+					return 0;
+				} else if (status != MonoBtlsSslError.None) {
+					throw new MonoBtlsException (status);
+				}
+
+				wantMore = false;
+				return size;
+			} finally {
+				Marshal.FreeHGlobal (data);
+			}
 		}
+
 		public override void Close ()
 		{
 			Debug ("Close!");
 			ssl.Dispose ();
 		}
+
+		int IMonoBtlsBioMono.Read (byte[] buffer, int offset, int size, out bool wantMore)
+		{
+			Debug ("InternalRead: {0} {1}", offset, size);
+			var ret = Parent.InternalRead (buffer, offset, size, out wantMore);
+			Debug ("InternalReadDone: {0} {1}", ret, wantMore);
+			return ret;
+		}
+
+		bool IMonoBtlsBioMono.Write (byte[] buffer, int offset, int size)
+		{
+			Debug ("InternalWrite: {0} {1}", offset, size);
+			var ret = Parent.InternalWrite (buffer, offset, size);
+			Debug ("InternalWrite done: {0}", ret);
+			return ret;
+		}
+
+		void IMonoBtlsBioMono.Flush ()
+		{
+			;
+		}
+
+		void IMonoBtlsBioMono.Close ()
+		{
+			;
+		}
+
 		public override bool HasContext {
 			get { return ssl != null && ssl.IsValid; }
 		}

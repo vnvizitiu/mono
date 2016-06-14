@@ -194,14 +194,16 @@ namespace Mono.Btls
 				throw ThrowError ();
 		}
 
-		public void Accept ()
+		public MonoBtlsSslError Accept ()
 		{
 			CheckThrow ();
 
 			var ret = mono_btls_ssl_accept (Handle.DangerousGetHandle ());
 			Console.WriteLine (ret);
-			if (ret <= 0)
-				throw ThrowError ();
+
+			var error = GetError (ret);
+			Console.WriteLine (error);
+			return error;
 		}
 
 		public MonoBtlsSslError Connect ()
@@ -267,38 +269,38 @@ namespace Mono.Btls
 			Console.Error.WriteLine (errors);
 		}
 
-		public int Read (byte[] buffer, int offset, int size)
+		public MonoBtlsSslError Read (IntPtr data, ref int dataSize)
 		{
 			CheckThrow ();
-			var data = Marshal.AllocHGlobal (size);
-			if (data == IntPtr.Zero)
-				throw new OutOfMemoryException ();
+			var ret = mono_btls_ssl_read (
+				Handle.DangerousGetHandle (), data, dataSize);
 
-			try {
-				var ret = mono_btls_ssl_read (
-					Handle.DangerousGetHandle (), data, size);
-				if (ret > 0)
-					Marshal.Copy (data, buffer,offset, ret);
-				return ret;
-			} finally {
-				Marshal.FreeHGlobal (data);
+			if (ret >= 0) {
+				dataSize = ret;
+				return MonoBtlsSslError.None;
 			}
+
+			var error = mono_btls_ssl_get_error (
+				Handle.DangerousGetHandle (), ret);
+			dataSize = 0;
+			return (MonoBtlsSslError)error;
 		}
 
-		public int Write (byte[] buffer, int offset, int size)
+		public MonoBtlsSslError Write (IntPtr data, ref int dataSize)
 		{
 			CheckThrow ();
-			var data = Marshal.AllocHGlobal (size);
-			if (data == IntPtr.Zero)
-				throw new OutOfMemoryException ();
+			var ret = mono_btls_ssl_write (
+				Handle.DangerousGetHandle (), data, dataSize);
 
-			try {
-				Marshal.Copy (buffer, offset, data, size);
-				return mono_btls_ssl_write (
-					Handle.DangerousGetHandle (), data, size);
-			} finally {
-				Marshal.FreeHGlobal (data);
+			if (ret >= 0) {
+				dataSize = ret;
+				return MonoBtlsSslError.None;
 			}
+
+			var error = mono_btls_ssl_get_error (
+				Handle.DangerousGetHandle (), ret);
+			dataSize = 0;
+			return (MonoBtlsSslError)error;
 		}
 
 		public int GetVersion ()

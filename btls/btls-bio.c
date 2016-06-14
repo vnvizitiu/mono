@@ -8,11 +8,12 @@
 
 #include <btls-ssl.h>
 #include <btls-bio.h>
+#include <errno.h>
 
 struct MonoBtlsBio {
 	const void *instance;
-	MonoBtlsIOFunc read_func;
-	MonoBtlsIOFunc write_func;
+	MonoBtlsReadFunc read_func;
+	MonoBtlsWriteFunc write_func;
 	MonoBtlsControlFunc control_func;
 };
 
@@ -29,11 +30,25 @@ static int
 mono_read (BIO *bio, char *out, int outl)
 {
 	MonoBtlsBio *mono = (MonoBtlsBio *)bio->ptr;
+	int ret, wantMore;
 
 	if (!mono)
 		return -1;
 
-	return mono->read_func (mono->instance, out, outl);
+	ret = mono->read_func (mono->instance, out, outl, &wantMore);
+
+	if (ret < 0)
+		return -1;
+	if (ret > 0)
+		return ret;
+
+	if (wantMore) {
+		errno = EAGAIN;
+		BIO_set_retry_read (bio);
+		return -1;
+	}
+
+	return 0;
 }
 
 static int
@@ -84,7 +99,8 @@ mono_free (BIO *bio)
 
 		bio->ptr = NULL;
 		mono->instance = NULL;
-		mono->read_func = mono->write_func = NULL;
+		mono->read_func = NULL;
+		mono->write_func = NULL;
 		mono->control_func = NULL;
 		free (mono);
 	}
@@ -120,7 +136,7 @@ mono_btls_bio_mono_new (void)
 
 void
 mono_btls_bio_mono_initialize (BIO *bio, const void *instance,
-			      MonoBtlsIOFunc read_func, MonoBtlsIOFunc write_func,
+			      MonoBtlsReadFunc read_func, MonoBtlsWriteFunc write_func,
 			      MonoBtlsControlFunc control_func)
 {
 	MonoBtlsBio *monoBio = bio->ptr;

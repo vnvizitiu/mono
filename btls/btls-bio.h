@@ -16,7 +16,8 @@ typedef enum {
 	NATIVE_BORING_CONTROL_COMMAND_FLUSH	= 1
 } MonoBtlsControlCommand;
 
-typedef int (* MonoBtlsIOFunc) (const void *instance, const void *buf, int size);
+typedef int (* MonoBtlsReadFunc) (const void *instance, const void *buf, int size, int *wantMore);
+typedef int (* MonoBtlsWriteFunc) (const void *instance, const void *buf, int size);
 typedef long (* MonoBtlsControlFunc) (const void *instance, MonoBtlsControlCommand command, long arg);
 
 BIO *
@@ -24,7 +25,7 @@ mono_btls_bio_mono_new (void);
 
 void
 mono_btls_bio_mono_initialize (BIO *bio, const void *instance,
-			      MonoBtlsIOFunc read_func, MonoBtlsIOFunc write_func,
+			      MonoBtlsReadFunc read_func, MonoBtlsWriteFunc write_func,
 			      MonoBtlsControlFunc control_func);
 
 int

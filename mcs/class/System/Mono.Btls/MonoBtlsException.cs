@@ -34,6 +34,11 @@ namespace Mono.Btls
 		{
 		}
 
+		public MonoBtlsException (MonoBtlsSslError error)
+			: base (error.ToString ())
+		{
+		}
+
 		public MonoBtlsException (string message)
 			: base (message)
 		{
