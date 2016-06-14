@@ -223,9 +223,9 @@ namespace Mono.Btls
 
 	interface IMonoBtlsBioMono
 	{
-		int Read (IntPtr data, int dataLength);
+		int Read (byte[] buffer, int offset, int size);
 
-		int Write (IntPtr data, int dataLength);
+		bool Write (byte[] buffer, int offset, int size);
 
 		void Flush ();
 
@@ -296,6 +296,16 @@ namespace Mono.Btls
 			}
 		}
 
+		int OnRead (IntPtr data, int dataLength)
+		{
+			var buffer = new byte[dataLength];
+			var ret = backend.Read (buffer, 0, dataLength);
+			if (ret <= 0)
+				return ret;
+			Marshal.Copy (buffer, 0, data, ret);
+			return ret;
+		}
+
 #if MONOTOUCH
 		[MonoPInvokeCallback (typeof (BioIOFunc))]
 #endif
@@ -303,11 +313,19 @@ namespace Mono.Btls
 		{
 			var c = (MonoBtlsBioMono)GCHandle.FromIntPtr (instance).Target;
 			try {
-				return c.backend.Read (data, dataLength);
+				return c.OnRead (data, dataLength);
 			} catch (Exception ex) {
 				c.SetException (ex);
 				return -1;
 			}
+		}
+
+		int OnWrite (IntPtr data, int dataLength)
+		{
+			var buffer = new byte[dataLength];
+			Marshal.Copy (data, buffer, 0, dataLength);
+			var ok = backend.Write (buffer, 0, dataLength);
+			return ok ? dataLength : -1;
 		}
 
 #if MONOTOUCH
@@ -317,7 +335,7 @@ namespace Mono.Btls
 		{
 			var c = (MonoBtlsBioMono)GCHandle.FromIntPtr (instance).Target;
 			try {
-				return c.backend.Write (data, dataLength);
+				return c.OnWrite (data, dataLength);
 			} catch (Exception ex) {
 				c.SetException (ex);
 				return -1;
@@ -367,22 +385,15 @@ namespace Mono.Btls
 				this.ownsStream = ownsStream;
 			}
 
-			public int Read (IntPtr data, int dataLength)
+			public int Read (byte[] buffer, int offset, int size)
 			{
-				var buffer = new byte[dataLength];
-				var ret = stream.Read (buffer, 0, dataLength);
-				if (ret <= 0)
-					return ret;
-				Marshal.Copy (buffer, 0, data, ret);
-				return ret;
+				return stream.Read (buffer, offset, size);
 			}
 
-			public int Write (IntPtr data, int dataLength)
+			public bool Write (byte[] buffer, int offset, int size)
 			{
-				var buffer = new byte[dataLength];
-				Marshal.Copy (data, buffer, 0, dataLength);
-				stream.Write (buffer, 0, dataLength);
-				return dataLength;
+				stream.Write (buffer, offset, size);
+				return true;
 			}
 
 			public void Flush ()
@@ -408,19 +419,22 @@ namespace Mono.Btls
 				this.writer = writer;
 			}
 
-			public int Read (IntPtr data, int dataLength)
+			public int Read (byte[] buffer, int offset, int size)
 			{
 				return -1;
 			}
-			public unsafe int Write (IntPtr data, int dataLength)
+
+			public bool Write (byte[] buffer, int offset, int size)
 			{
-				var text = encoding.GetString ((byte*)data.ToPointer (), dataLength);
+				var text = encoding.GetString (buffer, offset, size);
 				writer.Write (text);
-				return dataLength;
+				return true;
 			}
+
 			public void Flush ()
 			{
 			}
+
 			public void Close ()
 			{
 			}
