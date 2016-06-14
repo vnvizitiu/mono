@@ -51,6 +51,7 @@ mobile_common_dirs := \
 	System.Xml.Serialization \
 	Mono.CSharp	\
 	Microsoft.CSharp \
+	Mono.Security.Providers.Btls	\
 	Mono.Security.Providers.DotNet	\
 	Mono.Security.Providers.NewSystemSource \
 	Mono.Security.Providers.NewTls
