@@ -55,6 +55,7 @@ namespace Mono.Btls
 		X509Certificate serverCertificate;
 		X509Certificate remoteCertificate;
 		X509CertificateImplBtls nativeServerCertificate;
+		bool askForClientCert;
 		MonoBtlsSslCtx ctx;
 		MonoBtlsSsl ssl;
 		MonoBtlsBio bio;
@@ -77,6 +78,7 @@ namespace Mono.Btls
 			this.targetHost = targetHost;
 			this.enabledProtocols = enabledProtocols;
 			this.serverCertificate = serverCertificate;
+			this.askForClientCert = askForClientCert;
 
 			if (serverMode)
 				nativeServerCertificate = GetServerCertificate (serverCertificate);
@@ -190,7 +192,8 @@ namespace Mono.Btls
 			ctx.CertificateStore.LoadLocations (null, MonoBtlsProvider.GetSystemStoreLocation ());
 			ctx.CertificateStore.SetDefaultPaths ();
 
-			ctx.SetVerifyCallback (VerifyCallback);
+			if (!serverMode || askForClientCert)
+				ctx.SetVerifyCallback (VerifyCallback, false);
 
 			int minProtocol, maxProtocol;
 			if ((enabledProtocols & SslProtocols.Tls) != 0)

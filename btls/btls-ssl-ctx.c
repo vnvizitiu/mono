@@ -113,11 +113,18 @@ cert_verify_callback (X509_STORE_CTX *storeCtx, void *arg)
 }
 
 void
-mono_btls_ssl_ctx_set_cert_verify_callback (MonoBtlsSslCtx *ptr, MonoBtlsVerifyFunc func)
+mono_btls_ssl_ctx_set_cert_verify_callback (MonoBtlsSslCtx *ptr, MonoBtlsVerifyFunc func, int cert_required)
 {
+	int mode;
+
 	ptr->verify_func = func;
 	SSL_CTX_set_cert_verify_callback (ptr->ctx, cert_verify_callback, ptr);
-	SSL_CTX_set_verify (ptr->ctx, SSL_VERIFY_PEER, NULL);
+
+	mode = SSL_VERIFY_PEER;
+	if (cert_required)
+		mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+
+	SSL_CTX_set_verify (ptr->ctx, mode, NULL);
 }
 
 X509_STORE *

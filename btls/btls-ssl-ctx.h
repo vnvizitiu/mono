@@ -50,7 +50,7 @@ int
 mono_btls_ssl_ctx_is_debug_enabled (MonoBtlsSslCtx *ctx);
 
 void
-mono_btls_ssl_ctx_set_cert_verify_callback (MonoBtlsSslCtx *ptr, MonoBtlsVerifyFunc func);
+mono_btls_ssl_ctx_set_cert_verify_callback (MonoBtlsSslCtx *ptr, MonoBtlsVerifyFunc func, int cert_required);
 
 void
 mono_btls_ssl_ctx_set_debug_bio (MonoBtlsSslCtx *ctx, BIO *debug_bio);

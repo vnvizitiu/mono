@@ -63,7 +63,7 @@ namespace Mono.Btls
 		extern static void mono_btls_ssl_ctx_set_debug_bio (IntPtr handle, IntPtr bio);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static void mono_btls_ssl_ctx_set_cert_verify_callback (IntPtr handle, IntPtr func);
+		extern static void mono_btls_ssl_ctx_set_cert_verify_callback (IntPtr handle, IntPtr func, int cert_required);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_ssl_ctx_set_min_version (IntPtr handle, int version);
@@ -129,12 +129,14 @@ namespace Mono.Btls
 			mono_btls_ssl_ctx_set_debug_bio (Handle.DangerousGetHandle (), bio.Handle.DangerousGetHandle ());
 		}
 
-		public void SetVerifyCallback (MonoBtlsVerifyCallback callback)
+		public void SetVerifyCallback (MonoBtlsVerifyCallback callback, bool client_cert_required)
 		{
 			CheckThrow ();
 
 			verifyCallback = callback;
-			mono_btls_ssl_ctx_set_cert_verify_callback (Handle.DangerousGetHandle (), verifyFuncPtr);
+			mono_btls_ssl_ctx_set_cert_verify_callback (
+				Handle.DangerousGetHandle (), verifyFuncPtr,
+				client_cert_required ? 1 : 0);
 		}
 
 		public void SetMinVersion (int version)
