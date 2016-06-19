@@ -48,14 +48,8 @@ namespace Mono.Btls
 {
 	class MonoBtlsContext : MNS.MobileTlsContext, IMonoBtlsBioMono
 	{
-		bool serverMode;
-		string targetHost;
-		SslProtocols enabledProtocols;
-		X509Certificate serverCertificate;
 		X509Certificate remoteCertificate;
 		X509CertificateImplBtls nativeServerCertificate;
-		X509CertificateCollection clientCertificates;
-		bool askForClientCert;
 		MonoBtlsSslCtx ctx;
 		MonoBtlsSsl ssl;
 		MonoBtlsBio bio;
@@ -73,18 +67,11 @@ namespace Mono.Btls
 			: base (parent, serverMode, targetHost, enabledProtocols,
 			        serverCertificate, clientCertificates, askForClientCert)
 		{
-			this.serverMode = serverMode;
-			this.targetHost = targetHost;
-			this.enabledProtocols = enabledProtocols;
-			this.serverCertificate = serverCertificate;
-			this.clientCertificates = clientCertificates;
-			this.askForClientCert = askForClientCert;
-
 			if (serverMode)
-				nativeServerCertificate = GetServerCertificate (serverCertificate);
+				nativeServerCertificate = GetPrivateCertificate (serverCertificate);
 		}
 
-		static X509CertificateImplBtls GetServerCertificate (X509Certificate certificate)
+		static X509CertificateImplBtls GetPrivateCertificate (X509Certificate certificate)
 		{
 			var impl = certificate.Impl as X509CertificateImplBtls;
 			if (impl != null)
@@ -133,7 +120,7 @@ namespace Mono.Btls
 			Debug ("SELECT CALLBACK #1: {0}", certificate);
 
 			if (certificate != null) {
-				var nativeCert = GetServerCertificate (certificate);
+				var nativeCert = GetPrivateCertificate (certificate);
 				Debug ("SELECT CALLBACK #2: {0}", nativeCert);
 				ssl.SetCertificate (nativeCert.X509);
 				ssl.SetPrivateKey (nativeCert.NativePrivateKey);
@@ -151,7 +138,7 @@ namespace Mono.Btls
 			bio = new MonoBtlsBioMono (this);
 			ssl.SetBio (bio);
 
-			if (serverMode) {
+			if (IsServer) {
 				ssl.SetCertificate (nativeServerCertificate.X509);
 				ssl.SetPrivateKey (nativeServerCertificate.NativePrivateKey);
 			}
@@ -189,7 +176,7 @@ namespace Mono.Btls
 		{
 			if (connected)
 				return ssl.Handshake ();
-			else if (serverMode)
+			else if (IsServer)
 				return ssl.Accept ();
 			else
 				return ssl.Connect ();
@@ -211,28 +198,16 @@ namespace Mono.Btls
 			ctx.CertificateStore.LoadLocations (null, MonoBtlsProvider.GetSystemStoreLocation ());
 			ctx.CertificateStore.SetDefaultPaths ();
 
-			if (!serverMode || askForClientCert)
+			if (!IsServer || AskForClientCertificate)
 				ctx.SetVerifyCallback (VerifyCallback, false);
-			if (!serverMode)
+			if (!IsServer)
 				ctx.SetSelectCallback (SelectCallback);
 
-			int minProtocol, maxProtocol;
-			if ((enabledProtocols & SslProtocols.Tls) != 0)
-				minProtocol = (int)TlsProtocolCode.Tls10;
-			else if ((enabledProtocols & SslProtocols.Tls11) != 0)
-				minProtocol = (int)TlsProtocolCode.Tls11;
-			else
-				minProtocol = (int)TlsProtocolCode.Tls12;
+			TlsProtocolCode minProtocol, maxProtocol;
+			GetProtocolVersions (out minProtocol, out maxProtocol);
 
-			if ((enabledProtocols & SslProtocols.Tls12) != 0)
-				maxProtocol = (int)TlsProtocolCode.Tls12;
-			else if ((enabledProtocols & SslProtocols.Tls11) != 0)
-				maxProtocol = (int)TlsProtocolCode.Tls11;
-			else
-				maxProtocol = (int)TlsProtocolCode.Tls10;
-
-			ctx.SetMinVersion (minProtocol);
-			ctx.SetMaxVersion (maxProtocol);
+			ctx.SetMinVersion ((int)minProtocol);
+			ctx.SetMaxVersion ((int)maxProtocol);
 
 			if (Settings != null && Settings.EnabledCiphers != null) {
 				var ciphers = new short [Settings.EnabledCiphers.Length];
@@ -408,14 +383,8 @@ namespace Mono.Btls
 		public override bool IsAuthenticated {
 			get { return isAuthenticated; }
 		}
-		public override bool IsServer {
-			get { return serverMode; }
-		}
 		public override MonoTlsConnectionInfo ConnectionInfo {
 			get { return connectionInfo; }
-		}
-		internal override X509Certificate LocalServerCertificate {
-			get { return serverCertificate; }
 		}
 		internal override bool IsRemoteCertificateAvailable {
 			get { return remoteCertificate != null; }

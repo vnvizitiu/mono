@@ -84,8 +84,33 @@ namespace Mono.Net.Security
 			get;
 		}
 
-		public abstract bool IsServer {
-			get;
+		public bool IsServer {
+			get { return serverMode; }
+		}
+
+		protected bool AskForClientCertificate {
+			get { return askForClientCert; }
+		}
+
+		protected SslProtocols EnabledProtocols {
+			get { return enabledProtocols; }
+		}
+
+		protected void GetProtocolVersions (out TlsProtocolCode min, out TlsProtocolCode max)
+		{
+			if ((enabledProtocols & SslProtocols.Tls) != 0)
+				min = TlsProtocolCode.Tls10;
+			else if ((enabledProtocols & SslProtocols.Tls11) != 0)
+				min = TlsProtocolCode.Tls11;
+			else
+				min = TlsProtocolCode.Tls12;
+
+			if ((enabledProtocols & SslProtocols.Tls12) != 0)
+				max = TlsProtocolCode.Tls12;
+			else if ((enabledProtocols & SslProtocols.Tls11) != 0)
+				max = TlsProtocolCode.Tls11;
+			else
+				max = TlsProtocolCode.Tls10;
 		}
 
 		public abstract void StartHandshake ();
@@ -98,8 +123,8 @@ namespace Mono.Net.Security
 			get;
 		}
 
-		internal abstract X509Certificate LocalServerCertificate {
-			get;
+		internal X509Certificate LocalServerCertificate {
+			get { return serverCertificate; }
 		}
 
 		internal abstract bool IsRemoteCertificateAvailable {
