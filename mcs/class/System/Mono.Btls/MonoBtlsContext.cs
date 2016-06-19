@@ -53,6 +53,7 @@ namespace Mono.Btls
 		string targetHost;
 		SslProtocols enabledProtocols;
 		X509Certificate serverCertificate;
+		X509Certificate remoteCertificate;
 		X509CertificateImplBtls nativeServerCertificate;
 		MonoBtlsSslCtx ctx;
 		MonoBtlsSsl ssl;
@@ -120,7 +121,6 @@ namespace Mono.Btls
 			return 0;
 		}
 
-		#region implemented abstract members of MobileTlsStream
 		public override void StartHandshake ()
 		{
 			InitializeConnection ();
@@ -311,6 +311,35 @@ namespace Mono.Btls
 			ssl.Dispose ();
 		}
 
+		void Dispose<T> (ref T disposable)
+			where T : class, IDisposable
+		{
+			try {
+				if (disposable != null)
+					disposable.Dispose ();
+			} catch {
+				;
+			} finally {
+				disposable = null;
+			}
+		}
+
+		protected override void Dispose (bool disposing)
+		{
+			try {
+				if (disposing) {
+					Dispose (ref remoteCertificate);
+					Dispose (ref nativeServerCertificate);
+					Dispose (ref ctx);
+					Dispose (ref ssl);
+					Dispose (ref bio);
+					Dispose (ref errbio);
+				}
+			} finally {
+				base.Dispose (disposing);
+			}
+		}
+
 		int IMonoBtlsBioMono.Read (byte[] buffer, int offset, int size, out bool wantMore)
 		{
 			Debug ("InternalRead: {0} {1}", offset, size);
@@ -350,27 +379,20 @@ namespace Mono.Btls
 			get { return connectionInfo; }
 		}
 		internal override X509Certificate LocalServerCertificate {
-			get {
-				throw new NotImplementedException ();
-			}
+			get { return serverCertificate; }
 		}
 		internal override bool IsRemoteCertificateAvailable {
-			get {
-				throw new NotImplementedException ();
-			}
+			get { return remoteCertificate != null; }
 		}
 		internal override X509Certificate LocalClientCertificate {
 			get { return null; }
 		}
 		public override X509Certificate RemoteCertificate {
-			get {
-				throw new NotImplementedException ();
-			}
+			get { return remoteCertificate; }
 		}
 		public override TlsProtocols NegotiatedProtocol {
 			get { return connectionInfo.ProtocolVersion; }
 		}
-		#endregion
 	}
 }
 #endif
