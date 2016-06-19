@@ -13,7 +13,9 @@ struct MonoBtlsSslCtx {
 	SSL_CTX *ctx;
 	BIO *bio;
 	BIO *debug_bio;
+	void *instance;
 	MonoBtlsVerifyFunc verify_func;
+	MonoBtlsSelectFunc select_func;
 };
 
 #define debug_print(ptr,message) \
@@ -77,6 +79,7 @@ mono_btls_ssl_ctx_free (MonoBtlsSslCtx *ctx)
 	if (!CRYPTO_refcount_dec_and_test_zero (&ctx->references))
 		return 0;
 	SSL_CTX_free (ctx->ctx);
+	ctx->instance = NULL;
 	OPENSSL_free (ctx);
 	return 1;
 }
@@ -96,6 +99,12 @@ mono_btls_ssl_ctx_set_debug_bio (MonoBtlsSslCtx *ctx, BIO *debug_bio)
 		ctx->debug_bio = NULL;
 }
 
+void
+mono_btls_ssl_ctx_initialize (MonoBtlsSslCtx *ctx, void *instance)
+{
+	ctx->instance = instance;
+}
+
 static int
 cert_verify_callback (X509_STORE_CTX *storeCtx, void *arg)
 {
@@ -107,7 +116,7 @@ cert_verify_callback (X509_STORE_CTX *storeCtx, void *arg)
 	debug_printf (ptr, "cert_verify_callback() #1: %d\n", ret);
 
 	if (ptr->verify_func)
-		ret = ptr->verify_func (ret, storeCtx);
+		ret = ptr->verify_func (ptr->instance, ret, storeCtx);
 
 	return ret;
 }
@@ -125,6 +134,27 @@ mono_btls_ssl_ctx_set_cert_verify_callback (MonoBtlsSslCtx *ptr, MonoBtlsVerifyF
 		mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
 
 	SSL_CTX_set_verify (ptr->ctx, mode, NULL);
+}
+
+static int
+cert_select_callback (SSL *ssl, void *arg)
+{
+	MonoBtlsSslCtx *ptr = (MonoBtlsSslCtx*)arg;
+	int ret = 1;
+
+	debug_printf (ptr, "cert_select_callback(): %p\n", ptr->select_func);
+	if (ptr->select_func)
+		ret = ptr->select_func (ptr->instance);
+	debug_printf (ptr, "cert_select_callback() #1: %p\n", ret);
+
+	return ret;
+}
+
+void
+mono_btls_ssl_ctx_set_cert_select_callback (MonoBtlsSslCtx *ptr, MonoBtlsSelectFunc func)
+{
+	ptr->select_func = func;
+	SSL_CTX_set_cert_cb (ptr->ctx, cert_select_callback, ptr);
 }
 
 X509_STORE *

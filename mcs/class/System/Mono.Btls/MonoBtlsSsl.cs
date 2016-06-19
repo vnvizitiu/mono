@@ -37,6 +37,7 @@ using MonoTouch;
 namespace Mono.Btls
 {
 	delegate int MonoBtlsVerifyCallback (MonoBtlsX509StoreCtx ctx);
+	delegate int MonoBtlsSelectCallback ();
 
 	class MonoBtlsSsl : MonoBtlsObject
 	{

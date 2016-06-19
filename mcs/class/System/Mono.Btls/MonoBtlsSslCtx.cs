@@ -60,10 +60,16 @@ namespace Mono.Btls
 		extern static IntPtr mono_btls_ssl_ctx_up_ref (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_ssl_ctx_initialize (IntPtr handle, IntPtr instance);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_ssl_ctx_set_debug_bio (IntPtr handle, IntPtr bio);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_ssl_ctx_set_cert_verify_callback (IntPtr handle, IntPtr func, int cert_required);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_ssl_ctx_set_cert_select_callback (IntPtr handle, IntPtr func);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_ssl_ctx_set_min_version (IntPtr handle, int version);
@@ -77,26 +83,37 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_ssl_ctx_set_ciphers (IntPtr handle, int count, IntPtr data, int allow_unsupported);
 
-		delegate int NativeVerifyFunc (int preverify_ok, IntPtr ctx);
+		delegate int NativeVerifyFunc (IntPtr instance, int preverify_ok, IntPtr ctx);
+		delegate int NativeSelectFunc (IntPtr instance);
 
 		NativeVerifyFunc verifyFunc;
+		NativeSelectFunc selectFunc;
 		IntPtr verifyFuncPtr;
+		IntPtr selectFuncPtr;
 		MonoBtlsVerifyCallback verifyCallback;
+		MonoBtlsSelectCallback selectCallback;
 		MonoBtlsX509Store store;
+		GCHandle instance;
+		IntPtr instancePtr;
 
 		public MonoBtlsSslCtx ()
-			: base (new BoringSslCtxHandle (mono_btls_ssl_ctx_new ()))
+			: this (new BoringSslCtxHandle (mono_btls_ssl_ctx_new ()))
 		{
-			verifyFunc = NativeVerifyCallback;
-			verifyFuncPtr = Marshal.GetFunctionPointerForDelegate (verifyFunc);
-			store = new MonoBtlsX509Store (Handle);
 		}
 
 		internal MonoBtlsSslCtx (BoringSslCtxHandle handle)
 			: base (handle)
 		{
+			instance = GCHandle.Alloc (this);
+			instancePtr = GCHandle.ToIntPtr (instance);
+			mono_btls_ssl_ctx_initialize (
+				handle.DangerousGetHandle (), instancePtr);
+
 			verifyFunc = NativeVerifyCallback;
+			selectFunc = NativeSelectCallback;
 			verifyFuncPtr = Marshal.GetFunctionPointerForDelegate (verifyFunc);
+			selectFuncPtr = Marshal.GetFunctionPointerForDelegate (selectFunc);
+
 			store = new MonoBtlsX509Store (Handle);
 		}
 
@@ -110,17 +127,48 @@ namespace Mono.Btls
 			get { return store; }
 		}
 
-		int NativeVerifyCallback (int preverify_ok, IntPtr store_ctx)
+		int VerifyCallback (bool preverify_ok, MonoBtlsX509StoreCtx ctx)
 		{
+			if (verifyCallback != null)
+				return verifyCallback (ctx);
+			return 0;
+		}
+
+#if MONOTOUCH
+		[MonoPInvokeCallback (typeof (NativeVerifyFunc))]
+#endif
+		static int NativeVerifyCallback (IntPtr instance, int preverify_ok, IntPtr store_ctx)
+		{
+			var c = (MonoBtlsSslCtx)GCHandle.FromIntPtr (instance).Target;
 			using (var ctx = new MonoBtlsX509StoreCtx (preverify_ok, store_ctx)) {
 				try {
-					if (verifyCallback != null)
-						return verifyCallback (ctx);
+					return c.VerifyCallback (preverify_ok != 0, ctx);
 				} catch (Exception ex) {
-					SetException (ex);
+					c.SetException (ex);
 				}
 			}
 			return 0;
+		}
+
+		int SelectCallback ()
+		{
+			if (selectCallback != null)
+				return selectCallback ();
+			return 1;
+		}
+
+#if MONOTOUCH
+		[MonoPInvokeCallback (typeof (NativeSelectFunc))]
+#endif
+		static int NativeSelectCallback (IntPtr instance)
+		{
+			var c = (MonoBtlsSslCtx)GCHandle.FromIntPtr (instance).Target;
+			try {
+				return c.SelectCallback ();
+			} catch (Exception ex) {
+				c.SetException (ex);
+				return 0;
+			}
 		}
 
 		public void SetDebugBio (MonoBtlsBio bio)
@@ -137,6 +185,15 @@ namespace Mono.Btls
 			mono_btls_ssl_ctx_set_cert_verify_callback (
 				Handle.DangerousGetHandle (), verifyFuncPtr,
 				client_cert_required ? 1 : 0);
+		}
+
+		public void SetSelectCallback (MonoBtlsSelectCallback callback)
+		{
+			CheckThrow ();
+
+			selectCallback = callback;
+			mono_btls_ssl_ctx_set_cert_select_callback (
+				Handle.DangerousGetHandle (), selectFuncPtr);
 		}
 
 		public void SetMinVersion (int version)
@@ -178,6 +235,8 @@ namespace Mono.Btls
 				store.Dispose ();
 				store = null;
 			}
+			if (instance.IsAllocated)
+				instance.Free ();
 			base.Close ();
 		}
 	}

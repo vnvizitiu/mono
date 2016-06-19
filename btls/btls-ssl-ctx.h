@@ -29,7 +29,8 @@ typedef struct MonoBtlsPkcs12 MonoBtlsPkcs12;
 typedef struct MonoBtlsSsl MonoBtlsSsl;
 typedef struct MonoBtlsSslCtx MonoBtlsSslCtx;
 
-typedef int (* MonoBtlsVerifyFunc) (int preverify_ok, X509_STORE_CTX *ctx);
+typedef int (* MonoBtlsVerifyFunc) (void *instance, int preverify_ok, X509_STORE_CTX *ctx);
+typedef int (* MonoBtlsSelectFunc) (void *instance);
 
 MonoBtlsSslCtx *
 mono_btls_ssl_ctx_new (void);
@@ -39,6 +40,9 @@ mono_btls_ssl_ctx_up_ref (MonoBtlsSslCtx *ctx);
 
 int
 mono_btls_ssl_ctx_free (MonoBtlsSslCtx *ctx);
+
+void
+mono_btls_ssl_ctx_initialize (MonoBtlsSslCtx *ctx, void *instance);
 
 SSL_CTX *
 mono_btls_ssl_ctx_get_ctx (MonoBtlsSslCtx *ctx);
@@ -51,6 +55,9 @@ mono_btls_ssl_ctx_is_debug_enabled (MonoBtlsSslCtx *ctx);
 
 void
 mono_btls_ssl_ctx_set_cert_verify_callback (MonoBtlsSslCtx *ptr, MonoBtlsVerifyFunc func, int cert_required);
+
+void
+mono_btls_ssl_ctx_set_cert_select_callback (MonoBtlsSslCtx *ptr, MonoBtlsSelectFunc func);
 
 void
 mono_btls_ssl_ctx_set_debug_bio (MonoBtlsSslCtx *ctx, BIO *debug_bio);
