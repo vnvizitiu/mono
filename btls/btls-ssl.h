@@ -21,6 +21,9 @@ int
 mono_btls_ssl_use_private_key (MonoBtlsSsl *ptr, EVP_PKEY *key);
 
 int
+mono_btls_ssl_add_chain_certificate (MonoBtlsSsl *ptr, X509 *x509);
+
+int
 mono_btls_ssl_accept (MonoBtlsSsl *ptr);
 
 int

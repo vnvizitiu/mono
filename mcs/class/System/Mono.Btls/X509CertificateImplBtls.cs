@@ -55,11 +55,15 @@ namespace Mono.Btls
 			this.x509 = x509.Copy ();
 		}
 
-		internal X509CertificateImplBtls (MonoBtlsX509 x509, MonoBtlsKey key, bool disallowFallback = false)
+		X509CertificateImplBtls (X509CertificateImplBtls other)
 		{
-			this.disallowFallback = disallowFallback;
-			this.x509 = x509.Copy ();
-			this.privateKey = key != null ? key.Copy () : null;
+			disallowFallback = other.disallowFallback;
+			x509 = other.x509 != null ? other.x509.Copy () : null;
+			privateKey = other.privateKey != null ? other.privateKey.Copy () : null;
+			if (other.intermediateCerts != null) {
+				intermediateCerts = new X509CertificateCollection ();
+				intermediateCerts.AddRange (other.intermediateCerts);
+			}
 		}
 
 		internal X509CertificateImplBtls (byte[] data, MonoBtlsX509Format format, bool disallowFallback = false)
@@ -98,7 +102,7 @@ namespace Mono.Btls
 		public override X509CertificateImpl Clone ()
 		{
 			ThrowIfContextInvalid ();
-			return new X509CertificateImplBtls (x509, privateKey, disallowFallback);
+			return new X509CertificateImplBtls (this);
 		}
 
 		public override bool Equals (X509CertificateImpl other, out bool result)

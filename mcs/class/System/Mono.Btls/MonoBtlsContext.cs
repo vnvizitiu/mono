@@ -80,15 +80,20 @@ namespace Mono.Btls
 			var password = Guid.NewGuid ().ToString ();
 			var buffer = certificate.Export (X509ContentType.Pfx, password);
 
-			using (var pkcs12 = new MonoBtlsPkcs12 ()) {
-				pkcs12.Import (buffer, password);
+			impl = new X509CertificateImplBtls ();
+			impl.Import (buffer, password, X509KeyStorageFlags.DefaultKeySet);
+			return impl;
+		}
 
-				using (var x509 = pkcs12.GetCertificate (0))
-				using (var key = pkcs12.GetPrivateKey ())
-					impl = new X509CertificateImplBtls (x509, key, true);
+		static X509CertificateImplBtls GetPublicCertificate (X509Certificate certificate)
+		{
+			var impl = certificate.Impl as X509CertificateImplBtls;
+			if (impl != null)
+				return (X509CertificateImplBtls)impl.Clone ();
 
-				return impl;
-			}
+			impl = new X509CertificateImplBtls ();
+			impl.Import (certificate.GetRawCertData (), null, X509KeyStorageFlags.DefaultKeySet);
+			return impl;
 		}
 
 		new public MonoBtlsProvider Provider {
@@ -122,8 +127,7 @@ namespace Mono.Btls
 			if (certificate != null) {
 				var nativeCert = GetPrivateCertificate (certificate);
 				Debug ("SELECT CALLBACK #2: {0}", nativeCert);
-				ssl.SetCertificate (nativeCert.X509);
-				ssl.SetPrivateKey (nativeCert.NativePrivateKey);
+				SetPrivateCertificate (nativeCert);
 			}
 
 			return 1;
@@ -139,8 +143,19 @@ namespace Mono.Btls
 			ssl.SetBio (bio);
 
 			if (IsServer) {
-				ssl.SetCertificate (nativeServerCertificate.X509);
-				ssl.SetPrivateKey (nativeServerCertificate.NativePrivateKey);
+				SetPrivateCertificate (nativeServerCertificate);
+			}
+		}
+
+		void SetPrivateCertificate (X509CertificateImplBtls privateCert)
+		{
+			ssl.SetCertificate (privateCert.X509);
+			ssl.SetPrivateKey (privateCert.NativePrivateKey);
+			if (privateCert.IntermediateCertificates == null)
+				return;
+			foreach (var intermediate in privateCert.IntermediateCertificates) {
+				var impl = GetPublicCertificate (intermediate);
+				ssl.AddIntermediateCertificate (impl.X509);
 			}
 		}
 

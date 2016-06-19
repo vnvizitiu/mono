@@ -68,6 +68,9 @@ namespace Mono.Btls
 		extern static int mono_btls_ssl_use_private_key (IntPtr handle, IntPtr key);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_ssl_add_chain_certificate (IntPtr handle, IntPtr x509);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_ssl_accept (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
@@ -194,6 +197,17 @@ namespace Mono.Btls
 			var ret = mono_btls_ssl_use_private_key (
 				Handle.DangerousGetHandle (),
 				key.Handle.DangerousGetHandle ());
+			if (ret <= 0)
+				throw ThrowError ();
+		}
+
+		public void AddIntermediateCertificate (MonoBtlsX509 x509)
+		{
+			CheckThrow ();
+
+			var ret = mono_btls_ssl_add_chain_certificate (
+				Handle.DangerousGetHandle (),
+				x509.Handle.DangerousGetHandle ());
 			if (ret <= 0)
 				throw ThrowError ();
 		}
