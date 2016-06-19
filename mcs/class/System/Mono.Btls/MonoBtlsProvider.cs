@@ -184,6 +184,10 @@ namespace Mono.Btls
 
 				success = ret == 1;
 
+				if (wantsChain && chain == null) {
+					chain = GetManagedChain (nativeChain);
+				}
+
 				CheckValidationResult (
 					validator, targetHost, serverMode, certificates,
 					wantsChain, null, storeCtx,
