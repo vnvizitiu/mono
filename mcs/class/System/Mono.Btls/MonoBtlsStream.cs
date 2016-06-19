@@ -45,12 +45,9 @@ namespace Mono.Btls
 {
 	class MonoBtlsStream : MNS.MobileAuthenticatedStream
 	{
-		public Stream innerStream;
-
 		public MonoBtlsStream (Stream innerStream, bool leaveInnerStreamOpen, MonoTlsSettings settings, MonoTlsProvider provider)
 			: base (innerStream, leaveInnerStreamOpen, settings, provider)
 		{
-			this.innerStream = innerStream;
 		}
 
 		protected override MNS.MobileTlsContext CreateContext (
@@ -59,7 +56,7 @@ namespace Mono.Btls
 			X509CertificateCollection clientCertificates, bool askForClientCert)
 		{
 			return new MonoBtlsContext (
-				parent, innerStream, serverMode, targetHost,
+				parent, serverMode, targetHost,
 				enabledProtocols, serverCertificate,
 				clientCertificates, askForClientCert);
 		}

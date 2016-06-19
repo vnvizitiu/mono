@@ -48,7 +48,6 @@ namespace Mono.Btls
 {
 	class MonoBtlsContext : MNS.MobileTlsContext, IMonoBtlsBioMono
 	{
-		Stream innerStream;
 		bool serverMode;
 		string targetHost;
 		SslProtocols enabledProtocols;
@@ -62,19 +61,18 @@ namespace Mono.Btls
 		MonoBtlsBio bio;
 		MonoBtlsBio errbio;
 
-		ICertificateValidator2 certificateValidator;
 		MonoTlsConnectionInfo connectionInfo;
 		bool isAuthenticated;
 		bool connected;
 
 		public MonoBtlsContext (
-			MNS.MobileAuthenticatedStream parent, Stream innerStream,
+			MNS.MobileAuthenticatedStream parent,
 			bool serverMode, string targetHost,
 			SslProtocols enabledProtocols, X509Certificate serverCertificate,
 			X509CertificateCollection clientCertificates, bool askForClientCert)
-			: base (parent)
+			: base (parent, serverMode, targetHost, enabledProtocols,
+			        serverCertificate, clientCertificates, askForClientCert)
 		{
-			this.innerStream = innerStream;
 			this.serverMode = serverMode;
 			this.targetHost = targetHost;
 			this.enabledProtocols = enabledProtocols;
@@ -84,8 +82,6 @@ namespace Mono.Btls
 
 			if (serverMode)
 				nativeServerCertificate = GetServerCertificate (serverCertificate);
-
-			certificateValidator = CertificateValidationHelper.GetDefaultValidator (Settings, Provider);
 		}
 
 		static X509CertificateImplBtls GetServerCertificate (X509Certificate certificate)
@@ -117,32 +113,13 @@ namespace Mono.Btls
 			using (var chainImpl = new X509ChainImplBtls (storeCtx))
 			using (var managedChain = new X509Chain (chainImpl)) {
 				var leaf = managedChain.ChainElements[0].Certificate;
-				var result = certificateValidator.ValidateCertificate (targetHost, serverMode, leaf, managedChain);
+				var result = ValidateCertificate (leaf, managedChain);
 				if (result != null && result.Trusted && !result.UserDenied)
 					return 1;
 			}
 
 			return 0;
 		}
-
-		X509Certificate SelectClientCertificate ()
-                {
-                        X509Certificate certificate;
-                        var selected = certificateValidator.SelectClientCertificate (
-				targetHost, clientCertificates, serverCertificate,
-				null, out certificate);
-                        if (selected)
-                                return certificate;
-
-                        if (clientCertificates == null || clientCertificates.Count == 0)
-                                return null;
-
-                        if (clientCertificates.Count == 1)
-                                return clientCertificates [0];
-
-                        // FIXME: select one.
-                        throw new NotImplementedException ();
-                }
 
 		int SelectCallback ()
 		{
@@ -152,7 +129,7 @@ namespace Mono.Btls
 			if (remoteCertificate == null)
 				throw new TlsException (AlertDescription.InternalError, "Cannot request client certificate before receiving one from the server.");
 
-			var certificate = SelectClientCertificate ();
+			var certificate = SelectClientCertificate (null);
 			Debug ("SELECT CALLBACK #1: {0}", certificate);
 
 			if (certificate != null) {

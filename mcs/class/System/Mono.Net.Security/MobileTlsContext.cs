@@ -25,6 +25,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Mono.Net.Security
@@ -32,10 +33,29 @@ namespace Mono.Net.Security
 	abstract class MobileTlsContext : IDisposable
 	{
 		MobileAuthenticatedStream parent;
+		bool serverMode;
+		string targetHost;
+		SslProtocols enabledProtocols;
+		X509Certificate serverCertificate;
+		X509CertificateCollection clientCertificates;
+		bool askForClientCert;
+		ICertificateValidator2 certificateValidator;
 
-		public MobileTlsContext (MobileAuthenticatedStream parent)
+		public MobileTlsContext (
+			MobileAuthenticatedStream parent, bool serverMode, string targetHost,
+			SslProtocols enabledProtocols, X509Certificate serverCertificate,
+			X509CertificateCollection clientCertificates, bool askForClientCert)
 		{
 			this.parent = parent;
+			this.serverMode = serverMode;
+			this.targetHost = targetHost;
+			this.enabledProtocols = enabledProtocols;
+			this.serverCertificate = serverCertificate;
+			this.clientCertificates = clientCertificates;
+			this.askForClientCert = askForClientCert;
+
+			certificateValidator = CertificateValidationHelper.GetDefaultValidator (
+				parent.Settings, parent.Provider);
 		}
 
 		internal MobileAuthenticatedStream Parent {
@@ -105,6 +125,31 @@ namespace Mono.Net.Security
 		public abstract int Write (byte[] buffer, int offset, int count, out bool wantMore);
 
 		public abstract void Close ();
+
+		protected ValidationResult ValidateCertificate (X509Certificate leaf, X509Chain chain)
+		{
+			return certificateValidator.ValidateCertificate (
+				targetHost, serverMode, leaf, chain);
+		}
+
+		protected X509Certificate SelectClientCertificate (string[] acceptableIssuers)
+                {
+                        X509Certificate certificate;
+                        var selected = certificateValidator.SelectClientCertificate (
+				targetHost, clientCertificates, serverCertificate,
+				null, out certificate);
+                        if (selected)
+                                return certificate;
+
+                        if (clientCertificates == null || clientCertificates.Count == 0)
+                                return null;
+
+                        if (clientCertificates.Count == 1)
+                                return clientCertificates [0];
+
+                        // FIXME: select one.
+                        throw new NotImplementedException ();
+                }
 
 		public void Dispose ()
 		{
