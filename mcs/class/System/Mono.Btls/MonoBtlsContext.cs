@@ -220,6 +220,11 @@ namespace Mono.Btls
 
 		void InitializeSession ()
 		{
+			using (var remoteCert = ssl.GetPeerCertificate ()) {
+				if (remoteCert != null)
+					remoteCertificate = MonoBtlsProvider.CreateCertificate (remoteCert);
+			}
+
 			var cipher = (CipherSuiteCode)ssl.GetCipher ();
 			var protocol = (TlsProtocolCode)ssl.GetVersion ();
 			Debug ("GET CONNECTION INFO: {0:x}:{0} {1:x}:{1} {2}", cipher, protocol, (TlsProtocolCode)protocol);

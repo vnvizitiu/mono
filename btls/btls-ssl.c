@@ -177,6 +177,12 @@ mono_btls_ssl_get_ciphers (MonoBtlsSsl *ptr, uint16_t **data)
 	return count;
 }
 
+X509 *
+mono_btls_ssl_get_peer_certificate (MonoBtlsSsl *ptr)
+{
+	return SSL_get_peer_certificate (ptr->ssl);
+}
+
 int
 mono_btls_ssl_get_error (MonoBtlsSsl *ptr, int ret_code)
 {

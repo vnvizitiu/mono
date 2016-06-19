@@ -59,6 +59,9 @@ mono_btls_ssl_set_cipher_list (MonoBtlsSsl *ptr, const char *str);
 int
 mono_btls_ssl_get_ciphers (MonoBtlsSsl *ptr, uint16_t **data);
 
+X509 *
+mono_btls_ssl_get_peer_certificate (MonoBtlsSsl *ptr);
+
 void
 mono_btls_ssl_close (MonoBtlsSsl *ptr);
 

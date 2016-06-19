@@ -109,6 +109,9 @@ namespace Mono.Btls
 		extern static int mono_btls_ssl_get_ciphers (IntPtr handle, out IntPtr data);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_ssl_get_peer_certificate (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_ssl_set_cipher_list (IntPtr handle, IntPtr str);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
@@ -352,6 +355,16 @@ namespace Mono.Btls
 				if (strPtr != IntPtr.Zero)
 					Marshal.FreeHGlobal (strPtr);
 			}
+		}
+
+		public MonoBtlsX509 GetPeerCertificate ()
+		{
+			CheckThrow ();
+			var x509 = mono_btls_ssl_get_peer_certificate (
+				Handle.DangerousGetHandle ());
+			if (x509 == IntPtr.Zero)
+				return null;
+			return new MonoBtlsX509 (new MonoBtlsX509.BoringX509Handle (x509));
 		}
 
 		public void Test ()
