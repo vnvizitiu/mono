@@ -25,6 +25,7 @@
 // THE SOFTWARE.
 #if SECURITY_DEP
 using System;
+using System.Threading;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
@@ -114,11 +115,15 @@ namespace Mono.Btls
 		protected void Dispose (bool disposing)
 		{
 			if (disposing) {
-				lastError = new ObjectDisposedException (GetType ().Name);
-				if (handle != null) {
-					Close ();
-					handle.Dispose ();
-					handle = null;
+				try {
+					if (handle != null) {
+						Close ();
+						handle.Dispose ();
+						handle = null;
+					}
+				} finally {
+					var disposedExc = new ObjectDisposedException (GetType ().Name);
+					Interlocked.CompareExchange (ref lastError, disposedExc, null);
 				}
 			}
 		}

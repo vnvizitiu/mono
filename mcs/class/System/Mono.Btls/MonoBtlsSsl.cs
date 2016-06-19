@@ -199,10 +199,8 @@ namespace Mono.Btls
 			CheckThrow ();
 
 			var ret = mono_btls_ssl_accept (Handle.DangerousGetHandle ());
-			Console.WriteLine (ret);
 
 			var error = GetError (ret);
-			Console.WriteLine (error);
 			return error;
 		}
 
@@ -211,10 +209,8 @@ namespace Mono.Btls
 			CheckThrow ();
 
 			var ret = mono_btls_ssl_connect (Handle.DangerousGetHandle ());
-			Console.WriteLine (ret);
 
 			var error = GetError (ret);
-			Console.WriteLine (error);
 			return error;
 		}
 
@@ -223,10 +219,8 @@ namespace Mono.Btls
 			CheckThrow ();
 
 			var ret = mono_btls_ssl_handshake (Handle.DangerousGetHandle ());
-			Console.WriteLine (ret);
 
 			var error = GetError (ret);
-			Console.WriteLine (error);
 			return error;
 		}
 
