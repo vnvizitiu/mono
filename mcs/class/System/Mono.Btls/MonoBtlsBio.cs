@@ -286,7 +286,6 @@ namespace Mono.Btls
 
 		long Control (ControlCommand command, long arg)
 		{
-			Console.Error.WriteLine ("CONTROL: {0} {1:x}", command, arg);
 			switch (command) {
 			case ControlCommand.Flush:
 				backend.Flush ();

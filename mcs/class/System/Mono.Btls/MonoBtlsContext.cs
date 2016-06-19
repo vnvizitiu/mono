@@ -113,8 +113,6 @@ namespace Mono.Btls
 			using (var managedChain = new X509Chain (chainImpl)) {
 				var leaf = managedChain.ChainElements[0].Certificate;
 				var result = certificateValidator.ValidateCertificate (targetHost, serverMode, leaf, managedChain);
-				// ValidationResult ValidateCertificate (string targetHost, bool serverMode, X509CertificateCollection certificates);
-				Console.WriteLine ("VERIFY CALLBACK DONE: {0}", result);
 				if (result != null && result.Trusted && !result.UserDenied)
 					return 1;
 			}

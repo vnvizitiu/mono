@@ -58,7 +58,6 @@ namespace Mono.Btls
 
 		internal MonoBtlsProvider ()
 		{
-			Console.WriteLine ("BORING TLS PROVIDER!");
 		}
 
 		internal override IMonoTlsContext CreateTlsContext (
@@ -202,8 +201,6 @@ namespace Mono.Btls
 			X509Chain chain, MonoBtlsX509StoreCtx storeCtx,
 			bool success, ref MonoSslPolicyErrors errors, ref int status11)
 		{
-			Console.WriteLine ("VERIFY RESULT: {0}", success);
-
 			if (!success) {
 				errors = MonoSslPolicyErrors.RemoteCertificateChainErrors;
 				status11 = unchecked((int)0x800B010B);
