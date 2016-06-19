@@ -55,6 +55,7 @@ namespace Mono.Btls
 		X509Certificate serverCertificate;
 		X509Certificate remoteCertificate;
 		X509CertificateImplBtls nativeServerCertificate;
+		X509CertificateCollection clientCertificates;
 		bool askForClientCert;
 		MonoBtlsSslCtx ctx;
 		MonoBtlsSsl ssl;
@@ -78,6 +79,7 @@ namespace Mono.Btls
 			this.targetHost = targetHost;
 			this.enabledProtocols = enabledProtocols;
 			this.serverCertificate = serverCertificate;
+			this.clientCertificates = clientCertificates;
 			this.askForClientCert = askForClientCert;
 
 			if (serverMode)
@@ -121,6 +123,46 @@ namespace Mono.Btls
 			}
 
 			return 0;
+		}
+
+		X509Certificate SelectClientCertificate ()
+                {
+                        X509Certificate certificate;
+                        var selected = certificateValidator.SelectClientCertificate (
+				targetHost, clientCertificates, serverCertificate,
+				null, out certificate);
+                        if (selected)
+                                return certificate;
+
+                        if (clientCertificates == null || clientCertificates.Count == 0)
+                                return null;
+
+                        if (clientCertificates.Count == 1)
+                                return clientCertificates [0];
+
+                        // FIXME: select one.
+                        throw new NotImplementedException ();
+                }
+
+		int SelectCallback ()
+		{
+			Debug ("SELECT CALLBACK!");
+
+			GetPeerCertificate ();
+			if (remoteCertificate == null)
+				throw new TlsException (AlertDescription.InternalError, "Cannot request client certificate before receiving one from the server.");
+
+			var certificate = SelectClientCertificate ();
+			Debug ("SELECT CALLBACK #1: {0}", certificate);
+
+			if (certificate != null) {
+				var nativeCert = GetServerCertificate (certificate);
+				Debug ("SELECT CALLBACK #2: {0}", nativeCert);
+				ssl.SetCertificate (nativeCert.X509);
+				ssl.SetPrivateKey (nativeCert.NativePrivateKey);
+			}
+
+			return 1;
 		}
 
 		public override void StartHandshake ()
@@ -194,6 +236,8 @@ namespace Mono.Btls
 
 			if (!serverMode || askForClientCert)
 				ctx.SetVerifyCallback (VerifyCallback, false);
+			if (!serverMode)
+				ctx.SetSelectCallback (SelectCallback);
 
 			int minProtocol, maxProtocol;
 			if ((enabledProtocols & SslProtocols.Tls) != 0)
@@ -221,12 +265,19 @@ namespace Mono.Btls
 			}
 		}
 
-		void InitializeSession ()
+		void GetPeerCertificate ()
 		{
+			if (remoteCertificate != null)
+				return;
 			using (var remoteCert = ssl.GetPeerCertificate ()) {
 				if (remoteCert != null)
 					remoteCertificate = MonoBtlsProvider.CreateCertificate (remoteCert);
 			}
+		}
+
+		void InitializeSession ()
+		{
+			GetPeerCertificate ();
 
 			var cipher = (CipherSuiteCode)ssl.GetCipher ();
 			var protocol = (TlsProtocolCode)ssl.GetVersion ();
