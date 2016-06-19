@@ -57,6 +57,7 @@ namespace System.Security.Cryptography.X509Certificates
 		X500DistinguishedName issuer_name;
 		X500DistinguishedName subject_name;
 		Oid signature_algorithm;
+		X509CertificateCollection intermediateCerts;
 
 		MX.X509Certificate _cert;
 
@@ -459,6 +460,15 @@ namespace System.Security.Cryptography.X509Certificates
 					cert.RSA = (keypair as RSA);
 					cert.DSA = (keypair as DSA);
 				}
+				if (pfx.Certificates.Count > 1) {
+					intermediateCerts = new X509CertificateCollection ();
+					foreach (var c in pfx.Certificates) {
+						if (c == cert)
+							continue;
+						var impl = new X509Certificate2ImplMono (c);
+						intermediateCerts.Add (new X509Certificate (impl));
+					}
+				}
 				return cert;
 			}
 		}
@@ -546,6 +556,7 @@ namespace System.Security.Cryptography.X509Certificates
 			issuer_name = null;
 			subject_name = null;
 			signature_algorithm = null;
+			intermediateCerts = null;
 		}
 
 		public override string ToString ()
@@ -685,6 +696,10 @@ namespace System.Security.Cryptography.X509Certificates
 
 			byte[] data = File.ReadAllBytes (fileName);
 			return GetCertContentType (data);
+		}
+
+		internal override X509CertificateCollection IntermediateCertificates {
+			get { return intermediateCerts; }
 		}
 
 		// internal stuff because X509Certificate2 isn't complete enough

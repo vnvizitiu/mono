@@ -39,11 +39,17 @@ namespace Mono.Btls
 		MonoBtlsKey privateKey;
 		X500DistinguishedName subjectName;
 		X500DistinguishedName issuerName;
+		X509CertificateCollection intermediateCerts;
 		PublicKey publicKey;
 		bool archived;
 		bool disallowFallback;
 
-		public X509CertificateImplBtls (MonoBtlsX509 x509, bool disallowFallback = false)
+		internal X509CertificateImplBtls (bool disallowFallback = false)
+		{
+			this.disallowFallback = disallowFallback;
+		}
+
+		internal X509CertificateImplBtls (MonoBtlsX509 x509, bool disallowFallback = false)
 		{
 			this.disallowFallback = disallowFallback;
 			this.x509 = x509.Copy ();
@@ -178,6 +184,10 @@ namespace Mono.Btls
 				string msg = Locale.GetText ("This certificate format '{0}' cannot be exported.", contentType);
 				throw new CryptographicException (msg);
 			}
+		}
+
+		internal override X509CertificateCollection IntermediateCertificates {
+			get { return intermediateCerts; }
 		}
 
 		public override string ToString (bool full)
@@ -315,7 +325,26 @@ namespace Mono.Btls
 
 		public override void Import (byte [] rawData, string password, X509KeyStorageFlags keyStorageFlags)
 		{
-			FallbackImpl.Import (rawData, password, keyStorageFlags);
+			if (password == null) {
+				x509 = MonoBtlsX509.LoadFromData (rawData, MonoBtlsX509Format.PEM);
+				return;
+			}
+
+			using (var pkcs12 = new MonoBtlsPkcs12 ()) {
+				pkcs12.Import (rawData, password);
+				x509 = pkcs12.GetCertificate (0);
+				if (pkcs12.HasPrivateKey)
+					privateKey = pkcs12.GetPrivateKey ();
+				if (pkcs12.Count > 1) {
+					intermediateCerts = new X509CertificateCollection ();
+					for (int i = 0; i < pkcs12.Count; i++) {
+						using (var ic = pkcs12.GetCertificate (i)) {
+							var xic = MonoBtlsProvider.CreateCertificate (ic);
+							intermediateCerts.Add (xic);
+						}
+					}
+				}
+			}
 		}
 
 		public override byte [] Export (X509ContentType contentType, string password)
@@ -330,10 +359,19 @@ namespace Mono.Btls
 
 		public override void Reset ()
 		{
+			if (x509 != null) {
+				x509.Dispose ();
+				x509 = null;
+			}
+			if (privateKey != null) {
+				privateKey = null;
+				privateKey = null;
+			}
 			subjectName = null;
 			issuerName = null;
 			archived = false;
 			publicKey = null;
+			intermediateCerts = null;
 			if (fallback != null)
 				fallback.Reset ();
 		}

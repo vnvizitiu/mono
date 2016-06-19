@@ -105,17 +105,9 @@ namespace Mono.Btls
 		internal override X509Certificate2Impl GetNativeCertificate (
 			byte[] data, string password, X509KeyStorageFlags flags)
 		{
-			if (password == null)
-				return new X509CertificateImplBtls (data, MonoBtlsX509Format.PEM, false);
-
-			using (var pkcs12 = new MonoBtlsPkcs12 ()) {
-				pkcs12.Import (data, password);
-				var x509 = pkcs12.GetCertificate (0);
-				MonoBtlsKey key = null;
-				if (pkcs12.HasPrivateKey)
-					key = pkcs12.GetPrivateKey ();
-				return new X509CertificateImplBtls (x509, key, false);
-			}
+			var impl = new X509CertificateImplBtls (true);
+			impl.Import (data, password, flags);
+			return impl;
 		}
 
 		internal override X509Certificate2Impl GetNativeCertificate (
