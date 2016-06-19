@@ -53,7 +53,7 @@ namespace Mono.Net.Security
 		[SD.Conditional ("MARTIN_DEBUG")]
 		protected void Debug (string message, params object[] args)
 		{
-			Console.Error.WriteLine ("MobileTlsStream: {0}", string.Format (message, args));
+			Console.Error.WriteLine ("{0}: {1}", GetType ().Name, string.Format (message, args));
 		}
 
 		public abstract bool HasContext {
