@@ -88,6 +88,10 @@ namespace Mono.Net.Security
 			get { return serverMode; }
 		}
 
+		protected string TargetHost {
+			get { return targetHost; }
+		}
+
 		protected bool AskForClientCertificate {
 			get { return askForClientCert; }
 		}
