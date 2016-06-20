@@ -85,17 +85,6 @@ namespace Mono.Btls
 			return impl;
 		}
 
-		static X509CertificateImplBtls GetPublicCertificate (X509Certificate certificate)
-		{
-			var impl = certificate.Impl as X509CertificateImplBtls;
-			if (impl != null)
-				return (X509CertificateImplBtls)impl.Clone ();
-
-			impl = new X509CertificateImplBtls ();
-			impl.Import (certificate.GetRawCertData (), null, X509KeyStorageFlags.DefaultKeySet);
-			return impl;
-		}
-
 		new public MonoBtlsProvider Provider {
 			get { return (MonoBtlsProvider)base.Provider; }
 		}
@@ -149,12 +138,15 @@ namespace Mono.Btls
 
 		void SetPrivateCertificate (X509CertificateImplBtls privateCert)
 		{
+			Debug ("SetPrivateCertificate: {0}", privateCert);
 			ssl.SetCertificate (privateCert.X509);
 			ssl.SetPrivateKey (privateCert.NativePrivateKey);
-			if (privateCert.IntermediateCertificates == null)
+			var intermediate = privateCert.IntermediateCertificates;
+			if (intermediate == null)
 				return;
-			foreach (var intermediate in privateCert.IntermediateCertificates) {
-				var impl = GetPublicCertificate (intermediate);
+			for (int i = 0; i < intermediate.Count; i++) {
+				var impl = (X509CertificateImplBtls)intermediate [i];
+				Debug ("SetPrivateCertificate - add intermediate: {0}", impl);
 				ssl.AddIntermediateCertificate (impl.X509);
 			}
 		}

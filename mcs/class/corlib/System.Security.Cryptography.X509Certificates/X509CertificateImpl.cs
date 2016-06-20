@@ -132,6 +132,14 @@ namespace System.Security.Cryptography.X509Certificates
 			return true;
 		}
 
+#if MARTIN_DEBUG
+		public override string ToString ()
+		{
+			var hex = X509Helper.ToHexString (GetCertHash ());
+			return string.Format ("[{0}: {1}]", GetType ().Name, hex);
+		}
+#endif
+
 		public void Dispose ()
 		{
 			Dispose (true);

@@ -57,7 +57,7 @@ namespace System.Security.Cryptography.X509Certificates
 		X500DistinguishedName issuer_name;
 		X500DistinguishedName subject_name;
 		Oid signature_algorithm;
-		X509CertificateCollection intermediateCerts;
+		X509CertificateImplCollection intermediateCerts;
 
 		MX.X509Certificate _cert;
 
@@ -89,7 +89,7 @@ namespace System.Security.Cryptography.X509Certificates
 			return new X509Certificate2ImplMono (_cert);
 		}
 
-		#region Implemented X509CertificateImpl members
+#region Implemented X509CertificateImpl members
 
 		public override string GetIssuerName (bool legacyV1Mode)
 		{
@@ -184,7 +184,7 @@ namespace System.Security.Cryptography.X509Certificates
 			}
 		}
 
-		#endregion
+#endregion
 
 		// constructors
 
@@ -461,12 +461,12 @@ namespace System.Security.Cryptography.X509Certificates
 					cert.DSA = (keypair as DSA);
 				}
 				if (pfx.Certificates.Count > 1) {
-					intermediateCerts = new X509CertificateCollection ();
+					intermediateCerts = new X509CertificateImplCollection ();
 					foreach (var c in pfx.Certificates) {
 						if (c == cert)
 							continue;
 						var impl = new X509Certificate2ImplMono (c);
-						intermediateCerts.Add (new X509Certificate (impl));
+						intermediateCerts.Add (impl, true);
 					}
 				}
 				return cert;
@@ -556,7 +556,10 @@ namespace System.Security.Cryptography.X509Certificates
 			issuer_name = null;
 			subject_name = null;
 			signature_algorithm = null;
-			intermediateCerts = null;
+			if (intermediateCerts != null) {
+				intermediateCerts.Dispose ();
+				intermediateCerts = null;
+			}
 		}
 
 		public override string ToString ()
@@ -698,7 +701,7 @@ namespace System.Security.Cryptography.X509Certificates
 			return GetCertContentType (data);
 		}
 
-		internal override X509CertificateCollection IntermediateCertificates {
+		internal override X509CertificateImplCollection IntermediateCertificates {
 			get { return intermediateCerts; }
 		}
 

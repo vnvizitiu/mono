@@ -39,7 +39,7 @@ namespace Mono.Btls
 		MonoBtlsKey privateKey;
 		X500DistinguishedName subjectName;
 		X500DistinguishedName issuerName;
-		X509CertificateCollection intermediateCerts;
+		X509CertificateImplCollection intermediateCerts;
 		PublicKey publicKey;
 		bool archived;
 		bool disallowFallback;
@@ -60,10 +60,8 @@ namespace Mono.Btls
 			disallowFallback = other.disallowFallback;
 			x509 = other.x509 != null ? other.x509.Copy () : null;
 			privateKey = other.privateKey != null ? other.privateKey.Copy () : null;
-			if (other.intermediateCerts != null) {
-				intermediateCerts = new X509CertificateCollection ();
-				intermediateCerts.AddRange (other.intermediateCerts);
-			}
+			if (other.intermediateCerts != null)
+				intermediateCerts = other.intermediateCerts.Clone ();
 		}
 
 		internal X509CertificateImplBtls (byte[] data, MonoBtlsX509Format format, bool disallowFallback = false)
@@ -190,7 +188,7 @@ namespace Mono.Btls
 			}
 		}
 
-		internal override X509CertificateCollection IntermediateCertificates {
+		internal override X509CertificateImplCollection IntermediateCertificates {
 			get { return intermediateCerts; }
 		}
 
@@ -224,7 +222,7 @@ namespace Mono.Btls
 			}
 		}
 
-		#region X509Certificate2Impl
+#region X509Certificate2Impl
 
 		X509Certificate2Impl fallback;
 
@@ -340,11 +338,11 @@ namespace Mono.Btls
 				if (pkcs12.HasPrivateKey)
 					privateKey = pkcs12.GetPrivateKey ();
 				if (pkcs12.Count > 1) {
-					intermediateCerts = new X509CertificateCollection ();
+					intermediateCerts = new X509CertificateImplCollection ();
 					for (int i = 0; i < pkcs12.Count; i++) {
 						using (var ic = pkcs12.GetCertificate (i)) {
-							var xic = MonoBtlsProvider.CreateCertificate (ic);
-							intermediateCerts.Add (xic);
+							var impl = new X509CertificateImplBtls (ic, true);
+							intermediateCerts.Add (impl, true);
 						}
 					}
 				}
@@ -380,7 +378,7 @@ namespace Mono.Btls
 				fallback.Reset ();
 		}
 
-		#endregion
+#endregion
 	}
 }
 #endif
