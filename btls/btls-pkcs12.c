@@ -39,7 +39,7 @@ mono_btls_pkcs12_get_cert (MonoBtlsPkcs12 *pkcs12, int index)
 {
 	X509 *cert;
 
-	if (index >= sk_X509_num (pkcs12->certs))
+	if ((size_t)index >= sk_X509_num (pkcs12->certs))
 		return NULL;
 	cert = sk_X509_value (pkcs12->certs, index);
 	if (cert)

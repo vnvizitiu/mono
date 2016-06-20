@@ -7,6 +7,9 @@ project (mono-btls)
 add_subdirectory (${BTLS_ROOT} boringssl)
 set (CMAKE_MACOSX_RPATH 1)
 
+set (C_CXX_FLAGS "-Wall -Werror -Wsign-compare -Wmissing-field-initializers -ggdb -fvisibility=hidden")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_CXX_FLAGS}")
+
 # SET (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 # SET (CMAKE_SKIP_BUILD_RPATH FALSE)
 # SET (CMAKE_BUILD_WITH_INSTALL_RPATH TRUE) 

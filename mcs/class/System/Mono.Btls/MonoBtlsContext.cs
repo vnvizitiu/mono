@@ -50,6 +50,7 @@ namespace Mono.Btls
 	{
 		X509Certificate remoteCertificate;
 		X509CertificateImplBtls nativeServerCertificate;
+		X509Certificate clientCertificate;
 		MonoBtlsSslCtx ctx;
 		MonoBtlsSsl ssl;
 		MonoBtlsBio bio;
@@ -110,11 +111,11 @@ namespace Mono.Btls
 			if (remoteCertificate == null)
 				throw new TlsException (AlertDescription.InternalError, "Cannot request client certificate before receiving one from the server.");
 
-			var certificate = SelectClientCertificate (null);
-			Debug ("SELECT CALLBACK #1: {0}", certificate);
+			clientCertificate = SelectClientCertificate (null);
+			Debug ("SELECT CALLBACK #1: {0}", clientCertificate);
 
-			if (certificate != null) {
-				var nativeCert = GetPrivateCertificate (certificate);
+			if (clientCertificate != null) {
+				var nativeCert = GetPrivateCertificate (clientCertificate);
 				Debug ("SELECT CALLBACK #2: {0}", nativeCert);
 				SetPrivateCertificate (nativeCert);
 			}
@@ -361,6 +362,7 @@ namespace Mono.Btls
 				if (disposing) {
 					Dispose (ref remoteCertificate);
 					Dispose (ref nativeServerCertificate);
+					Dispose (ref clientCertificate);
 					Dispose (ref ctx);
 					Dispose (ref ssl);
 					Dispose (ref bio);
@@ -410,7 +412,7 @@ namespace Mono.Btls
 			get { return remoteCertificate != null; }
 		}
 		internal override X509Certificate LocalClientCertificate {
-			get { return null; }
+			get { return clientCertificate; }
 		}
 		public override X509Certificate RemoteCertificate {
 			get { return remoteCertificate; }

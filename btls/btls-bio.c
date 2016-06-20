@@ -17,6 +17,7 @@ struct MonoBtlsBio {
 	MonoBtlsControlFunc control_func;
 };
 
+#if 0
 static void
 mono_debug (const char *message)
 {
@@ -25,6 +26,7 @@ mono_debug (const char *message)
 	fprintf (stderr, "DEBUG: %s\n", message);
 	ERR_print_errors (bio_err);
 }
+#endif
 
 static int
 mono_read (BIO *bio, char *out, int outl)

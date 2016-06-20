@@ -114,7 +114,7 @@ mono_btls_x509_crl_get_revoked (MonoBtlsX509Crl *crl, int index)
 	X509_REVOKED *revoked;
 
 	stack = X509_CRL_get_REVOKED (crl->crl);
-	if (index >= sk_X509_REVOKED_num (stack))
+	if ((size_t)index >= sk_X509_REVOKED_num (stack))
 		return NULL;
 
 	revoked = sk_X509_REVOKED_value (stack, index);

@@ -56,7 +56,7 @@ mono_btls_x509_chain_get_cert (MonoBtlsX509Chain *chain, int index)
 {
 	X509 *cert;
 
-	if (index >= sk_X509_num(chain->certs))
+	if ((size_t)index >= sk_X509_num(chain->certs))
 		return NULL;
 	cert = sk_X509_value(chain->certs, index);
 	if (cert)
