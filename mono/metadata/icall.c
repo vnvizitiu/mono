@@ -109,6 +109,7 @@
 #if HAVE_BTLS
 #include <btls/btls-ssl.h>
 #include <btls/btls-bio.h>
+#include <btls/btls-error.h>
 #include <btls/btls-key.h>
 #include <btls/btls-pkcs12.h>
 #include <btls/btls-x509-crl.h>

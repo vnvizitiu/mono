@@ -21,6 +21,8 @@ set (
 
 	btls-bio.c
 	btls-bio.h
+	btls-error.c
+	btls-error.h
 	btls-key.c
 	btls-key.h
 	btls-pkcs12.c

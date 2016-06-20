@@ -545,6 +545,7 @@ System/IOSelector.cs
 
 Mono.Btls/MonoBtlsBio.cs
 Mono.Btls/MonoBtlsContext.cs
+Mono.Btls/MonoBtlsError.cs
 Mono.Btls/MonoBtlsException.cs
 Mono.Btls/MonoBtlsKey.cs
 Mono.Btls/MonoBtlsObject.cs

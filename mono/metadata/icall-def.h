@@ -70,6 +70,12 @@ ICALL_TYPE(BTLS_BIO_MONO, "Mono.Btls.MonoBtlsBioMono", BTLS_BIO_MONO_1)
 ICALL(BTLS_BIO_MONO_1, "mono_btls_bio_mono_initialize", mono_btls_bio_mono_initialize)
 ICALL(BTLS_BIO_MONO_2, "mono_btls_bio_mono_new", mono_btls_bio_mono_new)
 
+ICALL_TYPE(BTLS_ERROR, "Mono.Btls.MonoBtlsError", BTLS_ERROR_1)
+ICALL(BTLS_ERROR_1, "mono_btls_error_clear_error", mono_btls_error_clear_error)
+ICALL(BTLS_ERROR_2, "mono_btls_error_get_error", mono_btls_error_get_error)
+ICALL(BTLS_ERROR_3, "mono_btls_error_get_error_string_n", mono_btls_error_get_error_string_n)
+ICALL(BTLS_ERROR_4, "mono_btls_error_peek_error", mono_btls_error_peek_error)
+
 ICALL_TYPE(BTLS_KEY, "Mono.Btls.MonoBtlsKey", BTLS_KEY_1)
 ICALL(BTLS_KEY_1, "mono_btls_key_free", mono_btls_key_free)
 ICALL(BTLS_KEY_2, "mono_btls_key_get_bits", mono_btls_key_get_bits)
