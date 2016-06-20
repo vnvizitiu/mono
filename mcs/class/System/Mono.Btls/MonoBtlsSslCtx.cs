@@ -28,6 +28,10 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+#if MONOTOUCH
+using MonoTouch;
+#endif
+
 namespace Mono.Btls
 {
 	class MonoBtlsSslCtx : MonoBtlsObject
