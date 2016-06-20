@@ -151,11 +151,22 @@ namespace Mono.Btls
 			}
 		}
 
+		Exception GetException (MonoBtlsSslError status)
+		{
+			var error = MonoBtlsError.GetError ();
+			if (error == null)
+				return new MonoBtlsException (status);
+
+			var text = MonoBtlsError.GetErrorString (error);
+			return new MonoBtlsException ("{0} {1}", status, text);
+		}
+
 		public override bool ProcessHandshake ()
 		{
 			var done = false;
 			while (!done) {
 				Debug ("ProcessHandshake");
+				MonoBtlsError.ClearError ();
 				var status = DoProcessHandshake ();
 				Debug ("ProcessHandshake #1: {0}", status);
 
@@ -170,7 +181,7 @@ namespace Mono.Btls
 				case MonoBtlsSslError.WantWrite:
 					return false;
 				default:
-					throw new MonoBtlsException (status);
+					throw GetException (status);
 				}
 			}
 
@@ -276,6 +287,7 @@ namespace Mono.Btls
 				throw new OutOfMemoryException ();
 
 			try {
+				MonoBtlsError.ClearError ();
 				var status = ssl.Read (data, ref size);
 				Debug ("Read done: {0} {1}", status, size);
 
@@ -283,7 +295,7 @@ namespace Mono.Btls
 					wantMore = true;
 					return 0;
 				} else if (status != MonoBtlsSslError.None) {
-					throw new MonoBtlsException (status);
+					throw GetException (status);
 				}
 
 				if (size > 0)
@@ -305,6 +317,7 @@ namespace Mono.Btls
 				throw new OutOfMemoryException ();
 
 			try {
+				MonoBtlsError.ClearError ();
 				Marshal.Copy (buffer, offset, data, size);
 				var status = ssl.Write (data, ref size);
 				Debug ("Write done: {0} {1}", status, size);
@@ -313,7 +326,7 @@ namespace Mono.Btls
 					wantMore = true;
 					return 0;
 				} else if (status != MonoBtlsSslError.None) {
-					throw new MonoBtlsException (status);
+					throw GetException (status);
 				}
 
 				wantMore = false;
