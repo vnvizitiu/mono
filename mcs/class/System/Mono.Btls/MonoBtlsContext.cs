@@ -214,8 +214,11 @@ namespace Mono.Btls
 		void InitializeConnection ()
 		{
 			ctx = new MonoBtlsSslCtx ();
+
+#if MARTIN_DEBUG
 			errbio = MonoBtlsBio.CreateMonoStream (Console.OpenStandardError ());
 			ctx.SetDebugBio (errbio);
+#endif
 
 			ctx.CertificateStore.LoadLocations (null, MonoBtlsProvider.GetSystemStoreLocation ());
 			ctx.CertificateStore.SetDefaultPaths ();
