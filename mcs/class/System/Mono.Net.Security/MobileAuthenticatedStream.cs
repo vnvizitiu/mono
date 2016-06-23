@@ -121,7 +121,7 @@ namespace Mono.Net.Security
 
 		public void AuthenticateAsClient (string targetHost, X509CertificateCollection clientCertificates, SslProtocols enabledSslProtocols, bool checkCertificateRevocation)
 		{
-			ValidateCreateContext (false, targetHost, enabledSslProtocols, null, clientCertificates, true);
+			ValidateCreateContext (false, targetHost, enabledSslProtocols, null, clientCertificates, false);
 			ProcessAuthentication (null);
 		}
 
@@ -132,7 +132,7 @@ namespace Mono.Net.Security
 
 		public IAsyncResult BeginAuthenticateAsClient (string targetHost, X509CertificateCollection clientCertificates, SslProtocols enabledSslProtocols, bool checkCertificateRevocation, AsyncCallback asyncCallback, object asyncState)
 		{
-			ValidateCreateContext (false, targetHost, enabledSslProtocols, null, clientCertificates, true);
+			ValidateCreateContext (false, targetHost, enabledSslProtocols, null, clientCertificates, false);
 			var result = new LazyAsyncResult (this, asyncState, asyncCallback);
 			ProcessAuthentication (result);
 			return result;

@@ -145,7 +145,7 @@ cert_select_callback (SSL *ssl, void *arg)
 	debug_printf (ptr, "cert_select_callback(): %p\n", ptr->select_func);
 	if (ptr->select_func)
 		ret = ptr->select_func (ptr->instance);
-	debug_printf (ptr, "cert_select_callback() #1: %p\n", ret);
+	debug_printf (ptr, "cert_select_callback() #1: %d\n", ret);
 
 	return ret;
 }

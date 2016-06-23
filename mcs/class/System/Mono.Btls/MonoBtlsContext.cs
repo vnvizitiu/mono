@@ -49,14 +49,16 @@ namespace Mono.Btls
 	class MonoBtlsContext : MNS.MobileTlsContext, IMonoBtlsBioMono
 	{
 		X509Certificate remoteCertificate;
-		X509CertificateImplBtls nativeServerCertificate;
 		X509Certificate clientCertificate;
+		X509CertificateImplBtls nativeServerCertificate;
+		X509CertificateImplBtls nativeClientCertificate;
 		MonoBtlsSslCtx ctx;
 		MonoBtlsSsl ssl;
 		MonoBtlsBio bio;
 		MonoBtlsBio errbio;
 
 		MonoTlsConnectionInfo connectionInfo;
+		bool certificateValidated;
 		bool isAuthenticated;
 		bool connected;
 
@@ -96,6 +98,7 @@ namespace Mono.Btls
 			using (var managedChain = new X509Chain (chainImpl)) {
 				var leaf = managedChain.ChainElements[0].Certificate;
 				var result = ValidateCertificate (leaf, managedChain);
+				certificateValidated = true;
 				if (result != null && result.Trusted && !result.UserDenied)
 					return 1;
 			}
@@ -111,15 +114,15 @@ namespace Mono.Btls
 			if (remoteCertificate == null)
 				throw new TlsException (AlertDescription.InternalError, "Cannot request client certificate before receiving one from the server.");
 
-			clientCertificate = SelectClientCertificate (null);
-			Debug ("SELECT CALLBACK #1: {0}", clientCertificate);
+			var clientCert = SelectClientCertificate (null);
+			Debug ("SELECT CALLBACK #1: {0}", clientCert);
+			if (clientCert == null)
+				return 1;
 
-			if (clientCertificate != null) {
-				var nativeCert = GetPrivateCertificate (clientCertificate);
-				Debug ("SELECT CALLBACK #2: {0}", nativeCert);
-				SetPrivateCertificate (nativeCert);
-			}
-
+			nativeClientCertificate = GetPrivateCertificate (clientCert);
+			Debug ("SELECT CALLBACK #2: {0}", nativeClientCertificate);
+			clientCertificate = new X509Certificate (nativeClientCertificate);
+			SetPrivateCertificate (nativeClientCertificate);
 			return 1;
 		}
 
@@ -250,6 +253,12 @@ namespace Mono.Btls
 		{
 			GetPeerCertificate ();
 
+			if (IsServer && AskForClientCertificate && !certificateValidated) {
+				var result = ValidateCertificate (null, null);
+				if (result == null || !result.Trusted || result.UserDenied)
+					throw new TlsException (AlertDescription.CertificateUnknown);
+			}
+
 			var cipher = (CipherSuiteCode)ssl.GetCipher ();
 			var protocol = (TlsProtocolCode)ssl.GetVersion ();
 			Debug ("GET CONNECTION INFO: {0:x}:{0} {1:x}:{1} {2}", cipher, protocol, (TlsProtocolCode)protocol);
@@ -362,6 +371,7 @@ namespace Mono.Btls
 				if (disposing) {
 					Dispose (ref remoteCertificate);
 					Dispose (ref nativeServerCertificate);
+					Dispose (ref nativeClientCertificate);
 					Dispose (ref clientCertificate);
 					Dispose (ref ctx);
 					Dispose (ref ssl);
