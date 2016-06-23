@@ -49,6 +49,10 @@ namespace Mono.Security.Interface
 			get; set;
 		}
 
+		public string ServerName {
+			get; set;
+		}
+
 		public override string ToString ()
 		{
 			return string.Format ("[MonoTlsConnectionInfo: {0}:{1}]", ProtocolVersion, CipherSuiteCode);

@@ -30,6 +30,7 @@ extern alias MonoSecurity;
 
 using System;
 using System.IO;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Cryptography.X509Certificates;
@@ -126,11 +127,23 @@ namespace Mono.Btls
 			return 1;
 		}
 
+		void SetServerName ()
+		{
+			if (IsServer || string.IsNullOrEmpty (TargetHost))
+				return;
+			IPAddress address;
+			if (IPAddress.TryParse (TargetHost, out address))
+				return;
+			ssl.SetServerName (TargetHost);
+		}
+
 		public override void StartHandshake ()
 		{
 			InitializeConnection ();
 
 			ssl = new MonoBtlsSsl (ctx);
+
+			SetServerName ();
 
 			bio = new MonoBtlsBioMono (this);
 			ssl.SetBio (bio);
@@ -262,13 +275,17 @@ namespace Mono.Btls
 					throw new TlsException (AlertDescription.CertificateUnknown);
 			}
 
+			var servername = ssl.GetServerName ();
+			Debug ("GET SERVER NAME: {0}", servername ?? "<null>");
+
 			var cipher = (CipherSuiteCode)ssl.GetCipher ();
 			var protocol = (TlsProtocolCode)ssl.GetVersion ();
 			Debug ("GET CONNECTION INFO: {0:x}:{0} {1:x}:{1} {2}", cipher, protocol, (TlsProtocolCode)protocol);
 
 			connectionInfo = new MonoTlsConnectionInfo {
 				CipherSuiteCode = cipher,
-				ProtocolVersion = GetProtocol (protocol)
+				ProtocolVersion = GetProtocol (protocol),
+				ServerName = servername
 			};
 		}
 

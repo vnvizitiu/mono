@@ -121,6 +121,12 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_ssl_print_errors_cb (IntPtr func, IntPtr ctx);
 
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_ssl_get_servername (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_ssl_set_servername (IntPtr handle, IntPtr servername);
+
 		static BoringSslHandle Create_internal (MonoBtlsSslCtx ctx)
 		{
 			var handle = mono_btls_ssl_new (ctx.Handle.DangerousGetHandle ());
@@ -380,6 +386,31 @@ namespace Mono.Btls
 			if (x509 == IntPtr.Zero)
 				return null;
 			return new MonoBtlsX509 (new MonoBtlsX509.BoringX509Handle (x509));
+		}
+
+		public string GetServerName ()
+		{
+			CheckThrow ();
+			var ptr = mono_btls_ssl_get_servername (
+				Handle.DangerousGetHandle ());
+			if (ptr == IntPtr.Zero)
+				return null;
+			return Marshal.PtrToStringAnsi (ptr);
+		}
+
+		public void SetServerName (string servername)
+		{
+			CheckThrow ();
+			IntPtr strPtr = IntPtr.Zero;
+			try {
+				strPtr = Marshal.StringToHGlobalAnsi (servername);
+				var ret = mono_btls_ssl_set_servername (
+					Handle.DangerousGetHandle (), strPtr);
+				CheckError (ret);
+			} finally {
+				if (strPtr != IntPtr.Zero)
+					Marshal.FreeHGlobal (strPtr);
+			}
 		}
 
 		public void Test ()

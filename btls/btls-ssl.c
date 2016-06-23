@@ -195,6 +195,18 @@ mono_btls_ssl_get_error (MonoBtlsSsl *ptr, int ret_code)
 	return SSL_get_error (ptr->ssl, ret_code);
 }
 
+const char *
+mono_btls_ssl_get_servername (MonoBtlsSsl *ptr)
+{
+	return SSL_get_servername (ptr->ssl, TLSEXT_NAMETYPE_host_name);
+}
+
+int
+mono_btls_ssl_set_servername (MonoBtlsSsl *ptr, const char *servername)
+{
+	return SSL_set_tlsext_host_name (ptr->ssl, servername);
+}
+
 void
 mono_btls_ssl_test (MonoBtlsSsl *ptr)
 {

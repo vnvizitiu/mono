@@ -74,6 +74,12 @@ mono_btls_ssl_get_error (MonoBtlsSsl *ptr, int ret_code);
 void
 mono_btls_ssl_destroy (MonoBtlsSsl *ptr);
 
+const char *
+mono_btls_ssl_get_servername (MonoBtlsSsl *ptr);
+
+int
+mono_btls_ssl_set_servername (MonoBtlsSsl *ptr, const char *servername);
+
 void
 mono_btls_ssl_test (MonoBtlsSsl *ptr);
 
