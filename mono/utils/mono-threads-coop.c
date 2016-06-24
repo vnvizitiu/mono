@@ -366,6 +366,7 @@ mono_threads_enter_gc_unsafe_region_cookie (void)
 	return info;
 }
 
+
 void
 mono_threads_exit_gc_unsafe_region (gpointer cookie, gpointer *stackdata)
 {

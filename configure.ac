@@ -2561,6 +2561,74 @@ if test "x$enable_nacl_gc" = "xyes"; then
 fi
 AC_SUBST(MONO_NACL_ALIGN_MASK_OFF)
 
+dnl *******************
+dnl ***  BoringSsl  ***
+dnl *******************
+
+dnl **************
+dnl ***  Btls  ***
+dnl **************
+
+AC_ARG_ENABLE(btls, [  --disable-blts             Disable the BoringTls provider], enable_btls=$enableval, enable_btls=yes)
+AC_ARG_WITH(btls_platform, [  --with-btls-platform           BoringTls on Android])
+AC_ARG_WITH(btls_android_ndk, [  --with-btls-android-ndk        Android NDK for BoringTls])
+
+AM_CONDITIONAL(BTLS, test x$enable_btls = xyes)
+
+btls_android=no
+if test "x$enable_btls" = "xyes"; then
+   AC_PATH_PROG(CMAKE, [cmake], [no])
+   if test "x$CMAKE" = "xno"; then
+      AC_MSG_ERROR("cmake not found")
+   fi
+   
+   BTLS_ROOT=`cd $srcdir/external/boringssl && pwd`
+   AC_SUBST(BTLS_ROOT)
+
+   if test "x$with_btls_platform" != "x"; then
+      case "$with_btls_platform" in
+      android-armv6)
+	     btls_android=yes
+	     btls_android_abi=armeabi
+	     ;;
+      android-armv7)
+	     btls_android=yes
+	     btls_android_abi=armeabi-v7a
+	     ;;
+      android-v8a)
+	     btls_android=yes
+		 btls_android_abi=arm64-v8a
+		 ;;
+      android-x86)
+	     btls_android=yes
+		 btls_android_abi=x86
+		 ;;
+      android-x64)
+	     btls_android=yes
+		 btls_android_abi=x86_64
+		 ;;
+      mac)
+	     btls_android=no
+		 ;;
+      *)
+	     AC_MSG_ERROR(Invalid BTLS platform)
+      esac
+   fi
+   if test "x$btls_android" = "xyes"; then
+      BTLS_CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=$BTLS_ROOT/util/android-cmake/android.toolchain.cmake -DANDROID_ABI=\"$btls_android_abi\" -DANDROID_NATIVE_API_LEVEL=12"
+      if test "x$with_btls_android_ndk" != "x"; then
+         BTLS_CMAKE_ARGS="$BTLS_CMAKE_ARGS -DANDROID_NDK=\"$with_btls_android_ndk\""
+      fi
+   else
+      BTLS_CMAKE_ARGS=
+   fi
+   AC_SUBST(BTLS_CMAKE_ARGS)
+
+   AC_DEFINE(HAVE_BTLS, 1, [BoringTls is supported])
+fi
+
+AM_CONDITIONAL(BTLS_ANDROID, test x$btls_android = xyes)
+
 dnl **************************
 dnl *** AOT cross offsets  ***
 dnl **************************
@@ -3928,6 +3996,7 @@ mono-uninstalled.pc
 acceptance-tests/Makefile
 scripts/mono-find-provides
 scripts/mono-find-requires
+btls/Makefile
 mono/Makefile
 mono/utils/Makefile
 mono/metadata/Makefile

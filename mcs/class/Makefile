@@ -51,6 +51,7 @@ mobile_common_dirs := \
 	System.Xml.Serialization \
 	Mono.CSharp	\
 	Microsoft.CSharp \
+	Mono.Security.Providers.Btls	\
 	Mono.Security.Providers.DotNet	\
 	Mono.Security.Providers.NewSystemSource \
 	Mono.Security.Providers.NewTls
@@ -129,6 +130,7 @@ xammac_4_5_dirs := \
 	Mono.CompilerServices.SymbolWriter	\
 	System.Data.Linq		\
 	System.Net.Http \
+	Mono.Security.Providers.Btls \
 	Mono.Security.Providers.DotNet \
 	Mono.Security.Providers.OldTls \
 	Mono.Security.Providers.NewSystemSource \
@@ -262,6 +264,7 @@ net_4_x_parallel_dirs := \
 	System.ComponentModel.Composition.4.5 \
 	System.Windows \
 	System.Xml.Serialization \
+	Mono.Security.Providers.Btls \
 	Mono.Security.Providers.DotNet \
 	Mono.Security.Providers.OldTls \
 	System.DirectoryServices.Protocols	\
