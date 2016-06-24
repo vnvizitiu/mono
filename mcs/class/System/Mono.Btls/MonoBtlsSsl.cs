@@ -129,7 +129,7 @@ namespace Mono.Btls
 		extern static int mono_btls_ssl_set_servername (IntPtr handle, IntPtr servername);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern unsafe static void mono_btls_ssl_set_client_ca_list (IntPtr handle, int count, void *array);
+		extern static void mono_btls_ssl_set_client_ca_list (IntPtr handle, IntPtr list);
 
 		static BoringSslHandle Create_internal (MonoBtlsSslCtx ctx)
 		{
@@ -420,12 +420,12 @@ namespace Mono.Btls
 		public unsafe void SetClientCaList (MonoBtlsX509Name[] names)
 		{
 			CheckThrow ();
-			var array = new IntPtr [names.Length];
-			for (int i = 0; i < names.Length; i++)
-				array [i] = names [i].Handle.DangerousGetHandle ();
-			fixed (void *ptr = array) {
+			using (var list = new MonoBtlsX509NameList ()) {
+				foreach (var name in names)
+					list.Add (name);
 				mono_btls_ssl_set_client_ca_list (
-					Handle.DangerousGetHandle (), names.Length, ptr);
+					Handle.DangerousGetHandle (),
+					list.Handle.DangerousGetHandle ());
 			}
 		}
 

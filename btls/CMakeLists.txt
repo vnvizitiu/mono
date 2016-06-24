@@ -46,6 +46,8 @@ set (
 	btls-x509-lookup.h
 	btls-x509-name.c
 	btls-x509-name.h
+	btls-x509-name-list.c
+	btls-x509-name-list.h
 	btls-x509-revoked.c
 	btls-x509-revoked.h
 	btls-x509-store-ctx.c

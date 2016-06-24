@@ -82,7 +82,7 @@ int
 mono_btls_ssl_set_servername (MonoBtlsSsl *ptr, const char *servername);
 
 void
-mono_btls_ssl_set_client_ca_list (MonoBtlsSsl *ptr, int count, MonoBtlsX509Name **names);
+mono_btls_ssl_set_client_ca_list (MonoBtlsSsl *ptr, MonoBtlsX509NameList *list);
 
 void
 mono_btls_ssl_test (MonoBtlsSsl *ptr);

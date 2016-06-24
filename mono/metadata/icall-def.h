@@ -230,6 +230,12 @@ ICALL(BTLS_X509_NAME_13, "mono_btls_x509_name_peek_name", mono_btls_x509_name_pe
 ICALL(BTLS_X509_NAME_14, "mono_btls_x509_name_print_bio", mono_btls_x509_name_print_bio)
 ICALL(BTLS_X509_NAME_15, "mono_btls_x509_name_print_string", mono_btls_x509_name_print_string)
 
+ICALL_TYPE(BTLS_X509_NAME_LIST, "Mono.Btls.MonoBtlsX509NameList", BTLS_X509_NAME_LIST_1)
+ICALL(BTLS_X509_NAME_LIST_1, "mono_btls_x509_name_list_add", mono_btls_x509_name_list_add)
+ICALL(BTLS_X509_NAME_LIST_2, "mono_btls_x509_name_list_free", mono_btls_x509_name_list_free)
+ICALL(BTLS_X509_NAME_LIST_3, "mono_btls_x509_name_list_get_count", mono_btls_x509_name_list_get_count)
+ICALL(BTLS_X509_NAME_LIST_4, "mono_btls_x509_name_list_new", mono_btls_x509_name_list_new)
+
 ICALL_TYPE(BTLS_X509_REVOKED, "Mono.Btls.MonoBtlsX509Revoked", BTLS_X509_REVOKED_1)
 ICALL(BTLS_X509_REVOKED_1, "mono_btls_x509_revoked_free", mono_btls_x509_revoked_free)
 ICALL(BTLS_X509_REVOKED_2, "mono_btls_x509_revoked_get_reason", mono_btls_x509_revoked_get_reason)

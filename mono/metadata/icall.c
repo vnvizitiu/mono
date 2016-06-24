@@ -117,6 +117,7 @@
 #include <btls/btls-x509-lookup.h>
 #include <btls/btls-x509-lookup-method.h>
 #include <btls/btls-x509-name.h>
+#include <btls/btls-x509-name-list.h>
 #include <btls/btls-x509-revoked.h>
 #include <btls/btls-x509-store-ctx.h>
 #include <btls/btls-x509-verify-param.h>

@@ -21,6 +21,7 @@ typedef struct MonoBtlsX509Crl MonoBtlsX509Crl;
 typedef struct MonoBtlsX509Lookup MonoBtlsX509Lookup;
 typedef struct MonoBtlsX509LookupMethod MonoBtlsX509LookupMethod;
 typedef struct MonoBtlsX509Name MonoBtlsX509Name;
+typedef struct MonoBtlsX509NameList MonoBtlsX509NameList;
 typedef struct MonoBtlsX509Store MonoBtlsX509Store;
 typedef struct MonoBtlsX509StoreCtx MonoBtlsX509StoreCtx;
 typedef struct MonoBtlsX509Revoked MonoBtlsX509Revoked;
