@@ -10,6 +10,7 @@
 #define __btls__btls_ssl__
 
 #include <btls-ssl-ctx.h>
+#include <btls-x509-name.h>
 
 MonoBtlsSsl *
 mono_btls_ssl_new (MonoBtlsSslCtx *ctx);
@@ -79,6 +80,9 @@ mono_btls_ssl_get_servername (MonoBtlsSsl *ptr);
 
 int
 mono_btls_ssl_set_servername (MonoBtlsSsl *ptr, const char *servername);
+
+void
+mono_btls_ssl_set_client_ca_list (MonoBtlsSsl *ptr, int count, MonoBtlsX509Name **names);
 
 void
 mono_btls_ssl_test (MonoBtlsSsl *ptr);

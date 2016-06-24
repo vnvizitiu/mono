@@ -29,6 +29,7 @@ using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 
 #if MONOTOUCH
 using MonoTouch;
@@ -126,6 +127,9 @@ namespace Mono.Btls
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_ssl_set_servername (IntPtr handle, IntPtr servername);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern unsafe static void mono_btls_ssl_set_client_ca_list (IntPtr handle, int count, void *array);
 
 		static BoringSslHandle Create_internal (MonoBtlsSslCtx ctx)
 		{
@@ -410,6 +414,35 @@ namespace Mono.Btls
 			} finally {
 				if (strPtr != IntPtr.Zero)
 					Marshal.FreeHGlobal (strPtr);
+			}
+		}
+
+		public unsafe void SetClientCaList (MonoBtlsX509Name[] names)
+		{
+			CheckThrow ();
+			var array = new IntPtr [names.Length];
+			for (int i = 0; i < names.Length; i++)
+				array [i] = names [i].Handle.DangerousGetHandle ();
+			fixed (void *ptr = array) {
+				mono_btls_ssl_set_client_ca_list (
+					Handle.DangerousGetHandle (), names.Length, ptr);
+			}
+		}
+
+		public void SetClientCaList (string[] issuers)
+		{
+			var names = new MonoBtlsX509Name [issuers.Length];
+			try {
+				for (int i = 0; i < issuers.Length; i++) {
+					var name = new X500DistinguishedName (issuers [i]);
+					names [i] = MonoBtlsX509Name.CreateFromData (name.RawData, false);
+				}
+				SetClientCaList (names);
+			} finally {
+				for (int i = 0; i < issuers.Length; i++) {
+					if (names [i] != null)
+						names [i].Dispose ();
+				}
 			}
 		}
 

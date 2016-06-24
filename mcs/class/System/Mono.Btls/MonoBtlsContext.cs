@@ -141,8 +141,6 @@ namespace Mono.Btls
 		{
 			InitializeConnection ();
 
-			ssl = new MonoBtlsSsl (ctx);
-
 			SetServerName ();
 
 			bio = new MonoBtlsBioMono (this);
@@ -247,11 +245,17 @@ namespace Mono.Btls
 			ctx.SetMinVersion ((int)minProtocol);
 			ctx.SetMaxVersion ((int)maxProtocol);
 
+			ssl = new MonoBtlsSsl (ctx);
+
 			if (Settings != null && Settings.EnabledCiphers != null) {
 				var ciphers = new short [Settings.EnabledCiphers.Length];
 				for (int i = 0; i < ciphers.Length; i++)
 					ciphers [i] = (short)Settings.EnabledCiphers [i];
 				ctx.SetCiphers (ciphers, true);
+			}
+
+			if (Settings != null && Settings.ClientCertificateIssuers != null) {
+				ssl.SetClientCaList (Settings.ClientCertificateIssuers);
 			}
 		}
 

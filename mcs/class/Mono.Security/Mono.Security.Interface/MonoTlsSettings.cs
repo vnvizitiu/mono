@@ -86,6 +86,10 @@ namespace Mono.Security.Interface
 			get; set;
 		}
 
+		public string[] ClientCertificateIssuers {
+			get; set;
+		}
+
 		bool cloned = false;
 		bool checkCertName = true;
 		bool checkCertRevocationStatus = false;
@@ -161,6 +165,7 @@ namespace Mono.Security.Interface
 			EnabledProtocols = other.EnabledProtocols;
 			EnabledCiphers = other.EnabledCiphers;
 			TrustAnchors = other.TrustAnchors;
+			ClientCertificateIssuers = other.ClientCertificateIssuers;
 			cloned = true;
 		}
 

@@ -208,6 +208,20 @@ mono_btls_ssl_set_servername (MonoBtlsSsl *ptr, const char *servername)
 }
 
 void
+mono_btls_ssl_set_client_ca_list (MonoBtlsSsl *ptr, int count, MonoBtlsX509Name **names)
+{
+	STACK_OF(X509_NAME) *stack;
+	int i;
+
+	stack = sk_X509_NAME_new_null ();
+	for (i = 0; i < count; i++) {
+		X509_NAME *xname = mono_btls_x509_name_peek_name (names [i]);
+		sk_X509_NAME_push (stack, X509_NAME_dup (xname));
+	}
+	SSL_set_client_CA_list (ptr->ssl, stack);
+}
+
+void
 mono_btls_ssl_test (MonoBtlsSsl *ptr)
 {
 	SSL_SESSION *session;
