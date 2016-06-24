@@ -115,13 +115,26 @@ namespace Mono.Btls
 			if (remoteCertificate == null)
 				throw new TlsException (AlertDescription.InternalError, "Cannot request client certificate before receiving one from the server.");
 
-			var clientCert = SelectClientCertificate (null);
-			Debug ("SELECT CALLBACK #1: {0}", clientCert);
+			string[] issuers = null;
+			using (var clientList = ssl.GetClientCaList ()) {
+				Debug ("SELECT CALLBACK #1: {0}", clientList);
+				if (clientList != null) {
+					var count = clientList.GetCount ();
+					issuers = new string [count];
+					for (int i = 0; i < count; i++) {
+						var name = clientList.GetItem (i);
+						issuers [i] = name.GetString ();
+					}
+				}
+			}
+
+			var clientCert = SelectClientCertificate (issuers);
+			Debug ("SELECT CALLBACK #2: {0}", clientCert);
 			if (clientCert == null)
 				return 1;
 
 			nativeClientCertificate = GetPrivateCertificate (clientCert);
-			Debug ("SELECT CALLBACK #2: {0}", nativeClientCertificate);
+			Debug ("SELECT CALLBACK #3: {0}", nativeClientCertificate);
 			clientCertificate = new X509Certificate (nativeClientCertificate);
 			SetPrivateCertificate (nativeClientCertificate);
 			return 1;

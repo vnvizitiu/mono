@@ -211,7 +211,30 @@ mono_btls_ssl_set_servername (MonoBtlsSsl *ptr, const char *servername)
 void
 mono_btls_ssl_set_client_ca_list (MonoBtlsSsl *ptr, MonoBtlsX509NameList *list)
 {
-	SSL_set_client_CA_list (ptr->ssl, mono_btls_x509_name_list_peek_stack (list));
+	STACK_OF(X509_NAME) *stack, *copy;
+	size_t i;
+
+	stack = mono_btls_x509_name_list_peek_stack (list);
+	copy = sk_X509_NAME_new_null ();
+
+	for (i = 0; i < sk_X509_NAME_num (stack); i++) {
+		X509_NAME *xname = sk_X509_NAME_value (stack, i);
+		sk_X509_NAME_push (copy, X509_NAME_dup (xname));
+	}
+
+	SSL_set_client_CA_list (ptr->ssl, copy);
+}
+
+MonoBtlsX509NameList *
+mono_btls_ssl_get_client_ca_list (MonoBtlsSsl *ptr)
+{
+	STACK_OF(X509_NAME) *stack;
+
+	stack = SSL_get_client_CA_list (ptr->ssl);
+	if (!stack)
+		return NULL;
+
+	return mono_btls_x509_name_list_new_from_stack (stack);
 }
 
 void

@@ -62,6 +62,9 @@ namespace Mono.Btls
 		extern static int mono_btls_x509_name_list_add (IntPtr handle, IntPtr name);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_name_list_get_item (IntPtr handle, int index);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_name_list_free (IntPtr handle);
 
 		new internal BoringX509NameListHandle Handle {
@@ -91,6 +94,19 @@ namespace Mono.Btls
 			CheckThrow ();
 			return mono_btls_x509_name_list_get_count (
 				Handle.DangerousGetHandle ());
+		}
+
+		public MonoBtlsX509Name GetItem (int index)
+		{
+			CheckThrow ();
+			if (index < 0 || index >= GetCount ())
+				throw new ArgumentOutOfRangeException ();
+			var ptr = mono_btls_x509_name_list_get_item (
+				Handle.DangerousGetHandle (), index);
+			if (ptr == IntPtr.Zero)
+				return null;
+			return new MonoBtlsX509Name (
+				new MonoBtlsX509Name.BoringX509NameHandle (ptr, true));
 		}
 
 		public void Add (MonoBtlsX509Name name)

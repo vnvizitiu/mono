@@ -166,7 +166,7 @@ namespace Mono.Net.Security
                         X509Certificate certificate;
                         var selected = certificateValidator.SelectClientCertificate (
 				targetHost, clientCertificates, serverCertificate,
-				null, out certificate);
+				acceptableIssuers, out certificate);
                         if (selected)
                                 return certificate;
 

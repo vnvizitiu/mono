@@ -131,6 +131,9 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_ssl_set_client_ca_list (IntPtr handle, IntPtr list);
 
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_ssl_get_client_ca_list (IntPtr handle);
+
 		static BoringSslHandle Create_internal (MonoBtlsSslCtx ctx)
 		{
 			var handle = mono_btls_ssl_new (ctx.Handle.DangerousGetHandle ());
@@ -444,6 +447,17 @@ namespace Mono.Btls
 						names [i].Dispose ();
 				}
 			}
+		}
+
+		public MonoBtlsX509NameList GetClientCaList ()
+		{
+			CheckThrow ();
+			var list = mono_btls_ssl_get_client_ca_list (
+				Handle.DangerousGetHandle ());
+			if (list == IntPtr.Zero)
+				return null;
+			return new MonoBtlsX509NameList (
+				new MonoBtlsX509NameList.BoringX509NameListHandle (list, true));
 		}
 
 		public void Test ()
