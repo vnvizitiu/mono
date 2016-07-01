@@ -179,7 +179,7 @@ namespace Mono.Net.Security
 			}
 		}
 
-#if !MOBILE
+#if !MOBILE || MONODROID
 		static IMonoTlsProvider TryDynamicLoad ()
 		{
 			var variable = Environment.GetEnvironmentVariable ("MONO_TLS_PROVIDER");
@@ -197,7 +197,7 @@ namespace Mono.Net.Security
 
 		static IMonoTlsProvider CreateDefaultProviderImpl ()
 		{
-#if !MOBILE
+#if !MOBILE || MONODROID
 			var provider = TryDynamicLoad ();
 			if (provider != null)
 				return provider;
