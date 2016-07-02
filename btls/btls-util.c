@@ -8,16 +8,14 @@
 
 #include <btls-util.h>
 #include <assert.h>
+#include <time.h>
+
+#if defined(__ANDROID__) && !defined(__LP64__)
+#include <time64.h>
+extern time_t timegm (struct tm* const t);
+#endif
 
 extern int asn1_generalizedtime_to_tm (struct tm *tm, const ASN1_GENERALIZEDTIME *d);
-
-void
-mono_btls_martin_test (void)
-{
-	SSL_CTX *ctx;
-	
-	ctx = SSL_CTX_new (TLS_method ());
-}
 
 void
 mono_btls_free (void *data)

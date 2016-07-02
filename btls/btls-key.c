@@ -78,6 +78,6 @@ mono_btls_key_test (EVP_PKEY *pkey)
 	ret = i2d_RSA_PUBKEY (rsa, &p);
 
 	RSA_free (rsa);
-	return 0;
+	return ret;
 
 }

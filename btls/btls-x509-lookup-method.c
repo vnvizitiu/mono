@@ -28,9 +28,10 @@ mono_new_item (X509_LOOKUP *ctx)
 	MonoBtlsX509LookupMethod *method = (MonoBtlsX509LookupMethod *)ctx->method;
 	int ret = 1;
 
-	fprintf (stderr, "mono_new(): %p - %p\n", ctx, method);
+	fprintf (stderr, "mono_new_item(): %p - %p\n", ctx, method);
 	if (method->new_item_func)
 		ret = (*method->new_item_func) (method->instance);
+	fprintf (stderr, "mono_new_item() #1: %d\n", ret);
 	return 1;
 }
 
@@ -43,6 +44,7 @@ mono_init (X509_LOOKUP *ctx)
 	fprintf (stderr, "mono_init(): %p - %p\n", ctx, method);
 	if (method->init_func)
 		ret = (*method->init_func) (method->instance);
+	fprintf (stderr, "mono_init() #1: %d\n", ret);
 	return 1;
 }
 
