@@ -613,9 +613,6 @@ ICALL_TYPE(IOSELECTOR, "System.IOSelector", IOSELECTOR_1)
 ICALL(IOSELECTOR_1, "Add", ves_icall_System_IOSelector_Add)
 ICALL(IOSELECTOR_2, "Remove", ves_icall_System_IOSelector_Remove)
 
-ICALL_TYPE(MARTINTEST, "System.MartinTest", MARTINTEST_1)
-ICALL(MARTINTEST_1, "Hello", ves_icall_System_MartinTest_Hello)
-
 ICALL_TYPE(MATH, "System.Math", MATH_19)
 ICALL(MATH_19, "Abs(double)", ves_icall_System_Math_Abs_double)
 ICALL(MATH_20, "Abs(single)", ves_icall_System_Math_Abs_single)
