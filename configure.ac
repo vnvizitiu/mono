@@ -2573,6 +2573,11 @@ AC_ARG_ENABLE(btls, [  --enable-blts              Enable the BoringTls provider]
 AC_ARG_WITH(btls_platform, [  --with-btls-platform           BoringTls on Android])
 AC_ARG_WITH(btls_android_ndk, [  --with-btls-android-ndk        Android NDK for BoringTls])
 
+echo "TEST: $ENABLE_BTLS"
+if test "x$ENABLE_BTLS" = "xyes" -o "x$ENABLE_BTLS" = "x1"; then
+  enable_btls=yes
+fi
+
 AM_CONDITIONAL(BTLS, test x$enable_btls = xyes)
 
 btls_android=no
@@ -2625,6 +2630,8 @@ if test "x$enable_btls" = "xyes"; then
    AC_SUBST(BTLS_CMAKE_ARGS)
 
    AC_DEFINE(HAVE_BTLS, 1, [BoringTls is supported])
+else
+   enable_btls=no
 fi
 
 AM_CONDITIONAL(BTLS_ANDROID, test x$btls_android = xyes)
@@ -4184,6 +4191,7 @@ echo "
 	JNI support:     $jdk_headers_found
 	libgdiplus:      $libgdiplus_msg
 	zlib:            $zlib_msg
+	BTLS:            $enable_btls
 	$disabled
 "
 if test x$with_static_mono = xno -a "x$host_win32" != "xyes"; then
