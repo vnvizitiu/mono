@@ -2577,7 +2577,7 @@ AM_CONDITIONAL(BTLS, test x$enable_btls = xyes)
 
 btls_android=no
 if test "x$enable_btls" = "xyes"; then
-   AC_PATH_PROG(CMAKE, [cmake], [no])
+   AC_PATH_PROG(CMAKE, [cmake], [no], [$PATH:/Applications/CMake.app/Contents/bin])
    if test "x$CMAKE" = "xno"; then
       AC_MSG_ERROR("cmake not found")
    fi
