@@ -31,19 +31,3 @@ clean-local:
 #	$(MAKE) -C build-static install
 #	$(MAKE) -C build-shared install
 
-if BTLS_ANDROID
-martin_test_programs =
-else
-martin_test_programs = martin-test
-endif
-
-noinst_PROGRAMS = $(martin_test_programs)
-
-EXTRA_PROGRAMS = martin-test
-
-martin_test_SOURCES = \
-	martin-test.c \
-	martin-test.h
-	
-martin_test_CFLAGS = -I$(srcdir) $(BTLS_CFLAGS)
-martin_test_LDADD = $(BTLS_STATIC_LIBS)
