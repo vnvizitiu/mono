@@ -1,11 +1,13 @@
 BTLS_STATIC_LIBS = build-static/libmono-btls-static.a
 BTLS_SHARED_LIBS = build-shared/libmono-btls-shared.la
 BTLS_LIBS = $(BTLS_STATIC_LIBS) $(BTLS_SHARED_LIBS)
-BTLS_CFLAGS = -I$(top_srcdir)/external/boringssl/include
 
 BTLS_DEPS = $(BTLS_LIBS) build-shared/Makefile build-static/Makefile
 
-CMAKE_ARGS = -D CMAKE_INSTALL_PREFIX:PATH=$(prefix) -D BTLS_ROOT:PATH=$(BTLS_ROOT) -D SRC_DIR:PATH=$(abs_top_srcdir)/btls
+CMAKE_VERBOSE=$(if $(V),VERBOSE=1,)
+
+CMAKE_ARGS = -D CMAKE_INSTALL_PREFIX:PATH=$(prefix) -D BTLS_ROOT:PATH=$(BTLS_ROOT) -D SRC_DIR:PATH=$(abs_top_srcdir)/btls \
+	-D BTLS_CFLAGS:STRING="$(BTLS_CFLAGS)" -D BTLS_PLATFORM:STRING=$(BTLS_PLATFORM)
 
 all-local: $(BTLS_LIBS)
 
@@ -18,10 +20,10 @@ build-static/Makefile:
 	(cd build-static && $(CMAKE) $(CMAKE_ARGS) $(BTLS_CMAKE_ARGS) $(abs_top_srcdir)/btls)
 
 $(BTLS_STATIC_LIBS): build-static/Makefile
-	$(MAKE) -C build-static
+	$(MAKE) -C build-static $(CMAKE_VERBOSE)
 	
 $(BTLS_SHARED_LIBS): build-shared/Makefile
-	$(MAKE) -C build-shared
+	$(MAKE) -C build-shared $(CMAKE_VERBOSE)
 	
 clean-local:
 	-rm -rf build-static

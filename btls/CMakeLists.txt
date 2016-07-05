@@ -2,13 +2,22 @@ cmake_minimum_required (VERSION 2.8.10)
 
 project (mono-btls)
 
-# cmake_policy(SET CMP0026 OLD)
+cmake_policy(SET CMP0026 NEW)
+cmake_policy(SET CMP0042 NEW)
+
+enable_language(C)
+enable_language(CXX)
+enable_language(ASM)
+
+set (CMAKE_SYSTEM_PROCESSOR "${BTLS_PLATFORM}")
+set (C_CXX_FLAGS "-Wall -Werror -Wsign-compare -Wmissing-field-initializers -ggdb -fvisibility=hidden")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_CXX_FLAGS} ${BTLS_CFLAGS}")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${C_CXX_FLAGS} ${BTLS_CFLAGS}")
+set (CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} ${BTLS_CFLAGS}")
+set (CMAKE_MACOSX_RPATH 1)
+set (MONO_BTLS 1)
 
 add_subdirectory (${BTLS_ROOT} boringssl)
-set (CMAKE_MACOSX_RPATH 1)
-
-set (C_CXX_FLAGS "-Wall -Werror -Wsign-compare -Wmissing-field-initializers -ggdb -fvisibility=hidden")
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_CXX_FLAGS}")
 
 # SET (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 # SET (CMAKE_SKIP_BUILD_RPATH FALSE)
