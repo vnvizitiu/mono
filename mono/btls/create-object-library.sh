@@ -28,6 +28,5 @@ while [ "$1" != "--" ]; do
 	echo "$DIR/$LOFILE " >> $LOFILELIST
 done
 
-# We don't actually create any library.
-# (cd $DIR && $AR cr $TARGET `cat $FILELIST` && $RANLIB $TARGET)
+(cd $DIR && $AR cr $TARGET `cat $FILELIST` && $RANLIB $TARGET)
 

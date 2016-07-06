@@ -39,11 +39,11 @@ endif
 endif
 
 if BTLS
-btls_file_list := $(shell cat ../../btls/build-shared/mono-btls-shared-lo.txt)
-btls_static_file_list := $(shell cat ../../btls/build-static/mono-btls-static-lo.txt)
+btls_file_list := $(shell cat ../btls/build-shared/mono-btls-shared-lo.txt)
+btls_static_file_list := $(shell cat ../btls/build-static/mono-btls-static-lo.txt)
 btls_libs = $(btls_file_list)
 btls_static_libs = $(btls_static_file_list)
-btls_cflags = -I$(top_srcdir)/external/boringssl/include -I$(top_srcdir)/btls
+btls_cflags = -I$(top_srcdir)/external/boringssl/include -I$(top_srcdir)/mono/btls
 endif
 
 #
