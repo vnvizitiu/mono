@@ -6,8 +6,7 @@ BTLS_DEPS = $(BTLS_LIBS) build-shared/Makefile build-static/Makefile
 CMAKE_VERBOSE=$(if $(V),VERBOSE=1,)
 
 CMAKE_ARGS = -D CMAKE_INSTALL_PREFIX:PATH=$(prefix) -D BTLS_ROOT:PATH=$(BTLS_ROOT) \
-	-D SRC_DIR:PATH=$(abs_top_srcdir)/mono/btls -D BTLS_PLATFORM:STRING=$(BTLS_PLATFORM) \
-	-D BTLS_CFLAGS:STRING="$(BTLS_CFLAGS)"
+	-D SRC_DIR:PATH=$(abs_top_srcdir)/mono/btls -D BTLS_CFLAGS:STRING="$(BTLS_CFLAGS)"
 
 all-local: $(BTLS_STATIC_LIST) $(BTLS_SHARED_LIST)
 

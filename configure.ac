@@ -2930,9 +2930,12 @@ esac
 
 HOST=$TARGET
 
+echo "TEST: |$BTLS_SUPPORTED|$BTLS_PLATFORM|$host|$target|"
+
 if test "x$host" != "x$target"; then
    AC_DEFINE(MONO_CROSS_COMPILE,1,[The runtime is compiled for cross-compiling mode])
    enable_mcs_build=no
+   BTLS_SUPPORTED=no
    case "$target" in
    arm*-darwin*)
 		TARGET=ARM;
@@ -3524,6 +3527,8 @@ if test ${TARGET} = ARM; then
 
 	AC_MSG_RESULT($arm_ver)
 
+	echo "ARM: |$arm_ver|$BTLS_SUPPORTED|$BTLS_PLATFORM|"
+
 	if test x$arm_v5 = xyes; then
 		AC_DEFINE(HAVE_ARMV5, 1, [ARM v5])
 		CPPFLAGS_FOR_LIBGC="$CPPFLAGS_FOR_LIBGC -DHAVE_ARMV5=1"
@@ -3540,10 +3545,53 @@ if test ${TARGET} = ARM; then
 	fi
 fi
 
+echo "TEST TARGET: |${TARGET}|$BTLS_SUPPORTED|$BTLS_PLATFORM|$host|$target|$platform_android|"
+
 if test ${TARGET} = unknown; then
 	CPPFLAGS="$CPPFLAGS -DNO_PORT"
 	AC_MSG_WARN("mono has not been ported to $host: some things may not work.")
 fi
+
+if test "x$platform_android" = "xyes"; then
+	case "x${TARGET}" in
+	xARM)
+		case "x$arm_ver" in
+		xARMv5)
+			BTLS_SUPPORTED=yes
+			BTLS_PLATFORM=android-armv5
+			;;
+		xARMv6)
+			BTLS_SUPPORTED=yes
+			BTLS_PLATFORM=android-armv6
+			;;
+		xARMv7)
+			BTLS_SUPPORTED=yes
+			BTLS_PLATFORM=android-armv7
+			;;
+		*)
+			BTLS_SUPPORTED=no
+			;;
+		esac
+		;;
+	xARM64)
+		BTLS_SUPPORTED=yes
+		BTLS_PLATFORM=android-v8a
+		;;
+	xX86)
+		BTLS_SUPPORTED=yes
+		BTLS_PLATFORM=android-x86
+		;;
+	xAMD64)
+		BTLS_SUPPORTED=yes
+		BTLS_PLATFORM=android-x64
+		;;
+	*)
+		BTLS_SUPPORTED=no
+		;;
+	esac
+fi
+
+echo "TEST TARGET #1: |${TARGET}|$BTLS_SUPPORTED|$BTLS_PLATFORM|$host|$target|"
 
 if test ${ACCESS_UNALIGNED} = no; then
 	CPPFLAGS="$CPPFLAGS -DNO_UNALIGNED_ACCESS"
@@ -3674,90 +3722,83 @@ dnl ***  Btls  ***
 dnl **************
 
 AC_ARG_ENABLE(btls, [  --disable-blts             Disable the BoringTls provider], enable_btls=$enableval, enable_btls=$BTLS_SUPPORTED)
-AC_ARG_WITH(btls_platform, [  --with-btls-platform           BoringTls on Android])
 AC_ARG_WITH(btls_android_ndk, [  --with-btls-android-ndk        Android NDK for BoringTls])
 
-echo "TEST: $host - $target - $btls_supported - $enable_btls"
+echo "BTLS TEST: |$host|$target|$BTLS_SUPPORTED|$BTLS_PLATFORM|"
 echo "TEST #1: |$CC| - |$CFLAGS| - |$CXXFLAGS|"
-if test "x$ENABLE_BTLS" = "xyes" -o "x$ENABLE_BTLS" = "x1"; then
-  enable_btls=yes
-fi
+dnl if test "x$ENABLE_BTLS" = "xyes" -o "x$ENABLE_BTLS" = "x1"; then
+dnl  enable_btls=yes
+dnl fi
 
 AM_CONDITIONAL(BTLS, test x$enable_btls = xyes)
 
 btls_android=no
 if test "x$enable_btls" = "xyes"; then
-   AC_PATH_PROG(CMAKE, [cmake], [no], [$PATH:/Applications/CMake.app/Contents/bin])
-   if test "x$CMAKE" = "xno"; then
-      AC_MSG_ERROR("cmake not found")
-   fi
+	AC_PATH_PROG(CMAKE, [cmake], [no], [$PATH:/Applications/CMake.app/Contents/bin])
+	if test "x$CMAKE" = "xno"; then
+		AC_MSG_ERROR("cmake not found")
+	fi
    
-   BTLS_ROOT=`cd $srcdir/external/boringssl && pwd`
-   AC_SUBST(BTLS_ROOT)
+	BTLS_ROOT=`cd $srcdir/external/boringssl && pwd`
+	AC_SUBST(BTLS_ROOT)
    
-   btls_cflags=
-   case "$BTLS_PLATFORM" in
-   i386)
-      btls_cflags="-m32 -arch i386"
-      ;;
-   x86_64)
-      ;;
-   *)
-      AC_MSG_ERROR(Invalid BTLS platform)
-   esac
-   if test "x$with_btls_platform" != "x"; then
-      case "$with_btls_platform" in
-      android-armv6)
-	     btls_android=yes
-	     btls_android_abi=armeabi
-	     ;;
-      android-armv7)
-	     btls_android=yes
-	     btls_android_abi=armeabi-v7a
-	     ;;
-      android-v8a)
-	     btls_android=yes
-		 btls_android_abi=arm64-v8a
-		 ;;
-      android-x86)
-	     btls_android=yes
-		 btls_android_abi=x86
-		 ;;
-      android-x64)
-	     btls_android=yes
-		 btls_android_abi=x86_64
-		 ;;
-      mac)
-	     btls_android=no
-		 ;;
-      i386)
-	  	 btls_android=no
-		 ;;
-      x86_64)
-	  	 btls_android=no
-		 ;;
-      *)
-	     AC_MSG_ERROR(Invalid BTLS platform)
-      esac
-   fi
-   if test "x$btls_android" = "xyes"; then
-      BTLS_CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=$BTLS_ROOT/util/android-cmake/android.toolchain.cmake -DANDROID_ABI=\"$btls_android_abi\" -DANDROID_NATIVE_API_LEVEL=12"
-      if test "x$with_btls_android_ndk" != "x"; then
-         BTLS_CMAKE_ARGS="$BTLS_CMAKE_ARGS -DANDROID_NDK=\"$with_btls_android_ndk\""
-      fi
-   else
-      BTLS_CMAKE_ARGS=
-   fi
-   BTLS_CFLAGS="$CPPFLAGS_FOR_BTLS $btls_cflags"
-   AC_SUBST(BTLS_CFLAGS)
-   AC_SUBST(BTLS_PLATFORM)
-   AC_SUBST(BTLS_CMAKE_ARGS)
-   
-   echo "BTLS CONFIG: |$CFLAGS_FOR_BTLS|$BTLS_PLATFORM|$BTLS_CFLAGS|"
+	btls_arch=
+	btls_cflags=
+	BTLS_CMAKE_ARGS=
 
-   AC_DEFINE(HAVE_BTLS, 1, [BoringTls is supported])
+	case "$BTLS_PLATFORM" in
+	i386)
+		btls_arch=i386
+		btls_cflags="-m32 -arch i386"
+		;;
+	x86_64)
+		btls_arch=x86_64
+		;;
+	android-armv5)
+		BTLS_CMAKE_ARGS="-DANDROID_ABI=\"armeabi\" -DANDROID_NATIVE_API_LEVEL=12"
+		;;
+	android-armv6)
+		BTLS_CMAKE_ARGS="-DANDROID_ABI=\"armeabi\" -DANDROID_NATIVE_API_LEVEL=12"
+		;;
+	android-armv7)
+		BTLS_CMAKE_ARGS="-DANDROID_ABI=\"armeabi-v7a\" -DANDROID_NATIVE_API_LEVEL=12"
+		;;
+	android-v8a)
+		BTLS_CMAKE_ARGS="-DANDROID_ABI=\"arm64-v8a\" -DANDROID_NATIVE_API_LEVEL=12"
+		;;
+	android-x86)
+		BTLS_CMAKE_ARGS="-DANDROID_ABI=\"x86\" -DANDROID_NATIVE_API_LEVEL=12"
+		;;
+	android-x64)
+		BTLS_CMAKE_ARGS="-DANDROID_ABI=\"x86_64\" -DANDROID_NATIVE_API_LEVEL=12"
+		;;
+	*)
+		AC_MSG_ERROR(Invalid BTLS platform)
+	esac
+
+	if test "x$platform_android" = "xyes"; then
+		btls_android=yes
+		BTLS_CMAKE_ARGS="$BTLS_CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=$BTLS_ROOT/util/android-cmake/android.toolchain.cmake"
+		if test "x$with_btls_android_ndk" != "x"; then
+			BTLS_CMAKE_ARGS="$BTLS_CMAKE_ARGS -DANDROID_NDK=\"$with_btls_android_ndk\""
+		fi
+	fi
+	
+	if test "x$btls_arch" != "x"; then
+		BTLS_CMAKE_ARGS="$BTLS_CMAKE_ARGS -DBTLS_ARCH=\"$btls_arch\""
+	fi
+	
+	BTLS_CFLAGS="$CPPFLAGS_FOR_BTLS $btls_cflags"
+	AC_SUBST(BTLS_ARCH)
+	AC_SUBST(BTLS_CFLAGS)
+	AC_SUBST(BTLS_PLATFORM)
+	AC_SUBST(BTLS_CMAKE_ARGS)
+   
+	echo "BTLS CONFIG: |$CFLAGS_FOR_BTLS|$BTLS_PLATFORM|$BTLS_CFLAGS|"
+
+	AC_DEFINE(HAVE_BTLS, 1, [BoringTls is supported])
 else
-   enable_btls=no
+	enable_btls=no
 fi
 
 AM_CONDITIONAL(BTLS_ANDROID, test x$btls_android = xyes)
@@ -4198,6 +4239,15 @@ fi
 
 libgdiplus_msg=${libgdiplus_loc:-assumed to be installed}
 
+btls_platform_string=
+if test x$enable_btls = xyes; then
+	if test x$btls_android = xyes; then
+		btls_platform_string=" (android:$BTLS_PLATFORM)"
+	else
+		btls_platform_string=" ($BTLS_PLATFORM)"
+	fi
+fi
+
 echo "
         mcs source:    $mcsdir
 
@@ -4223,7 +4273,7 @@ echo "
 	JNI support:     $jdk_headers_found
 	libgdiplus:      $libgdiplus_msg
 	zlib:            $zlib_msg
-	BTLS:            $enable_btls
+	BTLS:            $enable_btls$btls_platform_string
 	$disabled
 "
 if test x$with_static_mono = xno -a "x$host_win32" != "xyes"; then
