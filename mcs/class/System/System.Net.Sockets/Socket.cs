@@ -1328,7 +1328,7 @@ namespace System.Net.Sockets
 			if (e.RemoteEndPoint == null)
 				throw new ArgumentNullException ("remoteEP");
 
-			InitSocketAsyncEventArgs (e, null, e, SocketOperation.Connect);
+			InitSocketAsyncEventArgs (e, ConnectAsyncCallback, e, SocketOperation.Connect);
 
 			try {
 				IPAddress [] addresses;
