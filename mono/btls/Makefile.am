@@ -1,4 +1,4 @@
-BTLS_STATIC_LIST = build-shared/mono-btls-static-lo.txt
+BTLS_STATIC_LIST = build-static/mono-btls-static-lo.txt
 BTLS_SHARED_LIST = build-shared/mono-btls-shared-lo.txt
 
 BTLS_DEPS = $(BTLS_LIBS) build-shared/Makefile build-static/Makefile
