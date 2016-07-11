@@ -32,6 +32,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Authentication;
 
@@ -56,8 +57,13 @@ namespace Mono.Btls
 			get { return "btls"; }
 		}
 
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		public extern static bool IsSupported ();
+
 		internal MonoBtlsProvider ()
 		{
+			if (!IsSupported ())
+				throw new NotSupportedException ("BTLS is not supported in this runtime.");
 		}
 
 		internal override IMonoTlsContext CreateTlsContext (

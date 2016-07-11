@@ -99,6 +99,9 @@ ICALL(BTLS_PKCS12_8, "mono_btls_pkcs12_import", mono_btls_pkcs12_import)
 ICALL(BTLS_PKCS12_9, "mono_btls_pkcs12_new", mono_btls_pkcs12_new)
 ICALL(BTLS_PKCS12_10, "mono_btls_pkcs12_up_ref", mono_btls_pkcs12_up_ref)
 
+ICALL_TYPE(BTLS_PROVIDER, "Mono.Btls.MonoBtlsProvider", BTLS_PROVIDER_1)
+ICALL(BTLS_PROVIDER_1, "IsSupported", ves_icall_Mono_Btls_Provider_IsSupported)
+
 ICALL_TYPE(BTLS_SSL, "Mono.Btls.MonoBtlsSsl", BTLS_SSL_1)
 ICALL(BTLS_SSL_1, "mono_btls_ssl_accept", mono_btls_ssl_accept)
 ICALL(BTLS_SSL_2, "mono_btls_ssl_add_chain_certificate", mono_btls_ssl_add_chain_certificate)
