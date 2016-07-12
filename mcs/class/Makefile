@@ -54,7 +54,8 @@ mobile_common_dirs := \
 	Mono.Security.Providers.Btls	\
 	Mono.Security.Providers.DotNet	\
 	Mono.Security.Providers.NewSystemSource \
-	Mono.Security.Providers.NewTls
+	Mono.Security.Providers.NewTls	\
+	System.Runtime.InteropServices.RuntimeInformation
 
 mobile_static_dirs := \
 	$(mobile_common_dirs)	\
@@ -135,6 +136,7 @@ xammac_4_5_dirs := \
 	Mono.Security.Providers.OldTls \
 	Mono.Security.Providers.NewSystemSource \
 	Mono.Security.Providers.NewTls \
+	System.Runtime.InteropServices.RuntimeInformation \
 	$(pcl_facade_dirs)
 
 net_4_x_dirs := \
@@ -221,7 +223,8 @@ net_4_x_dirs := \
 	System.Web.Http.SelfHost \
 	System.Web.Http.WebHost \
 	Mono.Security.Providers.NewSystemSource \
-	Mono.Security.Providers.NewTls
+	Mono.Security.Providers.NewTls \
+	System.Runtime.InteropServices.RuntimeInformation
 
 # These are the subdirs which depends on libs in net_4_x_dirs
 # or have proper dependencies between each other
