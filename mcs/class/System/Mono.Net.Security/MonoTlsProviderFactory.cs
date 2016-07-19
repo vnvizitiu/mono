@@ -101,10 +101,11 @@ namespace Mono.Net.Security
 			}
 		}
 
-#if MONO_FEATURE_NEW_SYSTEM_SOURCE || !MOBILE
+// #if MONO_FEATURE_NEW_SYSTEM_SOURCE || !MOBILE
 		static IMonoTlsProvider CreateDefaultProvider ()
 		{
 #if SECURITY_DEP
+			MSI.MonoTlsProvider provider = null;
 #if MONO_FEATURE_NEW_SYSTEM_SOURCE
 			/*
 			 * This is a hack, which is used in the Mono.Security.Providers.NewSystemSource
@@ -115,16 +116,16 @@ namespace Mono.Net.Security
 			 * NewSystemSource needs to compile MonoTlsProviderFactory.cs, IMonoTlsProvider.cs,
 			 * MonoTlsProviderWrapper.cs and CallbackHelpers.cs from this directory and only these.
 			 */
-			var userProvider = MSI.MonoTlsProviderFactory.GetProvider ();
-			return new Private.MonoTlsProviderWrapper (userProvider);
+			provider = MSI.MonoTlsProviderFactory.GetProvider ();
 #else
-			return CreateDefaultProviderImpl ();
-#endif
-#else
+			provider = CreateDefaultProviderImpl ();
+#endif // MONO_FEATURE_NEW_SYSTEM_SOURCE
+			if (provider != null)
+				return new Private.MonoTlsProviderWrapper (provider);
+#endif // SECURITY_DEP
 			return null;
-#endif
 		}
-#endif
+// #endif
 
 		static object locker = new object ();
 		static IMonoTlsProvider defaultProvider;
@@ -181,7 +182,7 @@ namespace Mono.Net.Security
 		}
 
 #if !MOBILE
-		static IMonoTlsProvider TryDynamicLoad ()
+		static MSI.MonoTlsProvider TryDynamicLoad ()
 		{
 			var variable = Environment.GetEnvironmentVariable ("MONO_TLS_PROVIDER");
 			if (variable == null)
@@ -190,22 +191,18 @@ namespace Mono.Net.Security
 			if (string.Equals (variable, "default", StringComparison.OrdinalIgnoreCase))
 				return null;
 
-			var provider = LookupProvider (variable, true);
-
-			return new Private.MonoTlsProviderWrapper (provider);
+			return LookupProvider (variable, true);
 		}
-#endif
 
-		static IMonoTlsProvider CreateDefaultProviderImpl ()
+		static MSI.MonoTlsProvider CreateDefaultProviderImpl ()
 		{
-#if !MOBILE
 			var provider = TryDynamicLoad ();
 			if (provider != null)
 				return provider;
-#endif
 
 			return new Private.MonoDefaultTlsProvider ();
 		}
+#endif
 
 		#region Mono.Security visible API
 

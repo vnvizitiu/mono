@@ -1,5 +1,5 @@
 // Copyright 2015 Xamarin Inc. All rights reserved.
-
+#if SECURITY_DEP
 using System;
 using MSI = Mono.Security.Interface;
 using Mono.Btls;
@@ -8,27 +8,11 @@ namespace Mono.Net.Security
 {
 	static partial class MonoTlsProviderFactory
 	{
-		static IMonoTlsProvider CreateDefaultProvider ()
+		static MSI.MonoTlsProvider CreateDefaultProviderImpl ()
 		{
-#if SECURITY_DEP
 			MSI.MonoTlsProvider provider = null;
-#if MONODROID
-			provider = GetDefaultTlsProvider_Android ();
-#else
-			if (MSI.MonoTlsProviderFactory._PrivateFactoryDelegate != null)
-				provider = MSI.MonoTlsProviderFactory._PrivateFactoryDelegate ();
-#endif
-			if (provider != null)
-				return new Private.MonoTlsProviderWrapper (provider);
-#endif
-			return null;
-		}
-
-#if SECURITY_DEP && MONODROID
-		static MSI.MonoTlsProvider GetDefaultTlsProvider_Android ()
-		{
-			var provider = Environment.GetEnvironmentVariable ("XA_TLS_PROVIDER");
-			switch (provider) {
+			var type = Environment.GetEnvironmentVariable ("XA_TLS_PROVIDER");
+			switch (type) {
 			case null:
 			case "default":
 			case "legacy":
@@ -41,6 +25,6 @@ namespace Mono.Net.Security
 				throw new NotSupportedException (string.Format ("Invalid TLS Provider: `{0}'.", provider));
 			}
 		}
-#endif
 	}
 }
+#endif
