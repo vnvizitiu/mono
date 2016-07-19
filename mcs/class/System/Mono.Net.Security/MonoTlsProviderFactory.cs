@@ -101,7 +101,7 @@ namespace Mono.Net.Security
 			}
 		}
 
-#if MONO_FEATURE_NEW_SYSTEM_SOURCE || (!MONOTOUCH && !XAMMAC)
+#if MONO_FEATURE_NEW_SYSTEM_SOURCE || !MOBILE
 		static IMonoTlsProvider CreateDefaultProvider ()
 		{
 #if SECURITY_DEP
@@ -180,7 +180,7 @@ namespace Mono.Net.Security
 			}
 		}
 
-#if !MOBILE || MONODROID
+#if !MOBILE
 		static IMonoTlsProvider TryDynamicLoad ()
 		{
 			var variable = Environment.GetEnvironmentVariable ("MONO_TLS_PROVIDER");
@@ -198,7 +198,7 @@ namespace Mono.Net.Security
 
 		static IMonoTlsProvider CreateDefaultProviderImpl ()
 		{
-#if !MOBILE || MONODROID
+#if !MOBILE
 			var provider = TryDynamicLoad ();
 			if (provider != null)
 				return provider;
