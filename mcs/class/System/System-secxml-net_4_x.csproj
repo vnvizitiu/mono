@@ -750,7 +750,7 @@
     <Compile Include="Mono.Net.Security\IMonoSslStream.cs" />
     <Compile Include="Mono.Net.Security\IMonoTlsProvider.cs" />
     <Compile Include="Mono.Net.Security\LegacySslStream.cs" />
-    <Compile Include="Mono.Net.Security\MonoDefaultTlsProvider.cs" />
+    <Compile Include="Mono.Net.Security\MonoLegacyTlsProvider.cs" />
     <Compile Include="Mono.Net.Security\MonoSslStreamImpl.cs" />
     <Compile Include="Mono.Net.Security\MonoSslStreamWrapper.cs" />
     <Compile Include="Mono.Net.Security\MonoTlsProviderFactory.cs" />

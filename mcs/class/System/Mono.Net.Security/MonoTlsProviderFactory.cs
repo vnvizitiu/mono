@@ -101,7 +101,6 @@ namespace Mono.Net.Security
 			}
 		}
 
-// #if MONO_FEATURE_NEW_SYSTEM_SOURCE || !MOBILE
 		static IMonoTlsProvider CreateDefaultProvider ()
 		{
 #if SECURITY_DEP
@@ -119,13 +118,12 @@ namespace Mono.Net.Security
 			provider = MSI.MonoTlsProviderFactory.GetProvider ();
 #else
 			provider = CreateDefaultProviderImpl ();
-#endif // MONO_FEATURE_NEW_SYSTEM_SOURCE
+#endif
 			if (provider != null)
 				return new Private.MonoTlsProviderWrapper (provider);
-#endif // SECURITY_DEP
+#endif
 			return null;
 		}
-// #endif
 
 		static object locker = new object ();
 		static IMonoTlsProvider defaultProvider;
@@ -173,10 +171,11 @@ namespace Mono.Net.Security
 				if (providerRegistration != null)
 					return;
 				providerRegistration = new Dictionary<string,string> ();
+				providerRegistration.Add ("legacy", "Mono.Net.Security.Private.MonoLegacyTlsProvider");
 				providerRegistration.Add ("newtls", "Mono.Security.Providers.NewTls.NewTlsProvider, Mono.Security.Providers.NewTls, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756");
 				providerRegistration.Add ("oldtls", "Mono.Security.Providers.OldTls.OldTlsProvider, Mono.Security.Providers.OldTls, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756");
 				if (Mono.Btls.MonoBtlsProvider.IsSupported ())
-					providerRegistration.Add ("btls", typeof (Mono.Btls.MonoBtlsProvider).FullName);
+					providerRegistration.Add ("btls", "Mono.Btls.MonoBtlsProvider");
 				X509Helper2.Initialize ();
 			}
 		}
@@ -200,7 +199,7 @@ namespace Mono.Net.Security
 			if (provider != null)
 				return provider;
 
-			return new Private.MonoDefaultTlsProvider ();
+			return new Private.MonoLegacyTlsProvider ();
 		}
 #endif
 
