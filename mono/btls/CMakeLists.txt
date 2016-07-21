@@ -7,6 +7,11 @@ cmake_policy(SET CMP0042 NEW)
 
 enable_language(C)
 enable_language(CXX)
+
+# FIXME: cmake's asm detection is broken when using xcrun.
+set (CMAKE_ASM_COMPILER "${CMAKE_C_COMPILER}")
+set (CMAKE_ASM_COMPILER_ARG1 "${CMAKE_C_COMPILER_ARG1}")
+set (CMAKE_ASM_COMPILER_ID "${CMAKE_C_COMPILER_ID}")
 enable_language(ASM)
 
 if (NOT "${BTLS_ARCH}" STREQUAL "")
