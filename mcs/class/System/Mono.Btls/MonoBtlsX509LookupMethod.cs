@@ -86,13 +86,17 @@ namespace Mono.Btls
 		}
 	}
 
+	delegate MonoBtlsX509 MonoBtlsX509LookupBySubjectFunc (MonoBtlsX509Name name);
+
 	internal class MonoBtlsX509LookupMethodMono : MonoBtlsX509LookupMethod
 	{
 		delegate int NewItemFunc (IntPtr instance);
 		delegate int InitFunc (IntPtr instance);
 		delegate int ShutdownFunc (IntPtr instance);
 		delegate int BySubjectFunc (IntPtr instance, IntPtr name, out IntPtr x509_ptr);
+#if FIXME
 		delegate int ByFingerPrintFunc (IntPtr instance, IntPtr bytes, int len, out IntPtr x509_ptr);
+#endif
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static IntPtr mono_btls_x509_lookup_method_mono_new ();
@@ -101,14 +105,18 @@ namespace Mono.Btls
 		extern static void mono_btls_x509_lookup_method_mono_set_by_subject_func (
 			IntPtr handle, IntPtr by_subject_func);
 
+#if FIXME
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_lookup_method_mono_set_by_fingerprint_func (
 			IntPtr handle, IntPtr by_fingerprint_func);
+#endif
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_lookup_method_mono_init (
 			IntPtr handle, IntPtr instance,
 			IntPtr new_item_func, IntPtr init_func, IntPtr shutdown_func);
+
+		MonoBtlsX509LookupBySubjectFunc callback;
 
 		GCHandle handle;
 		IntPtr instance;
@@ -116,35 +124,47 @@ namespace Mono.Btls
 		NewItemFunc newItemFunc;
 		ShutdownFunc shutdownFunc;
 		BySubjectFunc bySubjectFunc;
+#if FIXME
 		ByFingerPrintFunc byFingerPrintFunc;
+#endif
 		IntPtr initFuncPtr;
 		IntPtr newItemFuncPtr;
 		IntPtr shutdownFuncPtr;
 		IntPtr bySubjectFuncPtr;
+#if FIXME
 		IntPtr byFingerPrintFuncPtr;
+#endif
 
-		internal MonoBtlsX509LookupMethodMono ()
+		internal MonoBtlsX509LookupMethodMono (MonoBtlsX509LookupBySubjectFunc callback)
 			: base (new BoringX509LookupMethodHandle (mono_btls_x509_lookup_method_mono_new ()))
 		{
+			this.callback = callback;
+
 			handle = GCHandle.Alloc (this);
 			instance = GCHandle.ToIntPtr (handle);
 			initFunc = OnInit;
 			newItemFunc = OnNewItem;
 			shutdownFunc = OnShutdown;
 			bySubjectFunc = OnGetBySubject;
+#if FIXME
 			byFingerPrintFunc = OnGetByFingerPrint;
+#endif
 			initFuncPtr = Marshal.GetFunctionPointerForDelegate (initFunc);
 			newItemFuncPtr = Marshal.GetFunctionPointerForDelegate (newItemFunc);
 			shutdownFuncPtr = Marshal.GetFunctionPointerForDelegate (shutdownFunc);
 			bySubjectFuncPtr = Marshal.GetFunctionPointerForDelegate (bySubjectFunc);
+#if FIXME
 			byFingerPrintFuncPtr = Marshal.GetFunctionPointerForDelegate (byFingerPrintFunc);
+#endif
 			mono_btls_x509_lookup_method_mono_init (
 				Handle.DangerousGetHandle (), instance,
 				newItemFuncPtr, initFuncPtr, shutdownFuncPtr);
 			mono_btls_x509_lookup_method_mono_set_by_subject_func (
 				Handle.DangerousGetHandle (), bySubjectFuncPtr);
+#if FIXME
 			mono_btls_x509_lookup_method_mono_set_by_fingerprint_func (
 				Handle.DangerousGetHandle (), byFingerPrintFuncPtr);
+#endif
 		}
 
 #if MONOTOUCH
@@ -186,7 +206,7 @@ namespace Mono.Btls
 					obj = (MonoBtlsX509LookupMethodMono)GCHandle.FromIntPtr (instance).Target;
 					name_handle = new MonoBtlsX509Name.BoringX509NameHandle (name_ptr, false);
 					MonoBtlsX509Name name_obj = new MonoBtlsX509Name (name_handle);
-					var x509 = obj.GetBySubject (name_obj);
+					var x509 = obj.callback (name_obj);
 					if (x509 != null) {
 						x509_ptr = x509.Handle.StealHandle ();
 						return 1;
@@ -205,6 +225,7 @@ namespace Mono.Btls
 			}
 		}
 
+#if FIXME
 		public MonoBtlsX509 GetBySubject (MonoBtlsX509Name name)
 		{
 			Console.WriteLine ("GET BY SUBJECT: {0} {1:X}", name.GetString (), name.GetHash ());
@@ -224,7 +245,9 @@ namespace Mono.Btls
 			Console.WriteLine ("GOT X509: {0}", x509.GetSubjectNameString ());
 			return x509;
 		}
+#endif
 
+#if FIXME
 #if MONOTOUCH
 		[MonoPInvokeCallback (typeof (ByFingerPrintFunc))]
 #endif
@@ -258,6 +281,7 @@ namespace Mono.Btls
 			// return x509;
 			throw new NotImplementedException ();
 		}
+#endif
 
 		protected override void Close ()
 		{

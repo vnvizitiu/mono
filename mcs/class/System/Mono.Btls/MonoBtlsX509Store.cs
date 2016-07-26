@@ -99,6 +99,9 @@ namespace Mono.Btls
 		{
 			var ret = mono_btls_x509_store_set_default_paths (Handle.DangerousGetHandle ());
 			CheckError (ret);
+#if ANDROID
+			SetupAndroidCertStore ();
+#endif
 		}
 
 		static BoringX509StoreHandle Create_internal ()
@@ -158,6 +161,42 @@ namespace Mono.Btls
 			var systemRoot = MonoBtlsProvider.GetSystemStoreLocation ();
 			LoadLocations (null, systemRoot);
 		}
+
+		protected override void Close ()
+		{
+			try {
+#if ANDROID
+				if (androidCertStoreLookup != null) {
+					androidCertStoreLookup.Dispose ();
+					androidCertStoreLookup = null;
+				}
+				if (androidCertStoreLookupMethod != null) {
+					androidCertStoreLookupMethod.Dispose ();
+					androidCertStoreLookupMethod = null;
+				}
+#endif
+			} finally {
+				base.Close ();
+			}
+		}
+
+#if ANDROID
+		MonoBtlsX509LookupMethod androidCertStoreLookupMethod;
+		MonoBtlsX509Lookup androidCertStoreLookup;
+
+		void SetupAndroidCertStore ()
+		{
+			androidCertStoreLookupMethod = new MonoBtlsX509LookupMethodMono (OnUserCallback);
+			androidCertStoreLookup = new MonoBtlsX509Lookup (this, androidCertStoreLookupMethod);
+		}
+
+		MonoBtlsX509 OnUserCallback (MonoBtlsX509Name name)
+		{
+			Console.Error.WriteLine ("ON USER CALLBACK: {0}", name);
+			return null;
+		}
+#endif
+
 	}
 }
 #endif
