@@ -2,7 +2,9 @@
 #if SECURITY_DEP
 using System;
 using MSI = Mono.Security.Interface;
+#if HAVE_BTLS
 using Mono.Btls;
+#endif
 
 namespace Mono.Net.Security
 {
