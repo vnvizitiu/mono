@@ -78,15 +78,22 @@ namespace System.Security.Cryptography.X509Certificates
 			return IntPtr.Zero;
 		}
 
-		internal X509Certificate2ImplMono (MX.X509Certificate cert)
+		X509Certificate2ImplMono (MX.X509Certificate cert)
 		{
 			this._cert = cert;
+		}
+
+		X509Certificate2ImplMono (X509Certificate2ImplMono other)
+		{
+			_cert = other._cert;
+			if (other.intermediateCerts != null)
+				intermediateCerts = other.intermediateCerts.Clone ();
 		}
 
 		public override X509CertificateImpl Clone ()
 		{
 			ThrowIfContextInvalid ();
-			return new X509Certificate2ImplMono (_cert);
+			return new X509Certificate2ImplMono (this);
 		}
 
 #region Implemented X509CertificateImpl members
