@@ -359,6 +359,21 @@ namespace MonoTests.System
 				Assert.IsFalse (tzi.IsDaylightSavingTime (date));
 				Assert.AreEqual (new TimeSpan (2,0,0), tzi.GetUtcOffset (date));
 			}
+
+			[Test] //Covers #41349
+			public void TestIsDST_DateTimeOffset ()
+			{
+				TimeZoneInfo tzi = TimeZoneInfo.FindSystemTimeZoneById ("Europe/Athens");
+				var date = new DateTime (2014, 3, 30 , 2, 0, 0);
+				var offset = tzi.GetUtcOffset (date);
+				var dateOffset = new DateTimeOffset (date, offset);
+				Assert.IsFalse (tzi.IsDaylightSavingTime (dateOffset));
+
+				date = new DateTime (2014, 3, 30 , 3, 0, 0);
+				offset = tzi.GetUtcOffset (date);
+				dateOffset = new DateTimeOffset (date, offset);
+				Assert.IsTrue (tzi.IsDaylightSavingTime (dateOffset));
+			}
 		}
 		
 		[TestFixture]
@@ -783,6 +798,7 @@ namespace MonoTests.System
 				Assert.IsTrue (timeZones.Count > 0, "GetSystemTimeZones should not return an empty collection.");
 			}
 
+#if !MOBILE
 			[Test]
 			public void WindowsRegistryTimezoneWithParentheses ()
 			{
@@ -791,6 +807,7 @@ namespace MonoTests.System
 				var name = method.Invoke (null, new object [] { " <--->  Central Standard Time (Mexico)   ||<<>>" });
 				Assert.AreEqual (name, "Central Standard Time (Mexico)", "#1");
 			}
+#endif
 		}
 		
 		[TestFixture]
@@ -921,17 +938,17 @@ namespace MonoTests.System
 					"Canada/Newfoundland",
 					"Europe/Moscow",
 					"Europe/Riga",
-					"N/A", // testing that the test doesn't fail with inexistent TZs
 				};
 				foreach (var tz in subMinuteDSTs) {
-					try {
-						TimeZoneInfo.FindSystemTimeZoneById (tz);
-					} catch (TimeZoneNotFoundException) {
-						// ok;
-					} catch (Exception ex) {
-						Assert.Fail (string.Format ("Failed to load TZ {0}: {1}", tz, ex.ToString ()));
-					}
+					TimeZoneInfo.FindSystemTimeZoneById (tz);
 				}
+			}
+
+			[Test]
+			[ExpectedException (typeof (TimeZoneNotFoundException))]
+			public void InvalidName ()
+			{
+				TimeZoneInfo.FindSystemTimeZoneById ("N/A");
 			}
 		}
 		
@@ -1156,6 +1173,22 @@ namespace MonoTests.System
 			  Assert.AreEqual(baseUtcOffset, cairo.GetUtcOffset(offset), "dst2End_with_dstOffset+baseUtcOffset#exact");
 			  Assert.AreEqual(baseUtcOffset, cairo.GetUtcOffset(offset.Add(new TimeSpan(0, 0, 0, 1))), "dst2End_with_dstOffset+baseUtcOffset#after");
 		  }
+
+			[Test]
+			public void DTS_WithMinimalDate ()
+			{
+				TimeZoneInfo.TransitionTime startTransition, endTransition;
+				startTransition = TimeZoneInfo.TransitionTime.CreateFloatingDateRule (new DateTime (1, 1, 1, 4, 0, 0),
+																				  10, 2, DayOfWeek.Sunday);
+				endTransition = TimeZoneInfo.TransitionTime.CreateFloatingDateRule (new DateTime (1, 1, 1, 3, 0, 0),
+																				3, 2, DayOfWeek.Sunday);
+
+				var ctz = TimeZoneInfo.CreateCustomTimeZone ("test", TimeSpan.FromHours (-5), "display", "sdisplay", "dst", new [] {
+					TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule (DateTime.MinValue, DateTime.MaxValue.Date, TimeSpan.FromHours (-1), startTransition, endTransition) });
+
+				var offset = ctz.GetUtcOffset (DateTime.MinValue);
+				Assert.AreEqual (TimeSpan.FromHours (-5), offset); // TODO: Wrong it should be -6
+			}
     }
 
 		[TestFixture]

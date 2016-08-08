@@ -7,6 +7,7 @@
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
  * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
  * Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 #include <config.h>
 #include <stdio.h>
@@ -920,6 +921,7 @@ mono_assembly_addref (MonoAssembly *assembly)
 #define WINFX_KEY "31bf3856ad364e35"
 #define ECMA_KEY "b77a5c561934e089"
 #define MSFINAL_KEY "b03f5f7f11d50a3a"
+#define COMPACTFRAMEWORK_KEY "969db8053d3322ac"
 
 typedef struct {
 	const char *name;
@@ -928,20 +930,34 @@ typedef struct {
 } KeyRemapEntry;
 
 static KeyRemapEntry key_remap_table[] = {
+	{ "CustomMarshalers", COMPACTFRAMEWORK_KEY, MSFINAL_KEY },
 	{ "Microsoft.CSharp", WINFX_KEY, MSFINAL_KEY },
+	{ "Microsoft.VisualBasic", COMPACTFRAMEWORK_KEY, MSFINAL_KEY },
 	{ "System", SILVERLIGHT_KEY, ECMA_KEY },
+	{ "System", COMPACTFRAMEWORK_KEY, ECMA_KEY },
 	{ "System.ComponentModel.Composition", WINFX_KEY, ECMA_KEY },
 	{ "System.ComponentModel.DataAnnotations", "ddd0da4d3e678217", WINFX_KEY },
 	{ "System.Core", SILVERLIGHT_KEY, ECMA_KEY },
+	{ "System.Core", COMPACTFRAMEWORK_KEY, ECMA_KEY },
+	{ "System.Data", COMPACTFRAMEWORK_KEY, ECMA_KEY },
+	{ "System.Data.DataSetExtensions", COMPACTFRAMEWORK_KEY, ECMA_KEY },
+	{ "System.Drawing", COMPACTFRAMEWORK_KEY, MSFINAL_KEY },
+	{ "System.Messaging", COMPACTFRAMEWORK_KEY, MSFINAL_KEY },
 	// FIXME: MS uses MSFINAL_KEY for .NET 4.5
 	{ "System.Net", SILVERLIGHT_KEY, MSFINAL_KEY },
 	{ "System.Numerics", WINFX_KEY, ECMA_KEY },
 	{ "System.Runtime.Serialization", SILVERLIGHT_KEY, ECMA_KEY },
+	{ "System.Runtime.Serialization", COMPACTFRAMEWORK_KEY, ECMA_KEY },
 	{ "System.ServiceModel", WINFX_KEY, ECMA_KEY },
+	{ "System.ServiceModel", COMPACTFRAMEWORK_KEY, ECMA_KEY },
 	{ "System.ServiceModel.Web", SILVERLIGHT_KEY, WINFX_KEY },
+	{ "System.Web.Services", COMPACTFRAMEWORK_KEY, MSFINAL_KEY },
 	{ "System.Windows", SILVERLIGHT_KEY, MSFINAL_KEY },
+	{ "System.Windows.Forms", COMPACTFRAMEWORK_KEY, ECMA_KEY },
 	{ "System.Xml", SILVERLIGHT_KEY, ECMA_KEY },
+	{ "System.Xml", COMPACTFRAMEWORK_KEY, ECMA_KEY },
 	{ "System.Xml.Linq", WINFX_KEY, ECMA_KEY },
+	{ "System.Xml.Linq", COMPACTFRAMEWORK_KEY, ECMA_KEY },
 	{ "System.Xml.Serialization", WINFX_KEY, ECMA_KEY }
 };
 
@@ -1635,7 +1651,14 @@ mono_assembly_open_full (const char *filename, MonoImageOpenStatus *status, gboo
 	if (!mono_assembly_is_in_gac (fname)) {
 		MonoError error;
 		new_fname = mono_make_shadow_copy (fname, &error);
-		mono_error_raise_exception (&error); /* FIXME don't raise here */
+		if (!is_ok (&error)) {
+			mono_trace (G_LOG_LEVEL_INFO, MONO_TRACE_ASSEMBLY,
+				    "Assembly Loader shadow copy error: %s.", mono_error_get_message (&error));
+			mono_error_cleanup (&error);
+			*status = MONO_IMAGE_IMAGE_INVALID;
+			g_free (fname);
+			return NULL;
+		}
 	}
 	if (new_fname && new_fname != fname) {
 		g_free (fname);
@@ -1976,6 +1999,7 @@ mono_assembly_name_free (MonoAssemblyName *aname)
 	g_free ((void *) aname->name);
 	g_free ((void *) aname->culture);
 	g_free ((void *) aname->hash_value);
+	g_free ((guint8*) aname->public_key);
 }
 
 static gboolean
@@ -2596,10 +2620,12 @@ mono_assembly_load_with_partial_name (const char *name, MonoImageOpenStatus *sta
 		MonoReflectionAssembly *refasm;
 
 		refasm = mono_try_assembly_resolve (domain, mono_string_new (domain, name), NULL, FALSE, &error);
-		if (!mono_error_ok (&error)) {
+		if (!is_ok (&error)) {
 			g_free (fullname);
 			mono_assembly_name_free (aname);
-			mono_error_raise_exception (&error); /* FIXME don't raise here */
+			mono_error_cleanup (&error);
+			if (*status == MONO_IMAGE_OK)
+				*status = MONO_IMAGE_IMAGE_INVALID;
 		}
 
 		if (refasm)
@@ -2878,6 +2904,7 @@ get_per_domain_assembly_binding_info (MonoDomain *domain, MonoAssemblyName *anam
 static MonoAssemblyName*
 mono_assembly_apply_binding (MonoAssemblyName *aname, MonoAssemblyName *dest_name)
 {
+	MonoError error;
 	MonoAssemblyBindingInfo *info, *info2;
 	MonoImage *ppimage;
 	MonoDomain *domain;
@@ -2908,7 +2935,11 @@ mono_assembly_apply_binding (MonoAssemblyName *aname, MonoAssemblyName *dest_nam
 	if (domain && domain->setup && domain->setup->configuration_file) {
 		mono_domain_lock (domain);
 		if (!domain->assembly_bindings_parsed) {
-			gchar *domain_config_file_name = mono_string_to_utf8 (domain->setup->configuration_file);
+			gchar *domain_config_file_name = mono_string_to_utf8_checked (domain->setup->configuration_file, &error);
+			/* expect this to succeed because mono_domain_set_options_from_config () did
+			 * the same thing when the domain was created. */
+			mono_error_assert_ok (&error);
+
 			gchar *domain_config_file_path = mono_portability_find_file (domain_config_file_name, TRUE);
 
 			if (!domain_config_file_path)

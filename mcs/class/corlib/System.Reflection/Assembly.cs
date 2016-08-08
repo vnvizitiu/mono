@@ -88,7 +88,7 @@ namespace System.Reflection {
 
 		// Note: changes to fields must be reflected in _MonoReflectionAssembly struct (object-internals.h)
 #pragma warning disable 649
-		private IntPtr _mono_assembly;
+		internal IntPtr _mono_assembly;
 #pragma warning restore 649
 
 		private ResolveEventHolder resolve_event_holder;
@@ -137,6 +137,9 @@ namespace System.Reflection {
 
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern string InternalImageRuntimeVersion ();
+
+		[MethodImplAttribute (MethodImplOptions.InternalCall)]
+		static internal extern string GetAotId ();
 
 		// SECURITY: this should be the only caller to icall get_code_base
 		private string GetCodeBase (bool escaped)
@@ -422,32 +425,14 @@ namespace System.Reflection {
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		internal extern static void InternalGetAssemblyName (string assemblyFile, AssemblyName aname);
 
-		[MethodImplAttribute (MethodImplOptions.InternalCall)]
-		static extern void FillName (Assembly ass, AssemblyName aname);
-
-		[MonoTODO ("copiedName == true is not supported")]
 		public virtual AssemblyName GetName (Boolean copiedName)
 		{
-#if !MOBILE
-			// CodeBase, which is restricted, will be copied into the AssemblyName object so...
-			if (SecurityManager.SecurityEnabled) {
-				GetCodeBase (true); // this will ensure the Demand is made
-			}
-#endif
-			return UnprotectedGetName ();
+			throw new NotImplementedException ();
 		}
 
 		public virtual AssemblyName GetName ()
 		{
 			return GetName (false);
-		}
-
-		// the security runtime requires access to the assemblyname (e.g. to get the strongname)
-		internal virtual AssemblyName UnprotectedGetName ()
-		{
-			AssemblyName aname = new AssemblyName ();
-			FillName (this, aname);
-			return aname;
 		}
 
 		public override string ToString ()

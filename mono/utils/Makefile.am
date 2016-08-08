@@ -27,6 +27,9 @@ monoutils_sources = \
 	mono-dl-darwin.c	\
 	mono-dl-posix.c		\
 	mono-dl.h		\
+	mono-log-windows.c	\
+	mono-log-common.c	\
+	mono-log-posix.c	\
 	mono-internal-hash.c	\
 	mono-internal-hash.h	\
 	mono-io-portability.c 	\
@@ -109,6 +112,7 @@ monoutils_sources = \
 	mono-threads-windows.c	\
 	mono-threads-linux.c	\
 	mono-threads-freebsd.c	\
+	mono-threads-netbsd.c	\
 	mono-threads-openbsd.c	\
 	mono-threads-android.c	\
 	mono-threads.h	\
@@ -148,7 +152,9 @@ monoutils_sources = \
 	parse.c \
 	parse.h	\
 	checked-build.c \
-	checked-build.h
+	checked-build.h \
+	w32handle.c \
+	w32handle.h
 
 arch_sources = 
 

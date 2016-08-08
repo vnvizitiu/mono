@@ -4,6 +4,7 @@
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
  * Copyright 2004-2011 Novell, Inc (http://www.novell.com)
  * Copyright 2011-2012 Xamarin, Inc (http://www.xamarin.com)
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 #include "config.h"
@@ -828,6 +829,11 @@ mono_gc_clear_domain (MonoDomain *domain)
 {
 }
 
+void
+mono_gc_suspend_finalizers (void)
+{
+}
+
 int
 mono_gc_get_suspend_signal (void)
 {
@@ -1124,7 +1130,9 @@ mono_gc_get_managed_allocator (MonoClass *klass, gboolean for_box, gboolean know
 		return NULL;
 	if (!SMALL_ENOUGH (klass->instance_size))
 		return NULL;
-	if (mono_class_has_finalizer (klass) || mono_class_is_marshalbyref (klass) || (mono_profiler_get_events () & MONO_PROFILE_ALLOCATIONS))
+	if (mono_class_has_finalizer (klass) || mono_class_is_marshalbyref (klass))
+		return NULL;
+	if (mono_profiler_get_events () & (MONO_PROFILE_ALLOCATIONS | MONO_PROFILE_STATISTICAL))
 		return NULL;
 	if (klass->rank)
 		return NULL;
@@ -1150,7 +1158,7 @@ mono_gc_get_managed_allocator (MonoClass *klass, gboolean for_box, gboolean know
 			atype = ATYPE_NORMAL;
 		*/
 	}
-	return mono_gc_get_managed_allocator_by_type (atype, FALSE);
+	return mono_gc_get_managed_allocator_by_type (atype, MANAGED_ALLOCATOR_REGULAR);
 }
 
 MonoMethod*
@@ -1165,10 +1173,11 @@ mono_gc_get_managed_array_allocator (MonoClass *klass)
  *   Return a managed allocator method corresponding to allocator type ATYPE.
  */
 MonoMethod*
-mono_gc_get_managed_allocator_by_type (int atype, gboolean slowpath)
+mono_gc_get_managed_allocator_by_type (int atype, ManagedAllocatorVariant variant)
 {
 	int offset = -1;
 	MonoMethod *res;
+	gboolean slowpath = variant != MANAGED_ALLOCATOR_REGULAR;
 	MonoMethod **cache = slowpath ? slowpath_alloc_method_cache : alloc_method_cache;
 	MONO_THREAD_VAR_OFFSET (GC_thread_tls, offset);
 
@@ -1225,7 +1234,7 @@ mono_gc_get_managed_array_allocator (MonoClass *klass)
 }
 
 MonoMethod*
-mono_gc_get_managed_allocator_by_type (int atype, gboolean slowpath)
+mono_gc_get_managed_allocator_by_type (int atype, ManagedAllocatorVariant variant)
 {
 	return NULL;
 }

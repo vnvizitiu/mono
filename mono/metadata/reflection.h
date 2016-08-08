@@ -1,6 +1,7 @@
 #ifndef __METADATA_REFLECTION_H__
 #define __METADATA_REFLECTION_H__
 
+#include <mono/utils/mono-publib.h>
 #include <mono/metadata/object.h>
 
 MONO_BEGIN_DECLS
@@ -77,6 +78,7 @@ MONO_API MonoArray*  mono_reflection_get_custom_attrs_by_type (MonoObject *obj, 
 MONO_API MonoArray*  mono_reflection_get_custom_attrs (MonoObject *obj);
 MONO_RT_EXTERNAL_ONLY
 MONO_API MonoArray*  mono_reflection_get_custom_attrs_data (MonoObject *obj);
+MONO_RT_EXTERNAL_ONLY
 MONO_API MonoArray*  mono_reflection_get_custom_attrs_blob (MonoReflectionAssembly *assembly, MonoObject *ctor, MonoArray *ctorArgs, MonoArray *properties, MonoArray *porpValues, MonoArray *fields, MonoArray* fieldValues);
 
 MONO_RT_EXTERNAL_ONLY

@@ -59,7 +59,6 @@ namespace System.Globalization
 		[NonSerialized]
 		int default_calendar_type;
 		bool m_useUserOverride;
-		[NonSerialized]
 		internal volatile NumberFormatInfo numInfo;
 		internal volatile DateTimeFormatInfo dateTimeInfo;
 		volatile TextInfo textInfo;
@@ -128,12 +127,22 @@ namespace System.Globalization
 			get {
 				return Thread.CurrentThread.CurrentCulture;
 			}
+#if NETSTANDARD
+			set {
+				throw new NotImplementedException ();
+			}
+#endif
 		}
 
 		public static CultureInfo CurrentUICulture { 
 			get {
 				return Thread.CurrentThread.CurrentUICulture;
 			}
+#if NETSTANDARD
+			set {
+				throw new NotImplementedException ();
+			}
+#endif
 		}
 
 		internal static CultureInfo ConstructCurrentCulture ()

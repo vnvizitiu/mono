@@ -191,6 +191,10 @@ typedef struct {
 	MonoMethodSignature *sig;
 } GsharedvtWrapperInfo;
 
+typedef struct {
+	MonoMethod *method;
+} DelegateInvokeWrapperInfo;
+
 /*
  * This structure contains additional information to uniquely identify a given wrapper
  * method. It can be retrieved by mono_marshal_get_wrapper_info () for certain types
@@ -231,6 +235,8 @@ typedef struct {
 		RemotingWrapperInfo remoting;
 		/* GSHAREDVT_IN_SIG/GSHAREDVT_OUT_SIG */
 		GsharedvtWrapperInfo gsharedvt;
+		/* DELEGATE_INVOKE */
+		DelegateInvokeWrapperInfo delegate_invoke;
 	} d;
 } WrapperInfo;
 
@@ -593,7 +599,10 @@ void
 mono_marshal_use_aot_wrappers (gboolean use);
 
 MonoObject *
-mono_marshal_xdomain_copy_value (MonoObject *val);
+mono_marshal_xdomain_copy_value (MonoObject *val, MonoError *error);
+
+MonoObject *
+ves_icall_mono_marshal_xdomain_copy_value (MonoObject *val);
 
 int
 mono_mb_emit_save_args (MonoMethodBuilder *mb, MonoMethodSignature *sig, gboolean save_this);
@@ -609,6 +618,11 @@ MonoMethod*
 mono_mb_create_and_cache_full (GHashTable *cache, gpointer key,
 							   MonoMethodBuilder *mb, MonoMethodSignature *sig,
 							   int max_stack, WrapperInfo *info, gboolean *out_found);
+
+typedef void (*MonoFtnPtrEHCallback) (guint32 gchandle);
+
+MONO_API void
+mono_install_ftnptr_eh_callback (MonoFtnPtrEHCallback callback);
 
 G_END_DECLS
 

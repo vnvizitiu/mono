@@ -30,8 +30,10 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
+using System.Collections.Generic;
 
 using NUnit.Framework;
 
@@ -40,6 +42,7 @@ using MonoTests.Helpers;
 namespace MonoTests.System.Net
 {
 	[TestFixture]
+	[Category ("RequiresBSDSockets")]
 	public class HttpListenerRequestTest
 	{
 		[Test]
@@ -188,6 +191,33 @@ namespace MonoTests.System.Net
 			HttpListenerRequest request = ctx.Request;
 			Assert.AreEqual ("/RequestUriDecodeTest/?a=b&c=d%26e", request.Url.PathAndQuery);
 			listener.Close ();
+		}
+
+		[Test]
+		public void HttpRequestIsLocal ()
+		{
+			var port = NetworkHelpers.FindFreePort ();
+			var ips = new List<IPAddress> ();
+			ips.Add (IPAddress.Loopback);
+			foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces ()) {
+				foreach (var ip in adapter.GetIPProperties ().UnicastAddresses) {
+					ips.Add (ip.Address);
+				}
+			}
+
+			foreach (var ip in ips) {
+				if (ip.AddressFamily != AddressFamily.InterNetwork)
+					continue;
+
+				HttpListener listener = HttpListener2Test.CreateAndStartListener (
+					"http://" + ip + ":" + port + "/HttpRequestIsLocal/");
+				NetworkStream ns = HttpListener2Test.CreateNS (ip, port);
+				HttpListener2Test.Send (ns, "GET /HttpRequestIsLocal/ HTTP/1.0\r\n\r\n");
+				HttpListenerContext ctx = listener.GetContext ();
+				HttpListenerRequest request = ctx.Request;
+				Assert.AreEqual (true, request.IsLocal, "IP " + ip + " is not local");
+				listener.Close ();
+			}
 		}
 
 		[Test] // #29927

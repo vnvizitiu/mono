@@ -47,6 +47,7 @@ using MonoTests.Helpers;
 namespace MonoTests.System.Net {
 	
 	[TestFixture]
+	[Category ("RequiresBSDSockets")]
 	public class HttpListener2Test {
 		
 		private HttpListener _listener = null;
@@ -81,13 +82,23 @@ namespace MonoTests.System.Net {
 
 		public static MyNetworkStream CreateNS (int port)
 		{
-			return CreateNS (port, 5000);
+			return CreateNS (IPAddress.Loopback, port, 5000);
 		}
 
 		public static MyNetworkStream CreateNS (int port, int timeout_ms)
 		{
+			return CreateNS (IPAddress.Loopback, port, timeout_ms);
+		}
+
+		public static MyNetworkStream CreateNS (IPAddress ip, int port)
+		{
+			return CreateNS (ip, port, 5000);
+		}
+
+		public static MyNetworkStream CreateNS (IPAddress ip, int port, int timeout_ms)
+		{
 			Socket sock = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-			sock.Connect (new IPEndPoint (IPAddress.Loopback, port));
+			sock.Connect (new IPEndPoint (ip, port));
 			sock.SendTimeout = timeout_ms;
 			sock.ReceiveTimeout = timeout_ms;
 			return new MyNetworkStream (sock);
@@ -144,7 +155,7 @@ namespace MonoTests.System.Net {
 			Send (ns, "GET / HTTP/1.1\r\n\r\n"); // No host
 			string response = Receive (ns, 512);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 400", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 400"));
 		}
 
 		[Test]
@@ -156,7 +167,7 @@ namespace MonoTests.System.Net {
 			Send (ns, "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"); // no prefix
 			string response = Receive (ns, 512);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 400", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 400"));
 		}
 
 		[Test]
@@ -194,7 +205,7 @@ namespace MonoTests.System.Net {
 				string response = Receive (ns, 512);
 				ns.Close ();
 				listener.Close ();
-				StringAssert.StartsWith ("HTTP/1.1 400", response, String.Format ("Failed on {0}", (int) b));
+				Assert.IsTrue(response.StartsWith ("HTTP/1.1 400"), String.Format ("Failed on {0}", (int) b));
 			}
 		}
 
@@ -207,7 +218,7 @@ namespace MonoTests.System.Net {
 			Send (ns, "POST /test4/ HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"); // length required
 			string response = Receive (ns, 512);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 411", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 411"));
 		}
 
 		[Test]
@@ -219,7 +230,7 @@ namespace MonoTests.System.Net {
 			Send (ns, "POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: pepe\r\n\r\n"); // not implemented
 			string response = Receive (ns, 512);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 501", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 501"));
 		}
 
 		[Test]
@@ -232,7 +243,7 @@ namespace MonoTests.System.Net {
 			Send (ns, "POST /test6/ HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: identity\r\n\r\n");
 			string response = Receive (ns, 512);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 501", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 501"));
 		}
 
 		[Test]
@@ -247,8 +258,8 @@ namespace MonoTests.System.Net {
 			ctx.Response.Close ();
 			string response = Receive (ns, 1024);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 200", response);
-			StringAssert.Contains ("Transfer-Encoding: chunked", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 200"));
+			Assert.IsTrue(response.Contains ("Transfer-Encoding: chunked"));
 		}
 
 		[Test]
@@ -264,7 +275,7 @@ namespace MonoTests.System.Net {
 			ctx.Response.Close ();
 			string response = Receive (ns, 512);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 200", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 200"));
 			Assert.IsTrue (-1 == response.IndexOf ("Transfer-Encoding: chunked"));
 		}
 
@@ -280,7 +291,7 @@ namespace MonoTests.System.Net {
 			string response = ReceiveWithTimeout (ns, 512, 1000, out timeout);
 			ns.Close ();
 			Assert.IsFalse (timeout);
-			StringAssert.StartsWith ("HTTP/1.1 411", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 411"));
 		}
 
 		[Test]
@@ -296,7 +307,7 @@ namespace MonoTests.System.Net {
 			string response = ReceiveWithTimeout (ns, 512, 1000, out timeout);
 			ns.Close ();
 			Assert.IsFalse (timeout);
-			StringAssert.StartsWith ("HTTP/1.1 411", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 411"));
 		}
 
 		[Test]
@@ -310,7 +321,7 @@ namespace MonoTests.System.Net {
 			ns.GetSocket ().Shutdown (SocketShutdown.Send);
 			string input = Receive (ns, 512);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 400", input);
+			Assert.IsTrue(input.StartsWith ("HTTP/1.1 400"));
 		}
 
 		[Test]
@@ -324,7 +335,7 @@ namespace MonoTests.System.Net {
 			ns.GetSocket ().Shutdown (SocketShutdown.Send);
 			string input = Receive (ns, 512);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 400", input);
+			Assert.IsTrue(input.StartsWith ("HTTP/1.1 400"));
 		}
 
 		[Test]
@@ -338,7 +349,7 @@ namespace MonoTests.System.Net {
 			ns.GetSocket ().Shutdown (SocketShutdown.Send);
 			string input = Receive (ns, 512);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 400", input);
+			Assert.IsTrue(input.StartsWith ("HTTP/1.1 400"));
 		}
 
 		HttpListenerRequest test14_request;
@@ -438,8 +449,8 @@ namespace MonoTests.System.Net {
 			ctx.Response.Close ();
 			string response = Receive (ns, 1024);
 			ns.Close ();
-			StringAssert.StartsWith ("HTTP/1.1 200", response);
-			StringAssert.Contains ("Transfer-Encoding: chunked", response);
+			Assert.IsTrue(response.StartsWith ("HTTP/1.1 200"));
+			Assert.IsTrue(response.Contains ("Transfer-Encoding: chunked"));
 		}
 
 		[Test]
@@ -635,6 +646,7 @@ namespace MonoTests.System.Net {
 	}
 
 	[TestFixture]
+	[Category ("RequiresBSDSockets")]
 	public class HttpListenerBugs {
 		[Test]
 		public void TestNonChunkedAsync ()

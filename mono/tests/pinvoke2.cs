@@ -1,5 +1,6 @@
 //
 // Copyright 2011 Xamarin Inc (http://www.xamarin.com).
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
 using System;
@@ -1430,6 +1431,13 @@ public class Tests {
 
 	public static int test_0_stdcall_name_mangling () {
 		return mono_test_stdcall_name_mangling (0, 1, 2) == 3 ? 0 : 1;
+	}
+
+	/* Test multiple calls to stdcall wrapper, xamarin bug 30146 */
+	public static int test_0_stdcall_many_calls () {
+		for (int i=0; i<256; i++)
+			mono_test_stdcall_name_mangling (0, 0, 0);
+		return 0;
 	}
 
 	/* Float test */

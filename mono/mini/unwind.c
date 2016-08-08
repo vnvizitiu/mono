@@ -375,13 +375,15 @@ mono_unwind_ops_encode_full (GSList *unwind_ops, guint32 *out_len, gboolean enab
 		while (op->when > loc) {
 			if (op->when - loc > 65536) {
 				*p ++ = DW_CFA_advance_loc4;
-				*(guint32*)p = (guint32)(op->when - loc);
+				guint32 v = (guint32)(op->when - loc);
+				memcpy (p, &v, 4);
 				g_assert (read32 (p) == (guint32)(op->when - loc));
 				p += 4;
 				loc = op->when;
 			} else if (op->when - loc > 256) {
 				*p ++ = DW_CFA_advance_loc2;
-				*(guint16*)p = (guint16)(op->when - loc);
+				guint16 v = (guint16)(op->when - loc);
+				memcpy (p, &v, 2);
 				g_assert (read16 (p) == (guint32)(op->when - loc));
 				p += 2;
 				loc = op->when;
@@ -652,8 +654,12 @@ mono_unwind_cleanup (void)
 
 		g_free (cached);
 	}
-
 	g_free (cached_info);
+
+	for (GSList *cursor = cached_info_list; cursor != NULL; cursor = cursor->next)
+		g_free (cursor->data);
+
+	g_slist_free (cached_info_list);
 }
 
 /*
@@ -708,9 +714,9 @@ mono_cache_unwind_info (guint8 *unwind_info, guint32 unwind_info_len)
 
 		mono_memory_barrier ();
 
-		cached_info = new_table;
-
 		cached_info_list = g_slist_prepend (cached_info_list, cached_info);
+
+		cached_info = new_table;
 
 		cached_info_size *= 2;
 	}

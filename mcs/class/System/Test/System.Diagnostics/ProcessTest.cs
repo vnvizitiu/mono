@@ -881,6 +881,20 @@ namespace MonoTests.System.Diagnostics
 			} else
 				return new ProcessStartInfo ("help", "");
 		}
+
+		ProcessStartInfo GetEchoCrossPlatformStartInfo ()
+		{
+			if (RunningOnUnix) {
+				string path;
+#if MONODROID
+				path = "/system/bin/cat";
+#else
+				path = "/bin/cat";
+#endif
+				return new ProcessStartInfo (path);
+			} else
+				return new ProcessStartInfo ("type");
+		}
 #endif // MONO_FEATURE_PROCESS_START
 
 		[Test]
@@ -972,14 +986,25 @@ namespace MonoTests.System.Diagnostics
 		[NUnit.Framework.Category ("MobileNotWorking")]
 		public void StandardInputWrite ()
 		{
-			var psi = GetCrossPlatformStartInfo ();
+			var psi = GetEchoCrossPlatformStartInfo ();
 			psi.RedirectStandardInput = true;
 			psi.RedirectStandardOutput = true;
 			psi.UseShellExecute = false;
 
 			using (var p = Process.Start (psi)) {
-				for (int i = 0; i < 1024 * 9; ++i)
+				// drain stdout
+				p.OutputDataReceived += (s, e) => {};
+				p.BeginOutputReadLine ();
+
+				for (int i = 0; i < 1024 * 9; ++i) {
 					p.StandardInput.Write ('x');
+					if (i > 0 && i % 128 == 0)
+						p.StandardInput.WriteLine ();
+				}
+
+				p.StandardInput.Close ();
+
+				p.WaitForExit ();
 			}
 		}
 #endif // MONO_FEATURE_PROCESS_START
@@ -1057,6 +1082,27 @@ namespace MonoTests.System.Diagnostics
 				p.BeginErrorReadLine ();
 
 				Assert.Fail ();
+			}
+		}
+
+		[Test]
+		[NUnit.Framework.Category ("MobileNotWorking")]
+		public void TestExitedRaisedTooSoon ()
+		{
+			if (!RunningOnUnix)
+				Assert.Ignore ("using sleep command, only available on unix");
+
+			int sleeptime = 5;
+
+			using (Process p = Process.Start("sleep", sleeptime.ToString ())) {
+				ManualResetEvent mre = new ManualResetEvent (false);
+
+				p.EnableRaisingEvents = true;
+				p.Exited += (sender, e) => {
+					mre.Set ();
+				};
+
+				Assert.IsFalse (mre.WaitOne ((sleeptime - 2) * 1000), "Exited triggered before the process returned");
 			}
 		}
 #endif // MONO_FEATURE_PROCESS_START

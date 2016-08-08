@@ -4,6 +4,7 @@
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
  * Copyright 2004-2011 Novell, Inc (http://www.novell.com)
  * Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 #include "config.h"
@@ -320,7 +321,7 @@ mono_gc_get_managed_array_allocator (MonoClass *klass)
 }
 
 MonoMethod*
-mono_gc_get_managed_allocator_by_type (int atype, gboolean slowpath)
+mono_gc_get_managed_allocator_by_type (int atype, ManagedAllocatorVariant variant)
 {
 	return NULL;
 }
@@ -360,6 +361,11 @@ mono_gc_remove_weak_track_object (MonoDomain *domain, MonoObject *obj)
 
 void
 mono_gc_clear_domain (MonoDomain *domain)
+{
+}
+
+void
+mono_gc_suspend_finalizers (void)
 {
 }
 

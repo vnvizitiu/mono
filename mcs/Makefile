@@ -15,7 +15,7 @@ monotouch_watch_runtime_SUBDIRS := build class
 monotouch_tv_runtime_SUBDIRS := build class
 xammac_SUBDIRS := build class
 mobile_SUBDIRS := build class
-mobile_static_SUBDIRS := build class
+mobile_static_SUBDIRS := build class ilasm
 binary_reference_assemblies_SUBDIRS := build class
 net_4_x_SUBDIRS := build mcs class nunit24 ilasm tools tests errors docs
 xammac_net_4_5_SUBDIRS := build class
@@ -86,15 +86,9 @@ package := mcs-$(VERSION)
 DISTFILES = \
 	AUTHORS			\
 	COPYING			\
-	COPYING.LIB		\
 	INSTALL.txt		\
-	LICENSE			\
-	LICENSE.GPL		\
-	LICENSE.LGPL		\
-	LICENSE.MPL		\
 	Makefile		\
 	mkinstalldirs		\
-	MIT.X11			\
 	MonoIcon.png		\
 	README			\
 	ScalableMonoIcon.svg	\

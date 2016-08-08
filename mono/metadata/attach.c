@@ -5,6 +5,7 @@
  *   Zoltan Varga (vargaz@gmail.com)
  *
  * Copyright 2007-2009 Novell, Inc (http://www.novell.com)
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 #include <config.h>
@@ -101,7 +102,7 @@ static gboolean needs_to_start, started;
 
 static void transport_connect (void);
 
-static guint32 WINAPI receiver_thread (void *arg);
+static gsize WINAPI receiver_thread (void *arg);
 
 static void transport_start_receive (void);
 
@@ -301,18 +302,30 @@ mono_attach_load_agent (MonoDomain *domain, char *agent, char *args, MonoObject 
 		return 1;
 	}
 	
-	if (args) {
-		main_args = (MonoArray*)mono_array_new (domain, mono_defaults.string_class, 1);
-		mono_array_set (main_args, MonoString*, 0, mono_string_new (domain, args));
-	} else {
-		main_args = (MonoArray*)mono_array_new (domain, mono_defaults.string_class, 0);
+	
+	main_args = (MonoArray*)mono_array_new_checked (domain, mono_defaults.string_class, (args == NULL) ? 0 : 1, &error);
+	if (main_args == NULL) {
+		g_print ("Could not allocate main method args due to %s\n", mono_error_get_message (&error));
+		mono_error_cleanup (&error);
+		g_free (agent);
+		return 1;
 	}
 
-	g_free (agent);
+	if (args) {
+		mono_array_set (main_args, MonoString*, 0, mono_string_new (domain, args));
+	}
+
 
 	pa [0] = main_args;
 	mono_runtime_try_invoke (method, NULL, pa, exc, &error);
-	mono_error_raise_exception (&error); /* FIXME don't raise here */
+	if (!is_ok (&error)) {
+		g_print ("The entry point method of assembly '%s' could not be executed due to %s\n", agent, mono_error_get_message (&error));
+		mono_error_cleanup (&error);
+		g_free (agent);
+		return 1;
+	}
+
+	g_free (agent);
 
 	return 0;
 }
@@ -462,22 +475,30 @@ transport_send (int fd, guint8 *data, int len)
 static void
 transport_start_receive (void)
 {
+	MonoThreadParm tp;
+
 	transport_connect ();
 
 	if (!listen_fd)
 		return;
 
-	receiver_thread_handle = mono_threads_create_thread (receiver_thread, NULL, 0, 0, NULL);
+	tp.priority = MONO_THREAD_PRIORITY_NORMAL;
+	tp.stack_size = 0;
+	tp.creation_flags = 0;
+	receiver_thread_handle = mono_threads_create_thread (receiver_thread, NULL, &tp, NULL);
 	g_assert (receiver_thread_handle);
 }
 
-static guint32 WINAPI
+static gsize WINAPI
 receiver_thread (void *arg)
 {
+	MonoError error;
 	int res, content_len;
 	guint8 buffer [256];
 	guint8 *p, *p_end;
 	MonoObject *exc;
+
+	mono_native_thread_set_name (mono_native_thread_id_get (), "Attach receiver");
 
 	printf ("attach: Listening on '%s'...\n", server_uri);
 
@@ -489,11 +510,13 @@ receiver_thread (void *arg)
 
 		printf ("attach: Connected.\n");
 
-		mono_thread_attach (mono_get_root_domain ());
+		MonoThread *thread = mono_thread_attach (mono_get_root_domain ());
+		mono_thread_set_name_internal (thread->internal_thread, mono_string_new (mono_get_root_domain (), "Attach receiver"), TRUE, &error);
+		mono_error_assert_ok (&error);
 		/* Ask the runtime to not abort this thread */
 		//mono_thread_current ()->flags |= MONO_THREAD_FLAG_DONT_MANAGE;
 		/* Ask the runtime to not wait for this thread */
-		mono_thread_internal_current ()->state |= ThreadState_Background;
+		thread->internal_thread->state |= ThreadState_Background;
 
 		while (TRUE) {
 			char *cmd, *agent_name, *agent_args;

@@ -7,6 +7,7 @@
  * (C) 2002 Ximian, Inc.
  * Copyright (c) 2002-2009 Novell, Inc.
  * Copyright 2011 Xamarin Inc
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 #include <config.h>
@@ -21,10 +22,10 @@
 
 #include <mono/io-layer/wapi.h>
 #include <mono/io-layer/wapi-private.h>
-#include <mono/io-layer/handles-private.h>
 #include <mono/io-layer/io-private.h>
 #include <mono/io-layer/io-trace.h>
 #include <mono/utils/mono-logger-internals.h>
+#include <mono/utils/w32handle.h>
 
 static guint32
 convert_from_flags(int flags)
@@ -100,8 +101,8 @@ gpointer _wapi_stdhandle_create (int fd, const gchar *name)
 	file_handle.sharemode=0;
 	file_handle.attrs=0;
 
-	handle = _wapi_handle_new_fd (WAPI_HANDLE_CONSOLE, fd, &file_handle);
-	if (handle == _WAPI_HANDLE_INVALID) {
+	handle = mono_w32handle_new_fd (MONO_W32HANDLE_CONSOLE, fd, &file_handle);
+	if (handle == INVALID_HANDLE_VALUE) {
 		g_warning ("%s: error creating file handle", __func__);
 		SetLastError (ERROR_GEN_FAILURE);
 		return(INVALID_HANDLE_VALUE);

@@ -3,38 +3,10 @@
  *
  * Copyright 2011 Novell, Inc (http://www.novell.com)
  * Copyright 2011 Xamarin Inc (http://www.xamarin.com)
- *
- * THIS MATERIAL IS PROVIDED AS IS, WITH ABSOLUTELY NO WARRANTY EXPRESSED
- * OR IMPLIED.  ANY USE IS AT YOUR OWN RISK.
- *
- * Permission is hereby granted to use or copy this program
- * for any purpose,  provided the above notices are retained on all copies.
- * Permission to modify the code and to distribute modified code is granted,
- * provided the above notices are retained, and a notice that the code was
- * modified is included with the above copyright notice.
- *
- *
  * Copyright 2001-2003 Ximian, Inc
  * Copyright 2003-2010 Novell, Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 #include "config.h"
@@ -52,6 +24,11 @@
 #include "tabledefs.h"
 #include "utils/mono-logger-internals.h"
 
+#define OPTIMIZATION_COPY
+#define OPTIMIZATION_FORWARD
+#define OPTIMIZATION_SINGLETON_DYN_ARRAY
+#include "sgen-dynarray.h"
+
 //#define NEW_XREFS
 #ifdef NEW_XREFS
 //#define TEST_NEW_XREFS
@@ -67,35 +44,12 @@
 #define XREFS old_xrefs
 #endif
 
-#define OPTIMIZATION_COPY
-#define OPTIMIZATION_FORWARD
-#define OPTIMIZATION_SINGLETON_DYN_ARRAY
-
-typedef struct {
-	int size;
-	int capacity;		/* if negative, data points to another DynArray's data */
-	char *data;
-} DynArray;
-
-/*Specializations*/
-
-typedef struct {
-	DynArray array;
-} DynIntArray;
-
-typedef struct {
-	DynArray array;
-} DynPtrArray;
-
-typedef struct {
-	DynArray array;
-} DynSCCArray;
-
-
 /*
+ * Bridge data for a single managed object
+ *
  * FIXME: Optimizations:
  *
- * Don't allocate a scrs array for just one source.  Most objects have
+ * Don't allocate a srcs array for just one source.  Most objects have
  * just one source, so use the srcs pointer itself.
  */
 typedef struct _HashEntry {
@@ -108,10 +62,12 @@ typedef struct _HashEntry {
 			struct _HashEntry *forwarded_to;
 		} dfs1;
 		struct {
+			// Index in sccs array of SCC this object was folded into
 			int scc_index;
 		} dfs2;
 	} v;
 
+	// "Source" managed objects pointing at this destination
 	DynPtrArray srcs;
 } HashEntry;
 
@@ -120,12 +76,19 @@ typedef struct {
 	double weight;
 } HashEntryWithAccounting;
 
+// The graph of managed objects/HashEntries is reduced to a graph of strongly connected components
 typedef struct _SCC {
 	int index;
 	int api_index;
+
+	// How many bridged objects does this SCC hold references to?
 	int num_bridge_entries;
+
 	gboolean flag;
+
 	/*
+	 * Index in global sccs array of SCCs holding pointers to this SCC
+	 *
 	 * New and old xrefs are typically mutually exclusive.  Only when TEST_NEW_XREFS is
 	 * enabled we do both, and compare the results.  This should only be done for
 	 * debugging, obviously.
@@ -138,6 +101,7 @@ typedef struct _SCC {
 #endif
 } SCC;
 
+// Maps managed objects to corresponding HashEntry stricts
 static SgenHashTable hash_table = SGEN_HASH_TABLE_INIT (INTERNAL_MEM_BRIDGE_HASH_TABLE, INTERNAL_MEM_BRIDGE_HASH_TABLE_ENTRY, sizeof (HashEntry), mono_aligned_addr_hash, NULL);
 
 static guint32 current_time;
@@ -147,266 +111,6 @@ static gboolean bridge_accounting_enabled = FALSE;
 static SgenBridgeProcessor *bridge_processor;
 
 /* Core functions */
-/* public */
-
-/* private */
-
-static void
-dyn_array_init (DynArray *da)
-{
-	da->size = 0;
-	da->capacity = 0;
-	da->data = NULL;
-}
-
-static void
-dyn_array_uninit (DynArray *da, int elem_size)
-{
-	if (da->capacity < 0) {
-		dyn_array_init (da);
-		return;
-	}
-
-	if (da->capacity == 0)
-		return;
-
-	sgen_free_internal_dynamic (da->data, elem_size * da->capacity, INTERNAL_MEM_BRIDGE_DATA);
-	da->data = NULL;
-}
-
-static void
-dyn_array_empty (DynArray *da)
-{
-	if (da->capacity < 0)
-		dyn_array_init (da);
-	else
-		da->size = 0;
-}
-
-static void
-dyn_array_ensure_capacity (DynArray *da, int capacity, int elem_size)
-{
-	int old_capacity = da->capacity;
-	char *new_data;
-
-	g_assert (capacity > 0);
-
-	if (capacity <= old_capacity)
-		return;
-
-	if (old_capacity <= 0)
-		da->capacity = 2;
-	while (capacity > da->capacity)
-		da->capacity *= 2;
-
-	new_data = (char *)sgen_alloc_internal_dynamic (elem_size * da->capacity, INTERNAL_MEM_BRIDGE_DATA, TRUE);
-	memcpy (new_data, da->data, elem_size * da->size);
-	if (old_capacity > 0)
-		sgen_free_internal_dynamic (da->data, elem_size * old_capacity, INTERNAL_MEM_BRIDGE_DATA);
-	da->data = new_data;
-}
-
-static gboolean
-dyn_array_is_copy (DynArray *da)
-{
-	return da->capacity < 0;
-}
-
-static void
-dyn_array_ensure_independent (DynArray *da, int elem_size)
-{
-	if (!dyn_array_is_copy (da))
-		return;
-	dyn_array_ensure_capacity (da, da->size, elem_size);
-	g_assert (da->capacity > 0);
-}
-
-static void*
-dyn_array_add (DynArray *da, int elem_size)
-{
-	void *p;
-
-	dyn_array_ensure_capacity (da, da->size + 1, elem_size);
-
-	p = da->data + da->size * elem_size;
-	++da->size;
-	return p;
-}
-
-static void
-dyn_array_copy (DynArray *dst, DynArray *src, int elem_size)
-{
-	dyn_array_uninit (dst, elem_size);
-
-	if (src->size == 0)
-		return;
-
-	dst->size = src->size;
-	dst->capacity = -1;
-	dst->data = src->data;
-}
-
-/* int */
-static void
-dyn_array_int_init (DynIntArray *da)
-{
-	dyn_array_init (&da->array);
-}
-
-static void
-dyn_array_int_uninit (DynIntArray *da)
-{
-	dyn_array_uninit (&da->array, sizeof (int));
-}
-
-static int
-dyn_array_int_size (DynIntArray *da)
-{
-	return da->array.size;
-}
-
-#ifdef NEW_XREFS
-static void
-dyn_array_int_empty (DynIntArray *da)
-{
-	dyn_array_empty (&da->array);
-}
-#endif
-
-static void
-dyn_array_int_add (DynIntArray *da, int x)
-{
-	int *p = (int *)dyn_array_add (&da->array, sizeof (int));
-	*p = x;
-}
-
-static int
-dyn_array_int_get (DynIntArray *da, int x)
-{
-	return ((int*)da->array.data)[x];
-}
-
-#ifdef NEW_XREFS
-static void
-dyn_array_int_set (DynIntArray *da, int idx, int val)
-{
-	((int*)da->array.data)[idx] = val;
-}
-#endif
-
-static void
-dyn_array_int_ensure_independent (DynIntArray *da)
-{
-	dyn_array_ensure_independent (&da->array, sizeof (int));
-}
-
-static void
-dyn_array_int_copy (DynIntArray *dst, DynIntArray *src)
-{
-	dyn_array_copy (&dst->array, &src->array, sizeof (int));
-}
-
-static gboolean
-dyn_array_int_is_copy (DynIntArray *da)
-{
-	return dyn_array_is_copy (&da->array);
-}
-
-/* ptr */
-
-static void
-dyn_array_ptr_init (DynPtrArray *da)
-{
-	dyn_array_init (&da->array);
-}
-
-static void
-dyn_array_ptr_uninit (DynPtrArray *da)
-{
-#ifdef OPTIMIZATION_SINGLETON_DYN_ARRAY
-	if (da->array.capacity == 1)
-		dyn_array_ptr_init (da);
-	else
-#endif
-		dyn_array_uninit (&da->array, sizeof (void*));
-}
-
-static int
-dyn_array_ptr_size (DynPtrArray *da)
-{
-	return da->array.size;
-}
-
-static void
-dyn_array_ptr_empty (DynPtrArray *da)
-{
-#ifdef OPTIMIZATION_SINGLETON_DYN_ARRAY
-	if (da->array.capacity == 1)
-		dyn_array_ptr_init (da);
-	else
-#endif
-		dyn_array_empty (&da->array);
-}
-
-static void*
-dyn_array_ptr_get (DynPtrArray *da, int x)
-{
-#ifdef OPTIMIZATION_SINGLETON_DYN_ARRAY
-	if (da->array.capacity == 1) {
-		g_assert (x == 0);
-		return da->array.data;
-	}
-#endif
-	return ((void**)da->array.data)[x];
-}
-
-static void
-dyn_array_ptr_add (DynPtrArray *da, void *ptr)
-{
-	void **p;
-
-#ifdef OPTIMIZATION_SINGLETON_DYN_ARRAY
-	if (da->array.capacity == 0) {
-		da->array.capacity = 1;
-		da->array.size = 1;
-		p = (void**)&da->array.data;
-	} else if (da->array.capacity == 1) {
-		void *ptr0 = da->array.data;
-		void **p0;
-		dyn_array_init (&da->array);
-		p0 = (void **)dyn_array_add (&da->array, sizeof (void*));
-		*p0 = ptr0;
-		p = (void **)dyn_array_add (&da->array, sizeof (void*));
-	} else
-#endif
-	{
-		p = (void **)dyn_array_add (&da->array, sizeof (void*));
-	}
-	*p = ptr;
-}
-
-#define dyn_array_ptr_push dyn_array_ptr_add
-
-static void*
-dyn_array_ptr_pop (DynPtrArray *da)
-{
-	int size = da->array.size;
-	void *p;
-	g_assert (size > 0);
-#ifdef OPTIMIZATION_SINGLETON_DYN_ARRAY
-	if (da->array.capacity == 1) {
-		p = dyn_array_ptr_get (da, 0);
-		dyn_array_init (&da->array);
-	} else
-#endif
-	{
-		g_assert (da->array.capacity > 1);
-		dyn_array_ensure_independent (&da->array, sizeof (void*));
-		p = dyn_array_ptr_get (da, size - 1);
-		--da->array.size;
-	}
-	return p;
-}
 
 /*SCC */
 
@@ -968,7 +672,7 @@ compare_hash_entries (const HashEntry *e1, const HashEntry *e2)
 
 DEF_QSORT_INLINE(hash_entries, HashEntry*, compare_hash_entries)
 
-static unsigned long step_1, step_2, step_3, step_4, step_5, step_6;
+static gint64 step_1, step_2, step_3, step_4, step_5, step_6;
 static int fist_pass_links, second_pass_links, sccs_links;
 static int max_sccs_links = 0;
 

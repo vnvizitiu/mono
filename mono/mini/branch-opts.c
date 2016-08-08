@@ -6,6 +6,7 @@
  *
  * (C) 2005 Ximian, Inc.  http://www.ximian.com
  * Copyright 2011 Xamarin Inc.  http://www.xamarin.com
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
  #include "mini.h"
 
@@ -208,9 +209,11 @@ mono_replace_ins (MonoCompile *cfg, MonoBasicBlock *bb, MonoInst *ins, MonoInst 
 
 		/* Multiple BBs */
 
-		/* Set region */
-		for (tmp = first_bb; tmp; tmp = tmp->next_bb)
+		/* Set region/real_offset */
+		for (tmp = first_bb; tmp; tmp = tmp->next_bb) {
 			tmp->region = bb->region;
+			tmp->real_offset = bb->real_offset;
+		}
 
 		/* Split the original bb */
 		if (ins->next)
@@ -248,7 +251,8 @@ mono_replace_ins (MonoCompile *cfg, MonoBasicBlock *bb, MonoInst *ins, MonoInst 
 		bb->has_array_access |= first_bb->has_array_access;
 
 		/* Delete the links between the original bb and its successors */
-		tmp_bblocks = bb->out_bb;
+		tmp_bblocks = mono_mempool_alloc0 (cfg->mempool, sizeof (MonoBasicBlock*) * bb->out_count);
+		memcpy (tmp_bblocks, bb->out_bb, sizeof (MonoBasicBlock*) * bb->out_count);
 		count = bb->out_count;
 		for (i = 0; i < count; ++i)
 			mono_unlink_bblock (cfg, bb, tmp_bblocks [i]);

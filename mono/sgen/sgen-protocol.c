@@ -6,18 +6,7 @@
  * Copyright 2003-2010 Novell, Inc.
  * Copyright (C) 2012 Xamarin Inc
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License 2.0 as published by the Free Software Foundation;
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
- *
- * You should have received a copy of the GNU Library General Public
- * License 2.0 along with this library; if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 #ifdef HAVE_SGEN_GC
@@ -30,6 +19,7 @@
 #include "sgen-thread-pool.h"
 #include "sgen-client.h"
 #include "mono/utils/mono-membar.h"
+#include "mono/utils/mono-proclib.h"
 
 #include <errno.h>
 #include <string.h>
@@ -84,9 +74,16 @@ free_filename (char *filename)
 }
 
 static void
-binary_protocol_open_file (void)
+binary_protocol_open_file (gboolean assert_on_failure)
 {
 	char *filename;
+#ifdef F_SETLK
+	struct flock lock;
+	lock.l_type = F_WRLCK;
+	lock.l_whence = SEEK_SET;
+	lock.l_start = 0;
+	lock.l_len = 0;
+#endif
 
 	if (file_size_limit > 0)
 		filename = filename_for_index (current_file_index);
@@ -94,12 +91,24 @@ binary_protocol_open_file (void)
 		filename = filename_or_prefix;
 
 	do {
-		binary_protocol_file = open (filename, O_CREAT|O_WRONLY|O_TRUNC, 0644);
-		if (binary_protocol_file == -1 && errno != EINTR)
-			break; /* Failed */
+		binary_protocol_file = open (filename, O_CREAT | O_WRONLY, 0644);
+		if (binary_protocol_file == -1) {
+			if (errno != EINTR)
+				break; /* Failed */
+#ifdef F_SETLK
+		} else if (fcntl (binary_protocol_file, F_SETLK, &lock) == -1) {
+			/* The lock for the file is already taken. Fail */
+			close (binary_protocol_file);
+			binary_protocol_file = -1;
+			break;
+#endif
+		} else {
+			/* We have acquired the lock. Truncate the file */
+			ftruncate (binary_protocol_file, 0);
+		}
 	} while (binary_protocol_file == -1);
 
-	if (binary_protocol_file == -1)
+	if (binary_protocol_file == -1 && assert_on_failure)
 		g_error ("sgen binary protocol: failed to open file");
 
 	if (file_size_limit > 0)
@@ -111,12 +120,25 @@ void
 binary_protocol_init (const char *filename, long long limit)
 {
 #ifdef HAVE_UNISTD_H
-	filename_or_prefix = (char *)sgen_alloc_internal_dynamic (strlen (filename) + 1, INTERNAL_MEM_BINARY_PROTOCOL, TRUE);
-	strcpy (filename_or_prefix, filename);
-
 	file_size_limit = limit;
 
-	binary_protocol_open_file ();
+	/* Original name length + . + pid length in hex + null terminator */
+	filename_or_prefix = g_strdup_printf ("%s", filename);
+	binary_protocol_open_file (FALSE);
+
+	if (binary_protocol_file == -1) {
+		/* Another process owns the file, try adding the pid suffix to the filename */
+		gint32 pid = mono_process_current_pid ();
+		g_free (filename_or_prefix);
+		filename_or_prefix = g_strdup_printf ("%s.%x", filename, pid);
+		binary_protocol_open_file (TRUE);
+	}
+
+	/* If we have a file size limit, we might need to open additional files */
+	if (file_size_limit == 0)
+		g_free (filename_or_prefix);
+
+	binary_protocol_header (PROTOCOL_HEADER_CHECK, PROTOCOL_HEADER_VERSION, SIZEOF_VOID_P, G_BYTE_ORDER == G_LITTLE_ENDIAN);
 #else
 	g_error ("sgen binary protocol: not supported");
 #endif
@@ -229,7 +251,7 @@ binary_protocol_check_file_overflow (void)
 	++current_file_index;
 	current_file_size = 0;
 
-	binary_protocol_open_file ();
+	binary_protocol_open_file (TRUE);
 }
 #endif
 
@@ -240,27 +262,33 @@ binary_protocol_check_file_overflow (void)
  *
  * The protocol entries that do flush have `FLUSH()` in their definition.
  */
-void
+gboolean
 binary_protocol_flush_buffers (gboolean force)
 {
 #ifdef HAVE_UNISTD_H
 	int num_buffers = 0, i;
+	BinaryProtocolBuffer *header;
 	BinaryProtocolBuffer *buf;
 	BinaryProtocolBuffer **bufs;
 
 	if (binary_protocol_file == -1)
-		return;
+		return FALSE;
 
 	if (!force && !try_lock_exclusive ())
-		return;
+		return FALSE;
 
-	for (buf = binary_protocol_buffers; buf != NULL; buf = buf->next)
+	header = binary_protocol_buffers;
+	for (buf = header; buf != NULL; buf = buf->next)
 		++num_buffers;
 	bufs = (BinaryProtocolBuffer **)sgen_alloc_internal_dynamic (num_buffers * sizeof (BinaryProtocolBuffer*), INTERNAL_MEM_BINARY_PROTOCOL, TRUE);
-	for (buf = binary_protocol_buffers, i = 0; buf != NULL; buf = buf->next, i++)
+	for (buf = header, i = 0; buf != NULL; buf = buf->next, i++)
 		bufs [i] = buf;
 	SGEN_ASSERT (0, i == num_buffers, "Binary protocol buffer count error");
 
+	/*
+	 * This might be incorrect when forcing, but all bets are off in that case, anyway,
+	 * because we're trying to figure out a bug in the debugger.
+	 */
 	binary_protocol_buffers = NULL;
 
 	for (i = num_buffers - 1; i >= 0; --i) {
@@ -272,6 +300,8 @@ binary_protocol_flush_buffers (gboolean force)
 
 	if (!force)
 		unlock_exclusive ();
+
+	return TRUE;
 #endif
 }
 

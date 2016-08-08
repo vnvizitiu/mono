@@ -10,19 +10,6 @@
 
 MONO_BEGIN_DECLS
 
-/*
- * When embedding, you have to define MONO_ZERO_LEN_ARRAY before including any
- * other Mono header file if you use a different compiler from the one used to
- * build Mono.
- */
-#ifndef MONO_ZERO_LEN_ARRAY
-#ifdef __GNUC__
-#define MONO_ZERO_LEN_ARRAY 0
-#else
-#define MONO_ZERO_LEN_ARRAY 1
-#endif
-#endif
-
 #define MONO_TYPE_ISSTRUCT(t) mono_type_is_struct (t)
 #define MONO_TYPE_IS_VOID(t) mono_type_is_void (t)
 #define MONO_TYPE_IS_POINTER(t) mono_type_is_pointer (t)
@@ -178,6 +165,8 @@ typedef enum {
 	MONO_MARSHAL_CONV_HANDLEREF
 } MonoMarshalConv;
 
+#define MONO_MARSHAL_CONV_INVALID ((MonoMarshalConv)-1)
+
 typedef struct {
 	MonoMarshalNative native;
 	union {
@@ -312,7 +301,10 @@ typedef struct {
 
 struct _MonoArrayType {
 	MonoClass *eklass;
+	// Number of dimensions of the array
 	uint8_t rank;
+
+	// Arrays recording known upper and lower index bounds for each dimension
 	uint8_t numsizes;
 	uint8_t numlobounds;
 	int *sizes;
@@ -433,6 +425,7 @@ MONO_API MonoMethodSignature  *mono_metadata_signature_alloc (MonoImage *image, 
 
 MONO_API MonoMethodSignature  *mono_metadata_signature_dup (MonoMethodSignature *sig);
 
+MONO_RT_EXTERNAL_ONLY
 MONO_API MonoMethodSignature  *mono_metadata_parse_signature (MonoImage *image, 
 						     uint32_t    token);
 
@@ -489,6 +482,8 @@ mono_type_to_unmanaged (MonoType *type, MonoMarshalSpec *mspec,
 MONO_API uint32_t mono_metadata_token_from_dor (uint32_t dor_index);
 
 MONO_API char *mono_guid_to_string (const uint8_t *guid);
+
+MONO_API char *mono_guid_to_string_minimal (const uint8_t *guid);
 
 MONO_API uint32_t mono_metadata_declsec_from_index (MonoImage *meta, uint32_t idx);
 

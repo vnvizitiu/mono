@@ -11,10 +11,13 @@ LIBRARY = System.ServiceModel.Primitives.dll
 
 KEY_FILE = ../../msfinal.pub
 SIGN_FLAGS = /delaysign /keyfile:$(KEY_FILE) /nowarn:1616,1699
-LIB_REFS = System.ServiceModel System.Xml
-LIB_MCS_FLAGS = $(SIGN_FLAGS) /r:mscorlib.dll
+LIB_REFS = System System.ServiceModel System.Xml Facades/System.Security.Cryptography.X509Certificates
 
-PLATFORM_DEBUG_FLAGS =
+ifneq (2.1, $(FRAMEWORK_VERSION))
+LIB_REFS += System.IdentityModel
+endif
+
+LIB_MCS_FLAGS = $(SIGN_FLAGS) 
 
 NO_TEST = yes
 

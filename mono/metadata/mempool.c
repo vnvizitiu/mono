@@ -10,6 +10,7 @@
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
  * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
  * Copyright 2011 Xamarin Inc. (http://www.xamarin.com)
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
 #include <config.h>
@@ -171,7 +172,7 @@ mono_mempool_stats (MonoMemPool *pool)
 {
 	MonoMemPool *p;
 	int count = 0;
-	guint32 still_free = pool->end - pool->pos;
+	guint32 still_free;
 
 	p = pool;
 	while (p) {
@@ -179,6 +180,7 @@ mono_mempool_stats (MonoMemPool *pool)
 		count++;
 	}
 	if (pool) {
+		still_free = pool->end - pool->pos;
 		g_print ("Mempool %p stats:\n", pool);
 		g_print ("Total mem allocated: %d\n", pool->d.allocated);
 		g_print ("Num chunks: %d\n", count);
