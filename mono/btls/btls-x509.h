@@ -58,7 +58,7 @@ int
 mono_btls_x509_get_issuer_name_string (X509 *name, char *buffer, int size);
 
 int
-mono_btls_x509_get_raw_data (X509 *x509, BIO *bio);
+mono_btls_x509_get_raw_data (X509 *x509, BIO *bio, MonoBtlsX509Format format);
 
 int
 mono_btls_x509_cmp (const X509 *a, const X509 *b);

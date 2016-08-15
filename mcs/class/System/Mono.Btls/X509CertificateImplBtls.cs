@@ -122,7 +122,7 @@ namespace Mono.Btls
 
 		public override byte [] GetRawCertData ()
 		{
-			return X509.GetRawData ();
+			return X509.GetRawData (MonoBtlsX509Format.DER);
 		}
 
 		public override string GetSubjectName (bool legacyV1Mode)

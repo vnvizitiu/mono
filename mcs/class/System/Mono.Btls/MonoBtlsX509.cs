@@ -89,7 +89,7 @@ namespace Mono.Btls
 		extern static int mono_btls_x509_get_issuer_name_string (IntPtr handle, IntPtr buffer, int size);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static int mono_btls_x509_get_raw_data (IntPtr handle, IntPtr bio);
+		extern static int mono_btls_x509_get_raw_data (IntPtr handle, IntPtr bio, MonoBtlsX509Format format);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_x509_cmp (IntPtr a, IntPtr b);
@@ -199,12 +199,13 @@ namespace Mono.Btls
 			}
 		}
 
-		public byte[] GetRawData ()
+		public byte[] GetRawData (MonoBtlsX509Format format)
 		{
 			using (var bio = new MonoBtlsBioMemory ()) {
 				var ret = mono_btls_x509_get_raw_data (
 					Handle.DangerousGetHandle (),
-					bio.Handle.DangerousGetHandle ());
+					bio.Handle.DangerousGetHandle (),
+					format);
 				CheckError (ret);
 				return bio.GetData ();
 			}

@@ -94,7 +94,7 @@ namespace Mono.Btls
 		static void WriteCertificate (MonoBtlsX509 x509, string filename)
 		{
 			using (var write = new FileStream (filename, FileMode.CreateNew)) {
-				var data = x509.GetRawData ();
+				var data = x509.GetRawData (MonoBtlsX509Format.PEM);
 				write.Write (data, 0, data.Length);
 			}
 		}

@@ -75,9 +75,16 @@ mono_btls_x509_get_issuer_name_string (X509 *name, char *buffer, int size)
 }
 
 int
-mono_btls_x509_get_raw_data (X509 *x509, BIO *bio)
+mono_btls_x509_get_raw_data (X509 *x509, BIO *bio, MonoBtlsX509Format format)
 {
-	return i2d_X509_bio (bio, x509);
+	switch (format) {
+		case NATIVE_BORING_X509_FORMAT_DER:
+			return i2d_X509_bio (bio, x509);
+		case NATIVE_BORING_X509_FORMAT_PEM:
+			return PEM_write_bio_X509 (bio, x509);
+		default:
+			return 0;
+	}
 }
 
 int
