@@ -103,7 +103,7 @@ namespace Mono.Btls
 		extern static IntPtr mono_btls_x509_store_ctx_get_current_issuer (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static IntPtr mono_btls_x509_store_get_verify_param (IntPtr handle);
+		extern static IntPtr mono_btls_x509_store_ctx_get_verify_param (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static IntPtr mono_btls_x509_store_ctx_up_ref (IntPtr handle);
@@ -225,7 +225,7 @@ namespace Mono.Btls
 
 		public MonoBtlsX509VerifyParam GetVerifyParam ()
 		{
-			var param = mono_btls_x509_store_get_verify_param (Handle.DangerousGetHandle ());
+			var param = mono_btls_x509_store_ctx_get_verify_param (Handle.DangerousGetHandle ());
 			if (param == IntPtr.Zero)
 				return null;
 			return new MonoBtlsX509VerifyParam (new MonoBtlsX509VerifyParam.BoringX509VerifyParamHandle (param));

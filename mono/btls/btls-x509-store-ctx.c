@@ -193,7 +193,7 @@ mono_btls_x509_store_ctx_get_current_issuer (MonoBtlsX509StoreCtx *ctx)
 }
 
 MonoBtlsX509VerifyParam *
-mono_btls_x509_store_get_verify_param (MonoBtlsX509StoreCtx *ctx)
+mono_btls_x509_store_ctx_get_verify_param (MonoBtlsX509StoreCtx *ctx)
 {
 	X509_VERIFY_PARAM *param;
 

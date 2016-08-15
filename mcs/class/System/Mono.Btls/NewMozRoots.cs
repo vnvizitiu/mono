@@ -99,6 +99,16 @@ namespace Mono.Btls
 			}
 		}
 
+		static string GetUniqueName (string directory, long hash)
+		{
+			string path;
+			int index = 0;
+			do {
+				path = string.Format ("{0}/{1:x}.{2}", directory, hash, index++);
+			} while (File.Exists (path));
+			return path;
+		}
+
 		public static void Run (string directory)
 		{
 			var roots = DecodeCollection ();
@@ -106,7 +116,7 @@ namespace Mono.Btls
 				long hash;
 				using (var subject = x509.GetSubjectName ())
 					hash = subject.GetHash ();
-				var path = string.Format ("{0}/{1:x}.0", directory, hash);
+				var path = GetUniqueName (directory, hash);
 				Console.WriteLine ("PATH: {0}", path);
 				WriteCertificate (x509, path);
 			}
