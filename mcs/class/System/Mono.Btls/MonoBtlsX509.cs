@@ -128,6 +128,9 @@ namespace Mono.Btls
 		extern static int mono_btls_x509_get_subject_key_identifier (IntPtr handle, out IntPtr data, out int size);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_print (IntPtr handle, IntPtr bio);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_free (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
@@ -220,6 +223,16 @@ namespace Mono.Btls
 				CheckError (ret);
 				return bio.GetData ();
 			}
+		}
+
+		public void GetRawData (MonoBtlsBio bio, MonoBtlsX509Format format)
+		{
+			CheckThrow ();
+			var ret = mono_btls_x509_get_raw_data (
+				Handle.DangerousGetHandle (),
+				bio.Handle.DangerousGetHandle (),
+				format);
+			CheckError (ret);
 		}
 
 		public static int Compare (MonoBtlsX509 a, MonoBtlsX509 b)
@@ -380,6 +393,14 @@ namespace Mono.Btls
 			var handle = mono_btls_x509_get_pubkey (Handle.DangerousGetHandle ());
 			CheckError (handle != IntPtr.Zero);
 			return new MonoBtlsKey (new MonoBtlsKey.BoringKeyHandle (handle));
+		}
+
+		public void Print (MonoBtlsBio bio)
+		{
+			var ret = mono_btls_x509_print (
+				Handle.DangerousGetHandle (),
+				bio.Handle.DangerousGetHandle ());
+			CheckError (ret);
 		}
 	}
 }

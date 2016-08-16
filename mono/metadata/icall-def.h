@@ -165,7 +165,8 @@ ICALL(BTLS_X509_18, "mono_btls_x509_get_subject_name", mono_btls_x509_get_subjec
 ICALL(BTLS_X509_19, "mono_btls_x509_get_subject_name_string", mono_btls_x509_get_subject_name_string)
 ICALL(BTLS_X509_20, "mono_btls_x509_get_version", mono_btls_x509_get_version)
 ICALL(BTLS_X509_20a, "mono_btls_x509_martin_test", mono_btls_x509_martin_test)
-ICALL(BTLS_X509_21, "mono_btls_x509_up_ref", mono_btls_x509_up_ref)
+ICALL(BTLS_X509_21, "mono_btls_x509_print", mono_btls_x509_print)
+ICALL(BTLS_X509_22, "mono_btls_x509_up_ref", mono_btls_x509_up_ref)
 
 ICALL_TYPE(BTLS_X509_CHAIN, "Mono.Btls.MonoBtlsX509Chain", BTLS_X509_CHAIN_1)
 ICALL(BTLS_X509_CHAIN_1, "mono_btls_x509_chain_add_cert", mono_btls_x509_chain_add_cert)

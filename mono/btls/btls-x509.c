@@ -346,3 +346,9 @@ mono_btls_x509_get_subject_key_identifier (X509 *x509, uint8_t **buffer, int *si
 	memcpy (*buffer, skid->data, *size);
 	return 1;
 }
+
+int
+mono_btls_x509_print (X509 *x509, BIO *bio)
+{
+	return X509_print_ex (bio, x509, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
+}
