@@ -125,7 +125,18 @@ namespace Mono.Btls
 		extern static IntPtr mono_btls_x509_get_pubkey (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_get_subject_key_identifier (IntPtr handle, out IntPtr data, out int size);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_free (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_martin_test (IntPtr handle);
+
+		internal void MartinTest ()
+		{
+			mono_btls_x509_martin_test (Handle.DangerousGetHandle ());
+		}
 
 		public void Test ()
 		{
@@ -340,6 +351,24 @@ namespace Mono.Btls
 				var buffer = new byte[size];
 				Marshal.Copy (data, buffer, 0, size);
 				return new AsnEncodedData (oid.ToString (), buffer);
+			} finally {
+				if (data != IntPtr.Zero)
+					FreeDataPtr (data);
+			}
+		}
+
+		public byte[] GetSubjectKeyIdentifier ()
+		{
+			int size;
+			IntPtr data = IntPtr.Zero;
+
+			try {
+				var ret = mono_btls_x509_get_subject_key_identifier (
+					Handle.DangerousGetHandle (), out data, out size);
+				CheckError (ret);
+				var buffer = new byte[size];
+				Marshal.Copy (data, buffer, 0, size);
+				return buffer;
 			} finally {
 				if (data != IntPtr.Zero)
 					FreeDataPtr (data);

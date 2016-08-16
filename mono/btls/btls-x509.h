@@ -96,4 +96,10 @@ mono_btls_x509_get_public_key_asn1 (X509 *x509, char *out_oid, int oid_len, uint
 EVP_PKEY *
 mono_btls_x509_get_pubkey (X509 *x509);
 
+int
+mono_btls_x509_get_subject_key_identifier (X509 *x509, uint8_t **buffer, int *size);
+
+void
+mono_btls_x509_martin_test (X509 *x509);
+
 #endif /* defined(__btls__btls_x509__) */
