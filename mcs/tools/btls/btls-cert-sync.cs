@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Security.Cryptography.X509Certificates;
+using Mono.Btls.Interface;
 
 namespace Mono.Btls
 {
@@ -35,18 +37,15 @@ namespace Mono.Btls
 			foreach (var file in oldfiles) {
 				Console.WriteLine ("Converting {0}.", file);
 				var data = File.ReadAllBytes (file);
-				using (var x509 = MonoBtlsX509.LoadFromData (data, MonoBtlsX509Format.DER)) {
+				using (var x509 = BtlsProvider.CreateNative (data, BtlsX509Format.DER)) {
 					ConvertToNewFormat (newStorePath, x509);
 				}
 			}
 		}
 
-		static void ConvertToNewFormat (string root, MonoBtlsX509 x509)
+		static void ConvertToNewFormat (string root, BtlsX509 x509)
 		{
-			var subject = x509.GetSubjectName ();
-			Console.WriteLine ("  certificate: {0}", subject.GetString ());
-
-			var hash = subject.GetHash ();
+			long hash = x509.GetSubjectNameHash ();
 
 			string newName;
 			int index = 0;
@@ -55,28 +54,8 @@ namespace Mono.Btls
 			} while (File.Exists (newName));
 			Console.WriteLine ("  new name: {0}", newName);
 
-			Print (x509, newName);
-		}
-
-		static void Print (MonoBtlsX509 x509, string filename)
-		{
-			using (var stream = new FileStream (filename, FileMode.Create))
-			using (var bio = MonoBtlsBio.CreateMonoStream (stream)) {
-				x509.GetRawData (bio, MonoBtlsX509Format.PEM);
-				x509.Print (bio);
-
-				var hash = x509.GetCertHash ();
-				var output = new StringBuilder ();
-				output.Append ("SHA1 Fingerprint=");
-				for (int i = 0; i < hash.Length; i++) {
-					if (i > 0)
-						output.Append (":");
-					output.AppendFormat ("{0:X2}", hash [i]);
-				}
-				output.AppendLine ();
-				var outputData = Encoding.ASCII.GetBytes (output.ToString ());
-				bio.Write (outputData, 0, outputData.Length);
-			}
+			using (var stream = new FileStream (newName, FileMode.Create))
+				x509.ExportAsPEM (stream, true);
 		}
 	}
 }

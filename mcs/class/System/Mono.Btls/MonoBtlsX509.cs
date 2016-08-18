@@ -402,6 +402,28 @@ namespace Mono.Btls
 				bio.Handle.DangerousGetHandle ());
 			CheckError (ret);
 		}
+
+		public void ExportAsPEM (MonoBtlsBio bio, bool includeHumanReadableForm)
+		{
+			GetRawData (bio, MonoBtlsX509Format.PEM);
+
+			if (!includeHumanReadableForm)
+				return;
+
+			Print (bio);
+
+			var hash = GetCertHash ();
+			var output = new StringBuilder ();
+			output.Append ("SHA1 Fingerprint=");
+			for (int i = 0; i < hash.Length; i++) {
+				if (i > 0)
+					output.Append (":");
+				output.AppendFormat ("{0:X2}", hash [i]);
+			}
+			output.AppendLine ();
+			var outputData = Encoding.ASCII.GetBytes (output.ToString ());
+			bio.Write (outputData, 0, outputData.Length);
+		}
 	}
 }
 #endif

@@ -24,6 +24,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 using System;
+using System.IO;
 using System.Security.Cryptography;
 
 namespace Mono.Btls.Interface
@@ -59,9 +60,9 @@ namespace Mono.Btls.Interface
 			return Instance.GetIssuerNameString ();
 		}
 
-		public byte[] GetRawData ()
+		public byte[] GetRawData (BtlsX509Format format)
 		{
-			return Instance.GetRawData ();
+			return Instance.GetRawData ((MonoBtlsX509Format)format);
 		}
 
 		public byte[] GetCertHash ()
@@ -107,6 +108,24 @@ namespace Mono.Btls.Interface
 		public AsnEncodedData GetPublicKeyParameters ()
 		{
 			return Instance.GetPublicKeyParameters (); 
+		}
+
+		public long GetSubjectNameHash ()
+		{
+			using (var name = GetSubjectName ())
+				return name.GetHash ();
+		}
+
+		public void Print (Stream stream)
+		{
+			using (var bio = MonoBtlsBio.CreateMonoStream (stream))
+				Instance.Print (bio);
+		}
+
+		public void ExportAsPEM (Stream stream, bool includeHumanReadableForm)
+		{
+			using (var bio = MonoBtlsBio.CreateMonoStream (stream))
+				Instance.ExportAsPEM (bio, includeHumanReadableForm);
 		}
 	}
 }
