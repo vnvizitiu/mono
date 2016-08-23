@@ -10,7 +10,7 @@ namespace Mono.Btls
 	{
 		static void Main (string[] args)
 		{
-			if (!MonoBtlsProvider.IsSupported ()) {
+			if (!BtlsProvider.IsSupported ()) {
 				Console.Error.WriteLine ("BTLS is not supported in this runtime!");
 				Environment.Exit (255);
 			}
@@ -19,17 +19,16 @@ namespace Mono.Btls
 			configPath = Path.Combine (configPath, ".mono");
 
 			var oldStorePath = Path.Combine (configPath, "certs", "Trust");
-			var newStorePath = Path.Combine (configPath, "btls-certs");
+			var newStorePath = Path.Combine (configPath, "certs", "NewTrust");
 
 			if (!Directory.Exists (oldStorePath)) {
 				Console.WriteLine ("Old trust store {0} does not exist.");
 				Environment.Exit (255);
 			}
 
-			if (Directory.Exists (newStorePath)) {
+			if (Directory.Exists (newStorePath))
 				Directory.Delete (newStorePath, true);
-				Directory.CreateDirectory (newStorePath);
-			}
+			Directory.CreateDirectory (newStorePath);
 
 			var oldfiles = Directory.GetFiles (oldStorePath, "*.cer");
 			Console.WriteLine ("Found {0} files in the old store.", oldfiles.Length);
@@ -50,7 +49,7 @@ namespace Mono.Btls
 			string newName;
 			int index = 0;
 			do {
-				newName = Path.Combine (root, string.Format ("{0:x}.{1}", hash, index++));
+				newName = Path.Combine (root, string.Format ("{0:x8}.{1}", hash, index++));
 			} while (File.Exists (newName));
 			Console.WriteLine ("  new name: {0}", newName);
 

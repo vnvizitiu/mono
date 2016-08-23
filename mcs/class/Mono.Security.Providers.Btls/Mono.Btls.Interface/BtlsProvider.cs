@@ -31,6 +31,11 @@ namespace Mono.Btls.Interface
 {
 	public static class BtlsProvider
 	{
+		public static bool IsSupported ()
+		{
+			return MonoBtlsProvider.IsSupported ();
+		}
+
 		public static MonoTlsProvider GetProvider ()
 		{
 			return new MonoBtlsProvider ();
