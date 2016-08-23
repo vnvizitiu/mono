@@ -228,7 +228,7 @@ namespace Mono.Security.X509 {
 #else
 			using (var sscxCert = new SSCX.X509Certificate (certificate.RawData)) {
 				var hash = SSCX.X509Helper2.GetSubjectNameHash (sscxCert);
-				var filename = Path.Combine (_storePath, string.Format ("{0:x}.0", hash));
+				var filename = Path.Combine (_storePath, string.Format ("{0:x8}.0", hash));
 				if (!File.Exists (filename)) {
 					using (FileStream fs = File.Create (filename))
 						SSCX.X509Helper2.ExportAsPEM (sscxCert, fs, true);
@@ -245,7 +245,7 @@ namespace Mono.Security.X509 {
 #else
 			using (var sscxCert = new SSCX.X509Certificate (certificate.RawData)) {
 				var hash = SSCX.X509Helper2.GetSubjectNameHash (sscxCert);
-				var filename = Path.Combine (_storePath, string.Format ("{0:x}.0", hash));
+				var filename = Path.Combine (_storePath, string.Format ("{0:x8}.0", hash));
 				if (File.Exists (filename)) {
 					File.Delete (filename);
 					ClearCertificates ();
