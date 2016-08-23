@@ -382,17 +382,10 @@ void sgen_scan_area_with_callback (char *start, char *end, IterateObjectCallback
 struct _SgenThreadInfo {
 	SgenClientThreadInfo client_info;
 
-	char **tlab_next_addr;
-	char **tlab_start_addr;
-	char **tlab_temp_end_addr;
-	char **tlab_real_end_addr;
-
-#ifndef HAVE_KW_THREAD
 	char *tlab_start;
 	char *tlab_next;
 	char *tlab_temp_end;
 	char *tlab_real_end;
-#endif
 };
 
 gboolean sgen_is_worker_thread (MonoNativeThreadId thread);
@@ -532,6 +525,7 @@ typedef struct {
 	GCObject* (*alloc_for_promotion) (GCVTable vtable, GCObject *obj, size_t objsize, gboolean has_references);
 
 	SgenObjectOperations serial_ops;
+	SgenObjectOperations serial_ops_with_concurrent_major;
 
 	void (*prepare_to_space) (char *to_space_bitmap, size_t space_bitmap_size);
 	void (*clear_fragments) (void);
@@ -786,8 +780,9 @@ void sgen_process_fin_stage_entries (void);
 gboolean sgen_have_pending_finalizers (void);
 void sgen_object_register_for_finalization (GCObject *obj, void *user_data);
 
-void sgen_finalize_if (SgenObjectPredicateFunc predicate, void *user_data, volatile gboolean *suspend);
+void sgen_finalize_if (SgenObjectPredicateFunc predicate, void *user_data);
 void sgen_remove_finalizers_if (SgenObjectPredicateFunc predicate, void *user_data, int generation);
+void sgen_set_suspend_finalizers (void);
 
 void sgen_register_disappearing_link (GCObject *obj, void **link, gboolean track, gboolean in_gc);
 
@@ -950,7 +945,7 @@ extern NurseryClearPolicy nursery_clear_policy;
 extern gboolean sgen_try_free_some_memory;
 extern mword total_promoted_size;
 extern mword total_allocated_major;
-
+extern volatile gboolean sgen_suspend_finalizers;
 extern MonoCoopMutex gc_mutex;
 
 /* Nursery helpers. */
@@ -975,7 +970,6 @@ typedef enum {
 	ATYPE_NUM
 } SgenAllocatorType;
 
-void sgen_init_tlab_info (SgenThreadInfo* info);
 void sgen_clear_tlabs (void);
 
 GCObject* sgen_alloc_obj (GCVTable vtable, size_t size);

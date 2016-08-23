@@ -100,6 +100,10 @@ namespace Mono.Net.Security
 			get { return enabledProtocols; }
 		}
 
+		protected X509CertificateCollection ClientCertificates {
+			get { return clientCertificates; }
+		}
+
 		protected void GetProtocolVersions (out TlsProtocolCode min, out TlsProtocolCode max)
 		{
 			if ((enabledProtocols & SslProtocols.Tls) != 0)
