@@ -205,22 +205,6 @@ namespace Mono.Btls
 			}
 		}
 
-		public static void DownloadTrustedRoots (string directory)
-		{
-			NewMozRoots.Run (directory);
-		}
-
-		public static void EnsureTrustedRoots ()
-		{
-#if !ANDROID
-			var path = GetSystemStoreLocation ();
-			if (Directory.Exists (path))
-				return;
-			Directory.CreateDirectory (path);
-			DownloadTrustedRoots (path);
-#endif
-		}
-
 		public static string GetSystemStoreLocation ()
 		{
 #if ANDROID

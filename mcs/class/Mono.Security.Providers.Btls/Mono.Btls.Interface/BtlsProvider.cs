@@ -77,16 +77,6 @@ namespace Mono.Btls.Interface
 			return MonoBtlsProvider.CreateChain ();
 		}
 
-		public static void DownloadTrustedRoots (string directory)
-		{
-			MonoBtlsProvider.DownloadTrustedRoots (directory);
-		}
-
-		public static void EnsureTrustedRoots ()
-		{
-			MonoBtlsProvider.EnsureTrustedRoots ();
-		}
-
 		public static string GetSystemStoreLocation ()
 		{
 			return MonoBtlsProvider.GetSystemStoreLocation ();

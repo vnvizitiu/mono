@@ -340,7 +340,6 @@ Mono.Btls/MonoBtlsX509Store.cs
 Mono.Btls/MonoBtlsX509StoreCtx.cs
 Mono.Btls/MonoBtlsX509VerifyFlags.cs
 Mono.Btls/MonoBtlsX509VerifyParam.cs
-Mono.Btls/NewMozRoots.cs
 Mono.Btls/X509CertificateImplBtls.cs
 Mono.Btls/X509ChainImplBtls.cs
 
