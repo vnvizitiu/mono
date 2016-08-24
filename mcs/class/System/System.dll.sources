@@ -566,6 +566,8 @@ Mono.Btls/MonoBtlsX509FileType.cs
 Mono.Btls/MonoBtlsX509Format.cs
 Mono.Btls/MonoBtlsX509Lookup.cs
 Mono.Btls/MonoBtlsX509LookupMethod.cs
+Mono.Btls/MonoBtlsX509LookupMethodCollection.cs
+Mono.Btls/MonoBtlsX509LookupMethodMono.cs
 Mono.Btls/MonoBtlsX509Name.cs
 Mono.Btls/MonoBtlsX509NameList.cs
 Mono.Btls/MonoBtlsX509NameEntryType.cs

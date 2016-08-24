@@ -1,5 +1,5 @@
-﻿//
-// BtlsX509Store.cs
+//
+// MonoBtlsX509LookupMethodAndroid.cs
 //
 // Author:
 //       Martin Baulig <martin.baulig@xamarin.com>
@@ -23,40 +23,21 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+#if SECURITY_DEP && MONODROID
 using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 
-namespace Mono.Btls.Interface
+namespace Mono.Btls
 {
-	public class BtlsX509Store : BtlsX509Object
+	internal class MonoBtlsX509LookupMethodAndroid : MonoBtlsX509LookupMethodMono
 	{
-		new internal MonoBtlsX509Store Instance {
-			get { return (MonoBtlsX509Store)base.Instance; }
-		}
-
-		internal BtlsX509Store (MonoBtlsX509Store store)
-			: base (store)
+		protected override MonoBtlsX509 LookupBySubject (MonoBtlsX509Name name)
 		{
-		}
-
-		public void LoadLocations (string file, string path)
-		{
-			Instance.LoadLocations (file, path);
-		}
-
-		public void AddTrustedRoots ()
-		{
-			Instance.AddTrustedRoots ();
-		}
-
-		public void AddCertificate (BtlsX509 x509)
-		{
-			Instance.AddCertificate (x509.Instance);
-		}
-
-		public int GetCount ()
-		{
-			return Instance.GetCount ();
+			return AndroidPlatform.CertStoreLookup (name);
 		}
 	}
 }
-
+#endif

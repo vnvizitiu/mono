@@ -26,6 +26,7 @@
 #if SECURITY_DEP
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
@@ -75,6 +76,8 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_store_free (IntPtr handle);
 
+		List<MonoBtlsX509Lookup> lookups;
+
 		public void LoadLocations (string file, string path)
 		{
 			IntPtr filePtr = IntPtr.Zero;
@@ -99,9 +102,6 @@ namespace Mono.Btls
 		{
 			var ret = mono_btls_x509_store_set_default_paths (Handle.DangerousGetHandle ());
 			CheckError (ret);
-#if ANDROID
-			SetupAndroidCertStore ();
-#endif
 		}
 
 		static BoringX509StoreHandle Create_internal ()
@@ -143,7 +143,7 @@ namespace Mono.Btls
 		{
 		}
 
-		public void AddTrustAnchor (MonoBtlsX509 x509)
+		public void AddCertificate (MonoBtlsX509 x509)
 		{
 			var ret = mono_btls_x509_store_add_cert (
 				Handle.DangerousGetHandle (),
@@ -162,41 +162,27 @@ namespace Mono.Btls
 			LoadLocations (null, systemRoot);
 		}
 
+		public void AddLookup (MonoBtlsX509LookupMethod method)
+		{
+			if (lookups == null)
+				lookups = new List<MonoBtlsX509Lookup> ();
+
+			var lookup = new MonoBtlsX509Lookup (this, method, true);
+			lookups.Add (lookup);
+		}
+
 		protected override void Close ()
 		{
 			try {
-#if ANDROID
-				if (androidCertStoreLookup != null) {
-					androidCertStoreLookup.Dispose ();
-					androidCertStoreLookup = null;
+				if (lookups != null) {
+					foreach (var lookup in lookups)
+						lookup.Dispose ();
+					lookups = null;
 				}
-				if (androidCertStoreLookupMethod != null) {
-					androidCertStoreLookupMethod.Dispose ();
-					androidCertStoreLookupMethod = null;
-				}
-#endif
 			} finally {
 				base.Close ();
 			}
 		}
-
-#if ANDROID
-		MonoBtlsX509LookupMethod androidCertStoreLookupMethod;
-		MonoBtlsX509Lookup androidCertStoreLookup;
-
-		void SetupAndroidCertStore ()
-		{
-			androidCertStoreLookupMethod = new MonoBtlsX509LookupMethodMono (OnUserCallback);
-			androidCertStoreLookup = new MonoBtlsX509Lookup (this, androidCertStoreLookupMethod);
-		}
-
-		MonoBtlsX509 OnUserCallback (MonoBtlsX509Name name)
-		{
-			Console.Error.WriteLine ("ON USER CALLBACK: {0}", name);
-			return null;
-		}
-#endif
-
 	}
 }
 #endif

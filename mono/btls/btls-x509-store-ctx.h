@@ -62,5 +62,8 @@ mono_btls_x509_store_ctx_verify_cert (MonoBtlsX509StoreCtx *ctx);
 MonoBtlsX509VerifyParam *
 mono_btls_x509_store_ctx_get_verify_param (MonoBtlsX509StoreCtx *ctx);
 
+MonoBtlsX509Chain *
+mono_btls_x509_store_ctx_get_untrusted (MonoBtlsX509StoreCtx *ctx);
+
 #endif /* defined(__btls__btls_x509_store_ctx__) */
 

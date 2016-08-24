@@ -57,11 +57,6 @@ namespace Mono.Btls
 		MonoBtlsBio bio;
 		MonoBtlsBio errbio;
 
-#if MONODROID
-		MonoBtlsX509Lookup certStoreLookup;
-		MonoBtlsX509LookupMethod certStoreLookupMethod;
-#endif
-
 		MonoTlsConnectionInfo connectionInfo;
 		bool certificateValidated;
 		bool isAuthenticated;
@@ -229,9 +224,11 @@ namespace Mono.Btls
 			ctx.CertificateStore.SetDefaultPaths ();
 
 #if MONODROID
-			certStoreLookupMethod = new MonoBtlsX509LookupMethodMono (AndroidLookupCallback);
-			certStoreLookup = new MonoBtlsX509Lookup (ctx.CertificateStore, certStoreLookupMethod);
+			ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodAndroid ());
 #endif
+
+			if (Settings.TrustAnchors != null)
+				ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodCollection (Settings.TrustAnchors));
 
 			if (!IsServer || AskForClientCertificate)
 				ctx.SetVerifyCallback (VerifyCallback, false);
@@ -251,13 +248,6 @@ namespace Mono.Btls
 				ctx.SetCiphers (ciphers, true);
 			}
 		}
-
-#if MONODROID
-		MonoBtlsX509 AndroidLookupCallback (MonoBtlsX509Name name)
-		{
-			return AndroidPlatform.CertStoreLookup (name);
-		}
-#endif
 
 		void GetPeerCertificate ()
 		{
@@ -389,10 +379,6 @@ namespace Mono.Btls
 		{
 			try {
 				if (disposing) {
-#if MONODROID
-					Dispose (ref certStoreLookup);
-					Dispose (ref certStoreLookupMethod);
-#endif
 					Dispose (ref remoteCertificate);
 					Dispose (ref nativeServerCertificate);
 					Dispose (ref nativeClientCertificate);

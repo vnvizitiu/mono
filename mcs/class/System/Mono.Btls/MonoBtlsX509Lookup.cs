@@ -75,6 +75,9 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_lookup_free (IntPtr handle);
 
+		MonoBtlsX509LookupMethod method;
+		bool ownsMethod;
+
 		internal MonoBtlsX509Lookup (BoringX509LookupHandle handle)
 			: base (handle)
 		{
@@ -90,9 +93,11 @@ namespace Mono.Btls
 			return new BoringX509LookupHandle (handle);
 		}
 
-		internal MonoBtlsX509Lookup (MonoBtlsX509Store store, MonoBtlsX509LookupMethod method)
+		internal MonoBtlsX509Lookup (MonoBtlsX509Store store, MonoBtlsX509LookupMethod method, bool ownsMethod)
 			: base (Create_internal (store, method))
 		{
+			this.method = method;
+			this.ownsMethod = ownsMethod;
 		}
 
 		public void LoadFile (string file, MonoBtlsX509FileType type)
@@ -161,6 +166,18 @@ namespace Mono.Btls
 			} finally {
 				if (bytes != IntPtr.Zero)
 					Marshal.FreeHGlobal (bytes);
+			}
+		}
+
+		protected override void Close ()
+		{
+			try {
+				if (ownsMethod && method != null)
+					method.Dispose ();
+			} finally {
+				method = null;
+				ownsMethod = false;
+				base.Close ();
 			}
 		}
 	}

@@ -37,25 +37,47 @@ namespace Mono.Btls
 	{
 		MonoBtlsX509StoreCtx storeCtx;
 		MonoBtlsX509Chain chain;
+		MonoBtlsX509Chain untrustedChain;
 		X509ChainElementCollection elements;
+		X509Certificate2Collection untrusted;
 		X509Certificate2[] certificates;
+		X509ChainPolicy policy;
 
 		internal X509ChainImplBtls (MonoBtlsX509Chain chain)
 		{
 			this.chain = chain.Copy ();
-			// elements = new X509ChainElementCollection ();
+			policy = new X509ChainPolicy ();
 		}
 
 		internal X509ChainImplBtls (MonoBtlsX509StoreCtx storeCtx)
 		{
 			this.storeCtx = storeCtx.Copy ();
 			this.chain = storeCtx.GetChain ();
+
+			policy = new X509ChainPolicy ();
+			using (var test = (IDisposable)null) {
+				;
+			}
+
+			untrustedChain = storeCtx.GetUntrusted ();
+
+			if (untrustedChain != null) {
+				untrusted = new X509Certificate2Collection ();
+				policy.ExtraStore = untrusted;
+				for (int i = 0; i < untrustedChain.Count; i++) {
+					using (var cert = untrustedChain.GetCertificate (i))
+					using (var impl = new X509CertificateImplBtls (cert))
+						untrusted.Add (new X509Certificate2 (impl));
+				}
+			}
+			storeCtx.Test ();
 		}
 
 		internal X509ChainImplBtls ()
 		{
 			chain = new MonoBtlsX509Chain ();
 			elements = new X509ChainElementCollection ();
+			policy = new X509ChainPolicy ();
 		}
 
 		public override bool IsValid {
@@ -101,8 +123,8 @@ namespace Mono.Btls
 		}
 
 		public override X509ChainPolicy ChainPolicy {
-			get { throw new NotImplementedException (); }
-			set { throw new NotImplementedException (); }
+			get { return policy; }
+			set { policy = value; }
 		}
 
 		public override X509ChainStatus[] ChainStatus {
@@ -137,6 +159,14 @@ namespace Mono.Btls
 				if (storeCtx != null) {
 					storeCtx.Dispose ();
 					storeCtx = null;
+				}
+				if (untrustedChain != null) {
+					untrustedChain.Dispose ();
+					untrustedChain = null;
+				}
+				if (untrusted != null) {
+					foreach (var cert in untrusted)
+						cert.Dispose ();
 				}
 			}
 			base.Dispose (disposing);

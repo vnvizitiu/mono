@@ -1,5 +1,5 @@
-﻿//
-// MonoBtlsX509LookupMethod.cs
+//
+// MonoBtlsX509LookupMethodCollection.cs
 //
 // Author:
 //       Martin Baulig <martin.baulig@xamarin.com>
@@ -28,6 +28,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 
 #if MONOTOUCH
 using MonoTouch;
@@ -35,54 +36,59 @@ using MonoTouch;
 
 namespace Mono.Btls
 {
-	class MonoBtlsX509LookupMethod : MonoBtlsObject
+	internal class MonoBtlsX509LookupMethodCollection : MonoBtlsX509LookupMethodMono
 	{
-		internal class BoringX509LookupMethodHandle : MonoBtlsHandle
+		long[] hashes;
+		MonoBtlsX509[] certificates;
+		X509CertificateCollection collection;
+
+		internal MonoBtlsX509LookupMethodCollection (X509CertificateCollection collection)
 		{
-			public BoringX509LookupMethodHandle (IntPtr handle)
-				: base (handle, true)
-			{
+			this.collection = collection;
+		}
+
+		void Initialize ()
+		{
+			if (certificates != null)
+				return;
+
+			hashes = new long [collection.Count];
+			certificates = new MonoBtlsX509 [collection.Count];
+			for (int i = 0; i < collection.Count; i++) {
+				certificates [i] = MonoBtlsProvider.GetBtlsCertificate (collection [i]);
+				hashes [i] = certificates [i].GetSubjectNameHash ();
+			}
+		}
+
+		protected override MonoBtlsX509 LookupBySubject (MonoBtlsX509Name name)
+		{
+			Initialize ();
+
+			var hash = name.GetHash ();
+			for (int i = 0; i < certificates.Length; i++) {
+				if (hashes [i] == hash)
+					return certificates [i];
 			}
 
-			protected override bool ReleaseHandle ()
-			{
-				mono_btls_x509_lookup_method_free (handle);
-				return true;
+			return null;
+		}
+
+		protected override void Close ()
+		{
+			try {
+				if (certificates != null) {
+					for (int i = 0; i < certificates.Length; i++) {
+						if (certificates [i] != null) {
+							certificates [i].Dispose ();
+							certificates [i] = null;
+						}
+					}
+					certificates = null;
+					hashes = null;
+				}
+			} finally {
+				base.Close ();
 			}
-		}
-
-		new internal BoringX509LookupMethodHandle Handle {
-			get { return (BoringX509LookupMethodHandle)base.Handle; }
-		}
-
-		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static IntPtr mono_btls_x509_lookup_method_by_file ();
-
-		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static IntPtr mono_btls_x509_lookup_method_by_hash_dir ();
-
-		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static void mono_btls_x509_lookup_method_free (IntPtr handle);
-
-		internal MonoBtlsX509LookupMethod (BoringX509LookupMethodHandle handle)
-			: base (handle)
-		{
-		}
-
-		public static MonoBtlsX509LookupMethod ByFile ()
-		{
-			var handle = mono_btls_x509_lookup_method_by_file ();
-			if (handle == IntPtr.Zero)
-				return null;
-			return new MonoBtlsX509LookupMethod (new BoringX509LookupMethodHandle (handle));
-		}
-
-		public static MonoBtlsX509LookupMethod ByHashDir ()
-		{
-			var handle = mono_btls_x509_lookup_method_by_hash_dir ();
-			if (handle == IntPtr.Zero)
-				return null;
-			return new MonoBtlsX509LookupMethod (new BoringX509LookupMethodHandle (handle));
 		}
 	}
 }

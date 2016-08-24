@@ -106,6 +106,24 @@ mono_btls_x509_store_ctx_get_chain (MonoBtlsX509StoreCtx *ctx)
 	return mono_btls_x509_chain_from_certs (certs);
 }
 
+MonoBtlsX509Chain *
+mono_btls_x509_store_ctx_get_untrusted (MonoBtlsX509StoreCtx *ctx)
+{
+	STACK_OF(X509) *untrusted;
+
+	/*
+	 * Unfortunately, there is no accessor function for this.
+	 *
+	 * This is the set of certificate that's passed in by
+	 * X509_STORE_CTX_init() and X509_STORE_CTX_set_chain().
+	 */
+	untrusted = ctx->ctx->untrusted;
+	if (!untrusted)
+		return NULL;
+
+	return mono_btls_x509_chain_from_certs (untrusted);
+}
+
 void
 mono_btls_x509_store_ctx_test (MonoBtlsX509StoreCtx *ctx)
 {

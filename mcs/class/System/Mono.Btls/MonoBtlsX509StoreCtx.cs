@@ -106,6 +106,9 @@ namespace Mono.Btls
 		extern static IntPtr mono_btls_x509_store_ctx_get_verify_param (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_store_ctx_get_untrusted (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static IntPtr mono_btls_x509_store_ctx_up_ref (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
@@ -158,6 +161,13 @@ namespace Mono.Btls
 		public MonoBtlsX509Chain GetChain ()
 		{
 			var chain = mono_btls_x509_store_ctx_get_chain (Handle.DangerousGetHandle ());
+			CheckError (chain != IntPtr.Zero);
+			return new MonoBtlsX509Chain (new MonoBtlsX509Chain.BoringX509ChainHandle (chain));
+		}
+
+		public MonoBtlsX509Chain GetUntrusted ()
+		{
+			var chain = mono_btls_x509_store_ctx_get_untrusted (Handle.DangerousGetHandle ());
 			CheckError (chain != IntPtr.Zero);
 			return new MonoBtlsX509Chain (new MonoBtlsX509Chain.BoringX509ChainHandle (chain));
 		}

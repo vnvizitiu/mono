@@ -192,6 +192,13 @@ namespace Mono.Btls
 			}
 		}
 
+		public long GetSubjectNameHash ()
+		{
+			CheckThrow ();
+			using (var subject = GetSubjectName ())
+				return subject.GetHash ();
+		}
+
 		public MonoBtlsX509Name GetIssuerName ()
 		{
 			var handle = mono_btls_x509_get_issuer_name (Handle.DangerousGetHandle ());

@@ -17,25 +17,13 @@ typedef int (* MonoBtlsLookupMethod_NewItem) (const void *instance);
 typedef int (* MonoBtlsLookupMethod_Init) (const void *instance);
 typedef int (* MonoBtlsLookupMethod_Shutdown) (const void *instance);
 typedef int (* MonoBtlsLookupMethod_BySubject) (const void *instance, MonoBtlsX509Name *name, X509 **ret);
-typedef int (* MonoBtlsLookupMethod_ByFingerPrint) (const void *instance, unsigned char *bytes, int len, X509 **ret);
 
 MonoBtlsX509LookupMethod *
 mono_btls_x509_lookup_method_mono_new (void);
 
 void
-mono_btls_x509_lookup_method_mono_init (MonoBtlsX509LookupMethod *method,
-					    const void *instance,
-					    MonoBtlsLookupMethod_NewItem new_item_func,
-					    MonoBtlsLookupMethod_Init init_func,
-					    MonoBtlsLookupMethod_Shutdown shutdown_func);
-
-void
-mono_btls_x509_lookup_method_mono_set_by_subject_func (MonoBtlsX509LookupMethod *method,
-							   MonoBtlsLookupMethod_BySubject by_subject_func);
-
-void
-mono_btls_x509_lookup_method_mono_set_by_fingerprint_func (MonoBtlsX509LookupMethod *method,
-							       MonoBtlsLookupMethod_ByFingerPrint by_fingerprint);
+mono_btls_x509_lookup_method_mono_init (MonoBtlsX509LookupMethod *method, const void *instance,
+					MonoBtlsLookupMethod_BySubject by_subject_func);
 
 MonoBtlsX509LookupMethod *
 mono_btls_x509_lookup_method_new (X509_LOOKUP_METHOD *method);

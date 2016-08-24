@@ -230,6 +230,14 @@ namespace Mono.Btls
 			}
 		}
 
+		public static X509Certificate2 CreateCertificate2 (byte[] data, string password, bool disallowFallback = false)
+		{
+			using (var impl = new X509CertificateImplBtls (disallowFallback)) {
+				impl.Import (data, password, X509KeyStorageFlags.DefaultKeySet);
+				return new X509Certificate2 (impl);
+			}
+		}
+
 		public static X509Certificate CreateCertificate (MonoBtlsX509 x509)
 		{
 			using (var impl = new X509CertificateImplBtls (x509, true))
@@ -248,7 +256,7 @@ namespace Mono.Btls
 			return new X509Chain (impl);
 		}
 
-		static MonoBtlsX509 GetBtlsCertificate (X509Certificate certificate)
+		public static MonoBtlsX509 GetBtlsCertificate (X509Certificate certificate)
 		{
 			var impl = certificate.Impl as X509CertificateImplBtls;
 			if (impl != null)
