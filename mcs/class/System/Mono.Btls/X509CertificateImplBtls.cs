@@ -341,6 +341,8 @@ namespace Mono.Btls
 					intermediateCerts = new X509CertificateImplCollection ();
 					for (int i = 0; i < pkcs12.Count; i++) {
 						using (var ic = pkcs12.GetCertificate (i)) {
+							if (MonoBtlsX509.Compare (ic, x509) == 0)
+								continue;
 							var impl = new X509CertificateImplBtls (ic, true);
 							intermediateCerts.Add (impl, true);
 						}
