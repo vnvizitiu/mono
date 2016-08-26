@@ -71,9 +71,6 @@ namespace Mono.Btls
 		extern static IntPtr mono_btls_x509_up_ref (IntPtr handle);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static void mono_btls_x509_test (IntPtr handle);
-
-		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static IntPtr mono_btls_x509_from_data (IntPtr data, int len, MonoBtlsX509Format format);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
@@ -136,19 +133,32 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static IntPtr mono_btls_x509_martin_test (IntPtr handle);
 
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_dup (IntPtr handle);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_add_trust_object (IntPtr handle, MonoBtlsX509Purpose purpose);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_add_reject_object (IntPtr handle, MonoBtlsX509Purpose purpose);
+
 		internal void MartinTest ()
 		{
 			mono_btls_x509_martin_test (Handle.DangerousGetHandle ());
 		}
 
-		public void Test ()
-		{
-			mono_btls_x509_test (Handle.DangerousGetHandle ());
-		}
-
 		internal MonoBtlsX509 Copy ()
 		{
 			var copy = mono_btls_x509_up_ref (Handle.DangerousGetHandle ());
+			CheckError (copy != IntPtr.Zero);
+			return new MonoBtlsX509 (new BoringX509Handle (copy));
+		}
+
+		// This will actually duplicate the underlying 'X509 *' object instead of
+		// simply increasing the reference count.
+		internal MonoBtlsX509 Duplicate ()
+		{
+			var copy = mono_btls_x509_dup (Handle.DangerousGetHandle ());
 			CheckError (copy != IntPtr.Zero);
 			return new MonoBtlsX509 (new BoringX509Handle (copy));
 		}
@@ -430,6 +440,22 @@ namespace Mono.Btls
 			output.AppendLine ();
 			var outputData = Encoding.ASCII.GetBytes (output.ToString ());
 			bio.Write (outputData, 0, outputData.Length);
+		}
+
+		public void AddTrustObject (MonoBtlsX509Purpose purpose)
+		{
+			CheckThrow ();
+			var ret = mono_btls_x509_add_trust_object (
+				Handle.DangerousGetHandle (), purpose);
+			CheckError (ret);
+		}
+
+		public void AddRejectObject (MonoBtlsX509Purpose purpose)
+		{
+			CheckThrow ();
+			var ret = mono_btls_x509_add_reject_object (
+				Handle.DangerousGetHandle (), purpose);
+			CheckError (ret);
 		}
 	}
 }

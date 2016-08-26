@@ -42,10 +42,10 @@ mono_btls_x509_free (X509 *x509)
 	X509_free (x509);
 }
 
-void
-mono_btls_x509_test (X509 *x509)
+X509 *
+mono_btls_x509_dup (X509 *x509)
 {
-	fprintf (stderr, "mono_btls_x509_test(): %p - %d\n", x509, x509->references);
+	return X509_dup (x509);
 }
 
 MonoBtlsX509Name *
@@ -352,3 +352,53 @@ mono_btls_x509_print (X509 *x509, BIO *bio)
 {
 	return X509_print_ex (bio, x509, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 }
+
+static int
+get_trust_nid (MonoBtlsX509Purpose purpose)
+{
+	switch (purpose) {
+		case NATIVE_BORING_X509_PURPOSE_SSL_CLIENT:
+			return NID_client_auth;
+		case NATIVE_BORING_X509_PURPOSE_SSL_SERVER:
+			return NID_server_auth;
+		default:
+			return 0;
+	}
+}
+
+int
+mono_btls_x509_add_trust_object (X509 *x509, MonoBtlsX509Purpose purpose)
+{
+	ASN1_OBJECT *trust;
+	int nid;
+
+	nid = get_trust_nid (purpose);
+	if (!nid)
+		return 0;
+
+	trust = ASN1_OBJECT_new ();
+	if (!trust)
+		return 0;
+
+	trust->nid = nid;
+	return X509_add1_trust_object (x509, trust);
+}
+
+int
+mono_btls_x509_add_reject_object (X509 *x509, MonoBtlsX509Purpose purpose)
+{
+	ASN1_OBJECT *reject;
+	int nid;
+
+	nid = get_trust_nid (purpose);
+	if (!nid)
+		return 0;
+
+	reject = ASN1_OBJECT_new ();
+	if (!reject)
+		return 0;
+
+	reject->nid = nid;
+	return X509_add1_reject_object (x509, reject);
+}
+

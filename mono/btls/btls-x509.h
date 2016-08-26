@@ -45,6 +45,9 @@ mono_btls_x509_up_ref (X509 *x509);
 void
 mono_btls_x509_free (X509 *x509);
 
+X509 *
+mono_btls_x509_dup (X509 *x509);
+
 MonoBtlsX509Name *
 mono_btls_x509_get_subject_name (X509 *x509);
 
@@ -104,5 +107,11 @@ mono_btls_x509_print (X509 *x509, BIO *bio);
 
 void
 mono_btls_x509_martin_test (X509 *x509);
+
+int
+mono_btls_x509_add_trust_object (X509 *x509, MonoBtlsX509Purpose purpose);
+
+int
+mono_btls_x509_add_reject_object (X509 *x509, MonoBtlsX509Purpose purpose);
 
 #endif /* defined(__btls__btls_x509__) */
