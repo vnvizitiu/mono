@@ -41,10 +41,12 @@ namespace Mono.Btls
 		long[] hashes;
 		MonoBtlsX509[] certificates;
 		X509CertificateCollection collection;
+		MonoBtlsX509TrustKind trust;
 
-		internal MonoBtlsX509LookupMethodCollection (X509CertificateCollection collection)
+		internal MonoBtlsX509LookupMethodCollection (X509CertificateCollection collection, MonoBtlsX509TrustKind trust)
 		{
 			this.collection = collection;
+			this.trust = trust;
 		}
 
 		void Initialize ()
@@ -55,7 +57,11 @@ namespace Mono.Btls
 			hashes = new long [collection.Count];
 			certificates = new MonoBtlsX509 [collection.Count];
 			for (int i = 0; i < collection.Count; i++) {
-				certificates [i] = MonoBtlsProvider.GetBtlsCertificate (collection [i]);
+				// Create new 'X509 *' instance since we need to modify it to add the
+				// trust settings.
+				var data = collection [i].GetRawCertData ();
+				certificates [i] = MonoBtlsX509.LoadFromData (data, MonoBtlsX509Format.DER);
+				certificates [i].AddExplicitTrust (trust);
 				hashes [i] = certificates [i].GetSubjectNameHash ();
 			}
 		}

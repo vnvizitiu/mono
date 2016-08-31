@@ -227,8 +227,10 @@ namespace Mono.Btls
 			ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodAndroid ());
 #endif
 
-			if (Settings != null && Settings.TrustAnchors != null)
-				ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodCollection (Settings.TrustAnchors));
+			if (Settings != null && Settings.TrustAnchors != null) {
+				var trust = IsServer ? MonoBtlsX509TrustKind.TRUST_CLIENT : MonoBtlsX509TrustKind.TRUST_SERVER;
+				ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodCollection (Settings.TrustAnchors, trust));
+			}
 
 			if (!IsServer || AskForClientCertificate)
 				ctx.SetVerifyCallback (VerifyCallback, false);
