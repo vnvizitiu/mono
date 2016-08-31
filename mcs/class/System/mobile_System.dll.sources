@@ -340,6 +340,7 @@ Mono.Btls/MonoBtlsX509Purpose.cs
 Mono.Btls/MonoBtlsX509Revoked.cs
 Mono.Btls/MonoBtlsX509Store.cs
 Mono.Btls/MonoBtlsX509StoreCtx.cs
+Mono.Btls/MonoBtlsX509TrustKind.cs
 Mono.Btls/MonoBtlsX509VerifyFlags.cs
 Mono.Btls/MonoBtlsX509VerifyParam.cs
 Mono.Btls/X509CertificateImplBtls.cs

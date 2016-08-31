@@ -142,6 +142,9 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_x509_add_reject_object (IntPtr handle, MonoBtlsX509Purpose purpose);
 
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_add_explicit_trust (IntPtr handle, MonoBtlsX509TrustKind kind);
+
 		internal void MartinTest ()
 		{
 			mono_btls_x509_martin_test (Handle.DangerousGetHandle ());
@@ -455,6 +458,14 @@ namespace Mono.Btls
 			CheckThrow ();
 			var ret = mono_btls_x509_add_reject_object (
 				Handle.DangerousGetHandle (), purpose);
+			CheckError (ret);
+		}
+
+		public void AddExplicitTrust (MonoBtlsX509TrustKind kind)
+		{
+			CheckThrow ();
+			var ret = mono_btls_x509_add_explicit_trust (
+				Handle.DangerousGetHandle (), kind);
 			CheckError (ret);
 		}
 	}

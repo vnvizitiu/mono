@@ -402,3 +402,47 @@ mono_btls_x509_add_reject_object (X509 *x509, MonoBtlsX509Purpose purpose)
 	return X509_add1_reject_object (x509, reject);
 }
 
+int
+mono_btls_x509_add_explicit_trust (X509 *x509, MonoBtlsX509TrustKind kind)
+{
+	int ret = 0;
+
+	if ((kind & NATIVE_BORING_X509_TRUST_KIND_REJECT_ALL) != 0)
+		kind |= NATIVE_BORING_X509_TRUST_KIND_REJECT_CLIENT | NATIVE_BORING_X509_TRUST_KIND_REJECT_SERVER;
+
+	if ((kind & NATIVE_BORING_X509_TRUST_KIND_TRUST_ALL) != 0)
+		kind |= NATIVE_BORING_X509_TRUST_KIND_TRUST_CLIENT | NATIVE_BORING_X509_TRUST_KIND_TRUST_SERVER;
+
+
+	if ((kind & NATIVE_BORING_X509_TRUST_KIND_REJECT_CLIENT) != 0) {
+		ret = mono_btls_x509_add_reject_object (x509, NATIVE_BORING_X509_PURPOSE_SSL_CLIENT);
+		if (!ret)
+			return ret;
+	}
+
+	if ((kind & NATIVE_BORING_X509_TRUST_KIND_REJECT_SERVER) != 0) {
+		ret = mono_btls_x509_add_reject_object (x509, NATIVE_BORING_X509_PURPOSE_SSL_SERVER);
+		if (!ret)
+			return ret;
+	}
+
+	if (ret) {
+		// Ignore any NATIVE_BORING_X509_TRUST_KIND_TRUST_* settings if we added
+		// any kind of NATIVE_BORING_X509_TRUST_KIND_REJECT_* before.
+		return ret;
+	}
+
+	if ((kind & NATIVE_BORING_X509_TRUST_KIND_TRUST_CLIENT) != 0) {
+		ret = mono_btls_x509_add_trust_object (x509, NATIVE_BORING_X509_PURPOSE_SSL_CLIENT);
+		if (!ret)
+			return ret;
+	}
+
+	if ((kind & NATIVE_BORING_X509_TRUST_KIND_TRUST_SERVER) != 0) {
+		ret = mono_btls_x509_add_trust_object (x509, NATIVE_BORING_X509_PURPOSE_SSL_SERVER);
+		if (!ret)
+			return ret;
+	}
+
+	return ret;
+}

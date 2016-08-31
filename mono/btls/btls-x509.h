@@ -36,6 +36,16 @@ typedef enum {
 	NATIVE_BORING_X509_PURPOSE_TIMESTAMP_SIGN	= 9,
 } MonoBtlsX509Purpose;
 
+typedef enum {
+	NATIVE_BORING_X509_TRUST_KIND_DEFAULT		= 0,
+	NATIVE_BORING_X509_TRUST_KIND_TRUST_CLIENT	= 1,
+	NATIVE_BORING_X509_TRUST_KIND_TRUST_SERVER	= 2,
+	NATIVE_BORING_X509_TRUST_KIND_TRUST_ALL		= 4,
+	NATIVE_BORING_X509_TRUST_KIND_REJECT_CLIENT	= 32,
+	NATIVE_BORING_X509_TRUST_KIND_REJECT_SERVER	= 64,
+	NATIVE_BORING_X509_TRUST_KIND_REJECT_ALL	= 128
+} MonoBtlsX509TrustKind;
+
 X509 *
 mono_btls_x509_from_data (const void *buf, int len, MonoBtlsX509Format format);
 
@@ -113,5 +123,8 @@ mono_btls_x509_add_trust_object (X509 *x509, MonoBtlsX509Purpose purpose);
 
 int
 mono_btls_x509_add_reject_object (X509 *x509, MonoBtlsX509Purpose purpose);
+
+int
+mono_btls_x509_add_explicit_trust (X509 *x509, MonoBtlsX509TrustKind kind);
 
 #endif /* defined(__btls__btls_x509__) */
