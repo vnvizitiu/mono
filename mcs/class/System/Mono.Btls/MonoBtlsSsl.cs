@@ -121,6 +121,9 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_ssl_print_errors_cb (IntPtr func, IntPtr ctx);
 
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_ssl_set_verify_param (IntPtr handle, IntPtr param);
+
 		static BoringSslHandle Create_internal (MonoBtlsSslCtx ctx)
 		{
 			var handle = mono_btls_ssl_new (ctx.Handle.DangerousGetHandle ());
@@ -380,6 +383,15 @@ namespace Mono.Btls
 			if (x509 == IntPtr.Zero)
 				return null;
 			return new MonoBtlsX509 (new MonoBtlsX509.BoringX509Handle (x509));
+		}
+
+		public void SetVerifyParam (MonoBtlsX509VerifyParam param)
+		{
+			CheckThrow ();
+			var ret = mono_btls_ssl_set_verify_param (
+				Handle.DangerousGetHandle (),
+				param.Handle.DangerousGetHandle ());
+			CheckError (ret);
 		}
 
 		public void Test ()

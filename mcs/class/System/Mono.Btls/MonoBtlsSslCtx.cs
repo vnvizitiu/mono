@@ -87,6 +87,9 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_ssl_ctx_set_ciphers (IntPtr handle, int count, IntPtr data, int allow_unsupported);
 
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_ssl_ctx_set_verify_param (IntPtr handle, IntPtr param);
+
 		delegate int NativeVerifyFunc (IntPtr instance, int preverify_ok, IntPtr ctx);
 		delegate int NativeSelectFunc (IntPtr instance);
 
@@ -231,6 +234,15 @@ namespace Mono.Btls
 			} finally {
 				Marshal.FreeHGlobal (data);
 			}
+		}
+
+		public void SetVerifyParam (MonoBtlsX509VerifyParam param)
+		{
+			CheckThrow ();
+			var ret = mono_btls_ssl_ctx_set_verify_param (
+				Handle.DangerousGetHandle (),
+				param.Handle.DangerousGetHandle ());
+			CheckError (ret);
 		}
 
 		protected override void Close ()

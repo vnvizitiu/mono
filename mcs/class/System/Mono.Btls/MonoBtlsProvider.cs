@@ -131,7 +131,7 @@ namespace Mono.Btls
 			get { return true; }
 		}
 
-		static MonoBtlsX509VerifyParam GetVerifyParam (string targetHost, bool serverMode)
+		internal static MonoBtlsX509VerifyParam GetVerifyParam (string targetHost, bool serverMode)
 		{
 			MonoBtlsX509VerifyParam param;
 			if (serverMode)

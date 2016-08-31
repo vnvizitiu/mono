@@ -7,6 +7,7 @@
 //
 
 #include <btls-ssl.h>
+#include <btls-x509-verify-param.h>
 
 struct MonoBtlsSsl {
 	MonoBtlsSslCtx *ctx;
@@ -193,6 +194,12 @@ int
 mono_btls_ssl_get_error (MonoBtlsSsl *ptr, int ret_code)
 {
 	return SSL_get_error (ptr->ssl, ret_code);
+}
+
+int
+mono_btls_ssl_set_verify_param (MonoBtlsSsl *ptr, const MonoBtlsX509VerifyParam *param)
+{
+	return SSL_set1_param (ptr->ssl, mono_btls_x509_verify_param_peek_param (param));
 }
 
 void

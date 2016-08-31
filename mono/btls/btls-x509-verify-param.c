@@ -56,8 +56,8 @@ mono_btls_x509_verify_param_copy (const MonoBtlsX509VerifyParam *from)
 	return param;
 }
 
-X509_VERIFY_PARAM *
-mono_btls_x509_verify_param_peek_param (MonoBtlsX509VerifyParam *param)
+const X509_VERIFY_PARAM *
+mono_btls_x509_verify_param_peek_param (const MonoBtlsX509VerifyParam *param)
 {
 	return param->param;
 }

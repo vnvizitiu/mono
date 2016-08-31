@@ -7,6 +7,7 @@
 //
 
 #include <btls-ssl-ctx.h>
+#include <btls-x509-verify-param.h>
 
 struct MonoBtlsSslCtx {
 	CRYPTO_refcount_t references;
@@ -244,5 +245,11 @@ err:
 	OPENSSL_free (pref_list);
 	OPENSSL_free (in_group_flags);
 	return 0;
+}
+
+int
+mono_btls_ssl_ctx_set_verify_param (MonoBtlsSslCtx *ctx, const MonoBtlsX509VerifyParam *param)
+{
+	return SSL_CTX_set1_param (ctx->ctx, mono_btls_x509_verify_param_peek_param (param));
 }
 

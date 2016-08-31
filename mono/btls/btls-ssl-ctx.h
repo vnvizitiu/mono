@@ -78,4 +78,7 @@ int
 mono_btls_ssl_ctx_set_ciphers (MonoBtlsSslCtx *ctx, int count, const uint16_t *data,
 				   int allow_unsupported);
 
+int
+mono_btls_ssl_ctx_set_verify_param (MonoBtlsSslCtx *ctx, const MonoBtlsX509VerifyParam *param);
+
 #endif /* __btls_ssl_ctx__btls_ssl_ctx__ */

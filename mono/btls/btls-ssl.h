@@ -71,6 +71,9 @@ mono_btls_ssl_close (MonoBtlsSsl *ptr);
 int
 mono_btls_ssl_get_error (MonoBtlsSsl *ptr, int ret_code);
 
+int
+mono_btls_ssl_set_verify_param (MonoBtlsSsl *ptr, const MonoBtlsX509VerifyParam *param);
+
 void
 mono_btls_ssl_destroy (MonoBtlsSsl *ptr);
 
