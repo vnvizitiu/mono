@@ -1,5 +1,5 @@
-﻿//
-// BtlsX509Store.cs
+//
+// BtlsX509TrustKind.cs
 //
 // Author:
 //       Martin Baulig <martin.baulig@xamarin.com>
@@ -24,46 +24,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 using System;
-using System.Security.Cryptography.X509Certificates;
-
 namespace Mono.Btls.Interface
 {
-	public class BtlsX509Store : BtlsX509Object
+	// Keep in sync with MonoBtlsX509TrustKind
+	[Flags]
+	public enum BtlsX509TrustKind
 	{
-		new internal MonoBtlsX509Store Instance {
-			get { return (MonoBtlsX509Store)base.Instance; }
-		}
-
-		internal BtlsX509Store (MonoBtlsX509Store store)
-			: base (store)
-		{
-		}
-
-		public void LoadLocations (string file, string path)
-		{
-			Instance.LoadLocations (file, path);
-		}
-
-		public void AddTrustedRoots ()
-		{
-			Instance.AddTrustedRoots ();
-		}
-
-		public void AddCertificate (BtlsX509 x509)
-		{
-			Instance.AddCertificate (x509.Instance);
-		}
-
-		public int GetCount ()
-		{
-			return Instance.GetCount ();
-		}
-
-		public void AddLookup (X509CertificateCollection certificates, BtlsX509TrustKind trust)
-		{
-			var lookup = new MonoBtlsX509LookupMethodCollection (certificates, (MonoBtlsX509TrustKind)trust);
-			Instance.AddLookup (lookup);
-		}
+		DEFAULT		= 0,
+		TRUST_CLIENT	= 1,
+		TRUST_SERVER	= 2,
+		TRUST_ALL	= 4,
+		REJECT_CLIENT	= 32,
+		REJECT_SERVER	= 64,
+		REJECT_ALL	= 128
 	}
 }
 
