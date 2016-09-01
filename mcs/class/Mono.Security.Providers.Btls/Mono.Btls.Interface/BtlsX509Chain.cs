@@ -27,7 +27,7 @@ using System;
 
 namespace Mono.Btls.Interface
 {
-	public class BtlsX509Chain : BtlsX509Object
+	public class BtlsX509Chain : BtlsObject
 	{
 		new internal MonoBtlsX509Chain Instance {
 			get { return (MonoBtlsX509Chain)base.Instance; }

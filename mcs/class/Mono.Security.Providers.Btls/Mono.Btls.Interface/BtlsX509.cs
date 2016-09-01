@@ -29,7 +29,7 @@ using System.Security.Cryptography;
 
 namespace Mono.Btls.Interface
 {
-	public class BtlsX509 : BtlsX509Object
+	public class BtlsX509 : BtlsObject
 	{
 		new internal MonoBtlsX509 Instance {
 			get { return (MonoBtlsX509)base.Instance; }

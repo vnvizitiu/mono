@@ -162,13 +162,14 @@ namespace Mono.Btls
 			LoadLocations (null, systemRoot);
 		}
 
-		public void AddLookup (MonoBtlsX509LookupMethod method)
+		public MonoBtlsX509Lookup AddLookup (MonoBtlsX509LookupMethod method)
 		{
 			if (lookups == null)
 				lookups = new List<MonoBtlsX509Lookup> ();
 
 			var lookup = new MonoBtlsX509Lookup (this, method, true);
 			lookups.Add (lookup);
+			return lookup;
 		}
 
 		protected override void Close ()

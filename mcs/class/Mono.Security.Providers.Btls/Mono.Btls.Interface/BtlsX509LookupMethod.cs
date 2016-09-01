@@ -1,5 +1,5 @@
-﻿//
-// BtlsX509Object.cs
+//
+// BtlsX509LookupMethod.cs
 //
 // Author:
 //       Martin Baulig <martin.baulig@xamarin.com>
@@ -24,50 +24,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 using System;
+using System.IO;
+using System.Security.Cryptography;
 
 namespace Mono.Btls.Interface
 {
-	public abstract class BtlsX509Object : IDisposable
+	public class BtlsX509LookupMethod : BtlsObject
 	{
-		MonoBtlsObject instance;
-
-		internal MonoBtlsObject Instance {
-			get {
-				if (!IsValid)
-					throw new ObjectDisposedException (GetType ().Name);
-				return instance;
-			}
+		new internal MonoBtlsX509LookupMethod Instance {
+			get { return (MonoBtlsX509LookupMethod)base.Instance; }
 		}
 
-		internal BtlsX509Object (MonoBtlsObject instance)
+		internal BtlsX509LookupMethod (MonoBtlsX509LookupMethod method)
+			: base (method)
 		{
-			this.instance = instance;
 		}
 
-		public bool IsValid {
-			get { return instance != null && instance.IsValid; }
-		}
-
-		protected void Dispose (bool disposing)
+		public static BtlsX509LookupMethod ByFile ()
 		{
-			if (disposing) {
-				if (instance != null) {
-					instance.Dispose ();
-					instance = null;
-				}
-			}
+			return new BtlsX509LookupMethod (MonoBtlsX509LookupMethod.ByFile ());
 		}
 
-		public void Dispose ()
+		public static BtlsX509LookupMethod ByHashDir ()
 		{
-			Dispose (true);
-			GC.SuppressFinalize (this);
-		}
-
-		~BtlsX509Object ()
-		{
-			Dispose (false);
+			return new BtlsX509LookupMethod (MonoBtlsX509LookupMethod.ByHashDir ());
 		}
 	}
 }
-

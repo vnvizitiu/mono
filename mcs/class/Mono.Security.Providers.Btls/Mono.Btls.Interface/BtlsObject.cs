@@ -1,5 +1,5 @@
 ﻿//
-// BtlsX509Store.cs
+// BtlsObject.cs
 //
 // Author:
 //       Martin Baulig <martin.baulig@xamarin.com>
@@ -24,51 +24,49 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 using System;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Mono.Btls.Interface
 {
-	public class BtlsX509Store : BtlsObject
+	public abstract class BtlsObject : IDisposable
 	{
-		new internal MonoBtlsX509Store Instance {
-			get { return (MonoBtlsX509Store)base.Instance; }
+		MonoBtlsObject instance;
+
+		internal MonoBtlsObject Instance {
+			get {
+				if (!IsValid)
+					throw new ObjectDisposedException (GetType ().Name);
+				return instance;
+			}
 		}
 
-		internal BtlsX509Store (MonoBtlsX509Store store)
-			: base (store)
+		internal BtlsObject (MonoBtlsObject instance)
 		{
+			this.instance = instance;
 		}
 
-		public void LoadLocations (string file, string path)
-		{
-			Instance.LoadLocations (file, path);
+		public bool IsValid {
+			get { return instance != null && instance.IsValid; }
 		}
 
-		public void AddTrustedRoots ()
+		protected void Dispose (bool disposing)
 		{
-			Instance.AddTrustedRoots ();
+			if (disposing) {
+				if (instance != null) {
+					instance.Dispose ();
+					instance = null;
+				}
+			}
 		}
 
-		public void AddCertificate (BtlsX509 x509)
+		public void Dispose ()
 		{
-			Instance.AddCertificate (x509.Instance);
+			Dispose (true);
+			GC.SuppressFinalize (this);
 		}
 
-		public int GetCount ()
+		~BtlsObject ()
 		{
-			return Instance.GetCount ();
-		}
-
-		public void AddLookup (X509CertificateCollection certificates, BtlsX509TrustKind trust)
-		{
-			var lookup = new MonoBtlsX509LookupMethodCollection (certificates, (MonoBtlsX509TrustKind)trust);
-			Instance.AddLookup (lookup);
-		}
-
-		public BtlsX509Lookup AddLookup (BtlsX509LookupMethod method)
-		{
-			var lookup = Instance.AddLookup (method.Instance);
-			return new BtlsX509Lookup (lookup);
+			Dispose (false);
 		}
 	}
 }

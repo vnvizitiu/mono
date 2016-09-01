@@ -1,5 +1,5 @@
-﻿//
-// BtlsX509Store.cs
+//
+// BtlsX509Lookup.cs
 //
 // Author:
 //       Martin Baulig <martin.baulig@xamarin.com>
@@ -24,52 +24,49 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 using System;
-using System.Security.Cryptography.X509Certificates;
+using System.IO;
+using System.Security.Cryptography;
 
 namespace Mono.Btls.Interface
 {
-	public class BtlsX509Store : BtlsObject
+	public class BtlsX509Lookup : BtlsObject
 	{
-		new internal MonoBtlsX509Store Instance {
-			get { return (MonoBtlsX509Store)base.Instance; }
+		new internal MonoBtlsX509Lookup Instance {
+			get { return (MonoBtlsX509Lookup)base.Instance; }
 		}
 
-		internal BtlsX509Store (MonoBtlsX509Store store)
-			: base (store)
+		internal BtlsX509Lookup (MonoBtlsX509Lookup lookup)
+			: base (lookup)
 		{
 		}
 
-		public void LoadLocations (string file, string path)
+		public void Initialize ()
 		{
-			Instance.LoadLocations (file, path);
+			Instance.Initialize ();
 		}
 
-		public void AddTrustedRoots ()
+		public void Shutdown ()
 		{
-			Instance.AddTrustedRoots ();
+			Instance.Shutdown ();
 		}
 
-		public void AddCertificate (BtlsX509 x509)
+		public BtlsX509 LookupBySubject (BtlsX509Name name)
 		{
-			Instance.AddCertificate (x509.Instance);
+			var x509 = Instance.LookupBySubject (name.Instance);
+			if (x509 == null)
+				return null;
+
+			return new BtlsX509 (x509);
 		}
 
-		public int GetCount ()
+		public void LoadFile (string file, BtlsX509Format type)
 		{
-			return Instance.GetCount ();
+			Instance.LoadFile (file, (MonoBtlsX509FileType)type);
 		}
 
-		public void AddLookup (X509CertificateCollection certificates, BtlsX509TrustKind trust)
+		public void AddDirectory (string dir, BtlsX509Format type)
 		{
-			var lookup = new MonoBtlsX509LookupMethodCollection (certificates, (MonoBtlsX509TrustKind)trust);
-			Instance.AddLookup (lookup);
-		}
-
-		public BtlsX509Lookup AddLookup (BtlsX509LookupMethod method)
-		{
-			var lookup = Instance.AddLookup (method.Instance);
-			return new BtlsX509Lookup (lookup);
+			Instance.AddDirectory (dir, (MonoBtlsX509FileType)type);
 		}
 	}
 }
-
