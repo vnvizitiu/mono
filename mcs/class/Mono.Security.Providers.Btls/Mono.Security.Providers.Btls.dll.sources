@@ -13,6 +13,8 @@ Mono.Btls.Interface/BtlsX509Object.cs
 Mono.Btls.Interface/BtlsX509Purpose.cs
 Mono.Btls.Interface/BtlsX509Store.cs
 Mono.Btls.Interface/BtlsX509StoreCtx.cs
+Mono.Btls.Interface/BtlsX509StoreManager.cs
+Mono.Btls.Interface/BtlsX509StoreType.cs
 Mono.Btls.Interface/BtlsX509TrustKind.cs
 Mono.Btls.Interface/BtlsX509VerifyFlags.cs
 Mono.Btls.Interface/BtlsX509VerifyParam.cs

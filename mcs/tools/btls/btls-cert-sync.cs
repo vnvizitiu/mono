@@ -19,7 +19,7 @@ namespace Mono.Btls
 			configPath = Path.Combine (configPath, ".mono");
 
 			var oldStorePath = Path.Combine (configPath, "certs", "Trust");
-			var newStorePath = Path.Combine (configPath, "certs", "NewTrust");
+			var newStorePath = BtlsX509StoreManager.GetStorePath (BtlsX509StoreType.UserTrustedRoots);
 
 			if (!Directory.Exists (oldStorePath)) {
 				Console.WriteLine ("Old trust store {0} does not exist.");

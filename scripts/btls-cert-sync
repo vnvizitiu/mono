@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /Workspace/INSTALL/bin/mono $MONO_OPTIONS /Workspace/INSTALL/lib/mono/4.5/btls-cert-sync.exe "$@"

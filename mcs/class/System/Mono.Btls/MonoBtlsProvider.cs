@@ -38,8 +38,10 @@ using System.Security.Authentication;
 
 #if MONO_SECURITY_ALIAS
 using MonoSecurity::Mono.Security.Interface;
+using MX = MonoSecurity::Mono.Security.X509;
 #else
 using Mono.Security.Interface;
+using MX = Mono.Security.X509;
 #endif
 
 using MNS = Mono.Net.Security;

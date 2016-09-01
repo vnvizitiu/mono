@@ -117,8 +117,12 @@ namespace Mono.Tools
 				return 0;
 			}
 				
-			X509Stores stores = userStore ? X509StoreManager.CurrentUser : X509StoreManager.LocalMachine;
-			X509Store store = btlsStore ? stores.NewTrustedRoot : stores.TrustedRoot;
+			X509Stores stores;
+			if (userStore)
+				stores = btlsStore ? X509StoreManager.NewCurrentUser : X509StoreManager.CurrentUser;
+			else
+				stores = btlsStore ? X509StoreManager.NewLocalMachine : X509StoreManager.LocalMachine;
+			X509Store store = stores.TrustedRoot;
 			X509CertificateCollection trusted = store.Certificates;
 			int additions = 0;
 			WriteLine ("I already trust {0}, your new list has {1}", trusted.Count, roots.Count);

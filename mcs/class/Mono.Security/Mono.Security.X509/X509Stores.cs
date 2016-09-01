@@ -44,16 +44,17 @@ namespace Mono.Security.X509 {
 	class X509Stores {
 
 		private string _storePath;
+		private bool _newFormat;
 		private X509Store _personal;
 		private X509Store _other;
 		private X509Store _intermediate;
 		private X509Store _trusted;
 		private X509Store _untrusted;
-		private X509Store _newTrusted;
 
-		internal X509Stores (string path) 
+		internal X509Stores (string path, bool newFormat)
 		{
 			_storePath = path;
+			_newFormat = newFormat;
 		}
 
 		// properties
@@ -82,7 +83,7 @@ namespace Mono.Security.X509 {
 			get { 
 				if (_intermediate == null) {
 					string path = Path.Combine (_storePath, Names.IntermediateCA);
-					_intermediate = new X509Store (path, true, false);
+					_intermediate = new X509Store (path, true, _newFormat);
 				}
 				return _intermediate; 
 			}
@@ -92,7 +93,7 @@ namespace Mono.Security.X509 {
 			get { 
 				if (_trusted == null) {
 					string path = Path.Combine (_storePath, Names.TrustedRoot);
-					_trusted = new X509Store (path, true, false);
+					_trusted = new X509Store (path, true, _newFormat);
 				}
 				return _trusted; 
 			}
@@ -102,19 +103,9 @@ namespace Mono.Security.X509 {
 			get { 
 				if (_untrusted == null) {
 					string path = Path.Combine (_storePath, Names.Untrusted);
-					_untrusted = new X509Store (path, false, false);
+					_untrusted = new X509Store (path, false, _newFormat);
 				}
 				return _untrusted; 
-			}
-		}
-
-		public X509Store NewTrustedRoot {
-			get {
-				if (_newTrusted == null) {
-					string path = Path.Combine (_storePath, Names.NewTrustedRoot);
-					_newTrusted = new X509Store (path, true, true);
-				}
-				return _newTrusted;
 			}
 		}
 
@@ -138,9 +129,6 @@ namespace Mono.Security.X509 {
 			if (_untrusted != null)
 				_untrusted.Clear ();
 			_untrusted = null;
-			if (_newTrusted != null)
-				_newTrusted.Clear ();
-			_newTrusted = null;
 		}
 
 		public X509Store Open (string storeName, bool create)
@@ -165,8 +153,7 @@ namespace Mono.Security.X509 {
 			public const string IntermediateCA = "CA";
 			public const string TrustedRoot = "Trust";
 			public const string Untrusted = "Disallowed";
-			public const string NewTrustedRoot = "NewTrust";
-			
+
 			public Names () {}
 		}
 	}
