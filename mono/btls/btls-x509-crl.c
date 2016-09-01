@@ -26,10 +26,10 @@ mono_btls_x509_crl_from_data (const void *buf, int len, MonoBtlsX509Format forma
 
 	bio = BIO_new_mem_buf ((void *)buf, len);
 	switch (format) {
-		case NATIVE_BORING_X509_FORMAT_DER:
+		case MONO_BTLS_X509_FORMAT_DER:
 			crl->crl = d2i_X509_CRL_bio (bio, NULL);
 			break;
-		case NATIVE_BORING_X509_FORMAT_PEM:
+		case MONO_BTLS_X509_FORMAT_PEM:
 			crl->crl = PEM_read_bio_X509_CRL (bio, NULL, NULL, NULL);
 			break;
 	}

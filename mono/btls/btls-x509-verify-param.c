@@ -153,11 +153,11 @@ mono_btls_x509_verify_param_get_mono_flags (MonoBtlsX509VerifyParam *param)
 	flags = X509_VERIFY_PARAM_get_flags (param->param);
 
 	if (flags & X509_V_FLAG_CRL_CHECK)
-		current |= NATIVE_BORING_X509_VERIFY_FLAGS_CRL_CHECK;
+		current |= MONO_BTLS_X509_VERIFY_FLAGS_CRL_CHECK;
 	if (flags & X509_V_FLAG_CRL_CHECK_ALL)
-		current |= NATIVE_BORING_X509_VERIFY_FLAGS_CRL_CHECK_ALL;
+		current |= MONO_BTLS_X509_VERIFY_FLAGS_CRL_CHECK_ALL;
 	if (flags & X509_V_FLAG_X509_STRICT)
-		current |= NATIVE_BORING_X509_VERIFY_FLAGS_X509_STRICT;
+		current |= MONO_BTLS_X509_VERIFY_FLAGS_X509_STRICT;
 
 	return current;
 }
@@ -171,11 +171,11 @@ mono_btls_x509_verify_param_set_mono_flags (MonoBtlsX509VerifyParam *param, Mono
 		return -1;
 
 	current = X509_VERIFY_PARAM_get_flags (param->param);
-	if (flags & NATIVE_BORING_X509_VERIFY_FLAGS_CRL_CHECK)
+	if (flags & MONO_BTLS_X509_VERIFY_FLAGS_CRL_CHECK)
 		current |= X509_V_FLAG_CRL_CHECK;
-	if (flags & NATIVE_BORING_X509_VERIFY_FLAGS_CRL_CHECK_ALL)
+	if (flags & MONO_BTLS_X509_VERIFY_FLAGS_CRL_CHECK_ALL)
 		current |= X509_V_FLAG_CRL_CHECK_ALL;
-	if (flags & NATIVE_BORING_X509_VERIFY_FLAGS_X509_STRICT)
+	if (flags & MONO_BTLS_X509_VERIFY_FLAGS_X509_STRICT)
 		current |= X509_V_FLAG_X509_STRICT;
 
 	return X509_VERIFY_PARAM_set_flags (param->param, current);

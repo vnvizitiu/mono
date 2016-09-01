@@ -75,7 +75,7 @@ mono_ctrl (BIO *bio, int cmd, long num, void *ptr)
 	// fprintf (stderr, "mono_ctrl: %x - %lx - %p\n", cmd, num, ptr);
 	switch (cmd) {
 		case BIO_CTRL_FLUSH:
-			return mono->control_func (mono->instance, NATIVE_BORING_CONTROL_COMMAND_FLUSH, 0);
+			return mono->control_func (mono->instance, MONO_BTLS_CONTROL_COMMAND_FLUSH, 0);
 		default:
 			return -1;
 	}

@@ -13,7 +13,7 @@
 #include <btls-ssl.h>
 
 typedef enum {
-	NATIVE_BORING_CONTROL_COMMAND_FLUSH	= 1
+	MONO_BTLS_CONTROL_COMMAND_FLUSH	= 1
 } MonoBtlsControlCommand;
 
 typedef int (* MonoBtlsReadFunc) (const void *instance, const void *buf, int size, int *wantMore);
