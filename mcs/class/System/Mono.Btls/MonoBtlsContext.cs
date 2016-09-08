@@ -215,7 +215,7 @@ namespace Mono.Btls
 		{
 #if MONODROID
 			ctx.CertificateStore.SetDefaultPaths ();
-			ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodAndroid ());
+			ctx.CertificateStore.AddAndroidLookup ();
 #else
 			var userPath = MonoBtlsX509StoreManager.GetStorePath (MonoBtlsX509StoreType.UserTrustedRoots);
 			if (Directory.Exists (userPath))
@@ -241,11 +241,6 @@ namespace Mono.Btls
 #endif
 
 			SetupCertificateStore ();
-
-#if MONODROID
-			ctx.CertificateStore.SetDefaultPaths ();
-			ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodAndroid ());
-#endif
 
 			if (!IsServer || AskForClientCertificate)
 				ctx.SetVerifyCallback (VerifyCallback, false);

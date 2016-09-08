@@ -202,8 +202,16 @@ namespace Mono.Btls
 			var monoLookup = new MonoBtlsX509LookupMonoCollection (collection, trust);
 			var lookup = new MonoBtlsX509Lookup (this, MonoBtlsX509LookupType.MONO);
 			lookup.AddMono (monoLookup);
-			Console.Error.WriteLine ("ADDED MONO LOOKUP!");
 		}
+
+#if MONODROID
+		public void AddAndroidLookup ()
+		{
+			var androidLookup = new MonoBtlsX509LookupAndroid ();
+			var lookup = new MonoBtlsX509Lookup (this, MonoBtlsX509LookupType.MONO);
+			lookup.AddMono (androidLookup);
+		}
+#endif
 
 		protected override void Close ()
 		{
