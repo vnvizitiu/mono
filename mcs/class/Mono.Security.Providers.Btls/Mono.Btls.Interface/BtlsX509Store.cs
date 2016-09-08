@@ -61,15 +61,31 @@ namespace Mono.Btls.Interface
 
 		public void AddLookup (X509CertificateCollection certificates, BtlsX509TrustKind trust)
 		{
-			var lookup = new MonoBtlsX509LookupMethodCollection (certificates, (MonoBtlsX509TrustKind)trust);
-			Instance.AddLookup (lookup);
+			Instance.AddCollection (certificates, (MonoBtlsX509TrustKind)trust);
 		}
 
-		public BtlsX509Lookup AddLookup (BtlsX509LookupMethod method)
+		static MonoBtlsX509FileType GetFileType (BtlsX509Format format)
 		{
-			var lookup = Instance.AddLookup (method.Instance);
-			return new BtlsX509Lookup (lookup);
+			switch (format) {
+			case BtlsX509Format.DER:
+				return MonoBtlsX509FileType.ASN1;
+			case BtlsX509Format.PEM:
+				return MonoBtlsX509FileType.PEM;
+			default:
+				throw new NotSupportedException ();
+			}
 		}
+
+		public void AddDirectoryLookup (string dir, BtlsX509Format format)
+		{
+			Instance.AddDirectoryLookup (dir, GetFileType (format));
+		}
+
+		public void AddFileLookup (string file, BtlsX509Format format)
+		{
+			Instance.AddFileLookup (file, GetFileType (format));
+		}
+
 	}
 }
 

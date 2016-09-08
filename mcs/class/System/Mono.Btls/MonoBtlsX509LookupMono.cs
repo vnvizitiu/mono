@@ -1,5 +1,5 @@
 //
-// MonoBtlsX509LookupMethodMono.cs
+// MonoBtlsX509LookupMono.cs
 //
 // Author:
 //       Martin Baulig <martin.baulig@xamarin.com>
@@ -29,40 +29,56 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-#if MONOTOUCH
-using MonoTouch;
-#endif
-
 namespace Mono.Btls
 {
-	internal abstract class MonoBtlsX509LookupMethodMono : MonoBtlsX509LookupMethod
+	abstract class MonoBtlsX509LookupMono : MonoBtlsObject
 	{
-		delegate int BySubjectFunc (IntPtr instance, IntPtr name, out IntPtr x509_ptr);
+		internal class BoringX509LookupMonoHandle : MonoBtlsHandle
+		{
+			public BoringX509LookupMonoHandle (IntPtr handle)
+				: base (handle, true)
+			{
+			}
+
+			protected override bool ReleaseHandle ()
+			{
+				mono_btls_x509_lookup_mono_free (handle);
+				return true;
+			}
+		}
+
+		new internal BoringX509LookupMonoHandle Handle {
+			get { return (BoringX509LookupMonoHandle)base.Handle; }
+		}
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static IntPtr mono_btls_x509_lookup_method_mono_new ();
+		extern static IntPtr mono_btls_x509_lookup_mono_new ();
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static void mono_btls_x509_lookup_method_mono_init (
+		extern static void mono_btls_x509_lookup_mono_init (
 			IntPtr handle, IntPtr instance, IntPtr by_subject_func);
 
-		GCHandle handle;
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_lookup_mono_free (IntPtr handle);
+
+		delegate int BySubjectFunc (IntPtr instance, IntPtr name, out IntPtr x509_ptr);
+
+		GCHandle gch;
 		IntPtr instance;
 		BySubjectFunc bySubjectFunc;
 		IntPtr bySubjectFuncPtr;
 
-		internal MonoBtlsX509LookupMethodMono ()
-			: base (new BoringX509LookupMethodHandle (mono_btls_x509_lookup_method_mono_new ()))
+		internal MonoBtlsX509LookupMono ()
+			: base (new BoringX509LookupMonoHandle (mono_btls_x509_lookup_mono_new ()))
 		{
-			handle = GCHandle.Alloc (this);
-			instance = GCHandle.ToIntPtr (handle);
+			gch = GCHandle.Alloc (this);
+			instance = GCHandle.ToIntPtr (gch);
 			bySubjectFunc = OnGetBySubject;
 			bySubjectFuncPtr = Marshal.GetFunctionPointerForDelegate (bySubjectFunc);
-			mono_btls_x509_lookup_method_mono_init (
-				Handle.DangerousGetHandle (), instance, bySubjectFuncPtr);
+			mono_btls_x509_lookup_mono_init (Handle.DangerousGetHandle (), instance, bySubjectFuncPtr);
 		}
 
-		protected abstract MonoBtlsX509 LookupBySubject (MonoBtlsX509Name name);
+		protected abstract MonoBtlsX509 OnGetBySubject (MonoBtlsX509Name name);
 
 #if MONOTOUCH
 		[MonoPInvokeCallback (typeof (BySubjectFunc))]
@@ -70,13 +86,13 @@ namespace Mono.Btls
 		static int OnGetBySubject (IntPtr instance, IntPtr name_ptr, out IntPtr x509_ptr)
 		{
 			try {
-				MonoBtlsX509LookupMethodMono obj;
+				MonoBtlsX509LookupMono obj;
 				MonoBtlsX509Name.BoringX509NameHandle name_handle = null;
 				try {
-					obj = (MonoBtlsX509LookupMethodMono)GCHandle.FromIntPtr (instance).Target;
+					obj = (MonoBtlsX509LookupMono)GCHandle.FromIntPtr (instance).Target;
 					name_handle = new MonoBtlsX509Name.BoringX509NameHandle (name_ptr, false);
 					MonoBtlsX509Name name_obj = new MonoBtlsX509Name (name_handle);
-					var x509 = obj.LookupBySubject (name_obj);
+					var x509 = obj.OnGetBySubject (name_obj);
 					if (x509 != null) {
 						x509_ptr = x509.Handle.StealHandle ();
 						return 1;
@@ -98,9 +114,12 @@ namespace Mono.Btls
 		protected override void Close ()
 		{
 			try {
-				if (handle.IsAllocated)
-					handle.Free ();
+				if (gch.IsAllocated)
+					gch.Free ();
 			} finally {
+				instance = IntPtr.Zero;
+				bySubjectFunc = null;
+				bySubjectFuncPtr = IntPtr.Zero;
 				base.Close ();
 			}
 		}

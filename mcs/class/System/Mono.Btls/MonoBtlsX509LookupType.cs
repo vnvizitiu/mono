@@ -1,5 +1,5 @@
 //
-// BtlsX509LookupMethod.cs
+// MonoBtlsX509LookupCollection.cs
 //
 // Author:
 //       Martin Baulig <martin.baulig@xamarin.com>
@@ -23,31 +23,17 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+#if SECURITY_DEP
 using System;
-using System.IO;
-using System.Security.Cryptography;
 
-namespace Mono.Btls.Interface
+namespace Mono.Btls
 {
-	public class BtlsX509LookupMethod : BtlsObject
+	enum MonoBtlsX509LookupType
 	{
-		new internal MonoBtlsX509LookupMethod Instance {
-			get { return (MonoBtlsX509LookupMethod)base.Instance; }
-		}
-
-		internal BtlsX509LookupMethod (MonoBtlsX509LookupMethod method)
-			: base (method)
-		{
-		}
-
-		public static BtlsX509LookupMethod ByFile ()
-		{
-			return new BtlsX509LookupMethod (MonoBtlsX509LookupMethod.ByFile ());
-		}
-
-		public static BtlsX509LookupMethod ByHashDir ()
-		{
-			return new BtlsX509LookupMethod (MonoBtlsX509LookupMethod.ByHashDir ());
-		}
+		UNKNOWN = 0,
+		FILE,
+		HASH_DIR,
+		MONO
 	}
 }
+#endif

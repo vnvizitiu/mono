@@ -115,7 +115,7 @@
 #include <btls/btls-x509-crl.h>
 #include <btls/btls-x509-chain.h>
 #include <btls/btls-x509-lookup.h>
-#include <btls/btls-x509-lookup-method.h>
+#include <btls/btls-x509-lookup-mono.h>
 #include <btls/btls-x509-name.h>
 #include <btls/btls-x509-revoked.h>
 #include <btls/btls-x509-store-ctx.h>

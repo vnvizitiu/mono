@@ -28,6 +28,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 namespace Mono.Btls
 {
@@ -52,13 +53,20 @@ namespace Mono.Btls
 		}
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
-		extern static IntPtr mono_btls_x509_lookup_new (IntPtr store, IntPtr method);
+		extern static IntPtr mono_btls_x509_lookup_new (IntPtr store, MonoBtlsX509LookupType type);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_x509_lookup_load_file (IntPtr handle, IntPtr file, MonoBtlsX509FileType type);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_x509_lookup_add_dir (IntPtr handle, IntPtr dir, MonoBtlsX509FileType type);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static int mono_btls_x509_lookup_add_mono (IntPtr handle, IntPtr monoLookup);
+
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static void mono_btls_x509_lookup_method_mono_init (
+			IntPtr handle, IntPtr instance, IntPtr by_subject_func);
 
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static int mono_btls_x509_lookup_init (IntPtr handle);
@@ -75,29 +83,38 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_lookup_free (IntPtr handle);
 
-		MonoBtlsX509LookupMethod method;
-		bool ownsMethod;
+		[MethodImpl (MethodImplOptions.InternalCall)]
+		extern static IntPtr mono_btls_x509_lookup_peek_lookup (IntPtr handle);
 
+		MonoBtlsX509LookupType type;
+		List<MonoBtlsX509LookupMono> monoLookups;
+
+#if FIXME
+		// Do we need this?
 		internal MonoBtlsX509Lookup (BoringX509LookupHandle handle)
 			: base (handle)
 		{
 		}
+#endif
 
-		static BoringX509LookupHandle Create_internal (MonoBtlsX509Store store, MonoBtlsX509LookupMethod method)
+		static BoringX509LookupHandle Create_internal (MonoBtlsX509Store store, MonoBtlsX509LookupType type)
 		{
 			var handle = mono_btls_x509_lookup_new (
-				store.Handle.DangerousGetHandle (),
-				method.Handle.DangerousGetHandle ());
+				store.Handle.DangerousGetHandle (), type);
 			if (handle == IntPtr.Zero)
 				throw new MonoBtlsException ();
 			return new BoringX509LookupHandle (handle);
 		}
 
-		internal MonoBtlsX509Lookup (MonoBtlsX509Store store, MonoBtlsX509LookupMethod method, bool ownsMethod)
-			: base (Create_internal (store, method))
+		internal MonoBtlsX509Lookup (MonoBtlsX509Store store, MonoBtlsX509LookupType type)
+			: base (Create_internal (store, type))
 		{
-			this.method = method;
-			this.ownsMethod = ownsMethod;
+			this.type = type;
+		}
+
+		internal IntPtr GetNativeLookup ()
+		{
+			return mono_btls_x509_lookup_peek_lookup (Handle.DangerousGetHandle ());
 		}
 
 		public void LoadFile (string file, MonoBtlsX509FileType type)
@@ -128,6 +145,20 @@ namespace Mono.Btls
 				if (dirPtr != IntPtr.Zero)
 					Marshal.FreeHGlobal (dirPtr);
 			}
+		}
+
+		// Takes ownership of the 'monoLookup'.
+		internal void AddMono (MonoBtlsX509LookupMono monoLookup)
+		{
+			if (type != MonoBtlsX509LookupType.MONO)
+				throw new NotSupportedException ();
+			var ret = mono_btls_x509_lookup_add_mono (
+				Handle.DangerousGetHandle (), monoLookup.Handle.DangerousGetHandle ());
+			CheckError (ret);
+
+			if (monoLookups == null)
+				monoLookups = new List<MonoBtlsX509LookupMono> ();
+			monoLookups.Add (monoLookup);
 		}
 
 		public void Initialize ()
@@ -172,11 +203,12 @@ namespace Mono.Btls
 		protected override void Close ()
 		{
 			try {
-				if (ownsMethod && method != null)
-					method.Dispose ();
+				if (monoLookups != null) {
+					foreach (var monoLookup in monoLookups)
+						monoLookup.Dispose ();
+				monoLookups = null;
+				}
 			} finally {
-				method = null;
-				ownsMethod = false;
 				base.Close ();
 			}
 		}

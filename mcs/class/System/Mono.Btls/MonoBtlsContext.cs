@@ -211,6 +211,26 @@ namespace Mono.Btls
 			isAuthenticated = true;
 		}
 
+		void SetupCertificateStore ()
+		{
+#if MONODROID
+			ctx.CertificateStore.SetDefaultPaths ();
+			ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodAndroid ());
+#else
+			var userPath = MonoBtlsX509StoreManager.GetStorePath (MonoBtlsX509StoreType.UserTrustedRoots);
+			if (Directory.Exists (userPath))
+				ctx.CertificateStore.AddDirectoryLookup (userPath, MonoBtlsX509FileType.PEM);
+			var machinePath = MonoBtlsX509StoreManager.GetStorePath (MonoBtlsX509StoreType.MachineTrustedRoots);
+			if (Directory.Exists (machinePath))
+				ctx.CertificateStore.AddDirectoryLookup (machinePath, MonoBtlsX509FileType.PEM);
+#endif
+
+			if (Settings != null && Settings.TrustAnchors != null) {
+				var trust = IsServer ? MonoBtlsX509TrustKind.TRUST_CLIENT : MonoBtlsX509TrustKind.TRUST_SERVER;
+				ctx.CertificateStore.AddCollection (Settings.TrustAnchors, trust);
+			}
+		}
+
 		void InitializeConnection ()
 		{
 			ctx = new MonoBtlsSslCtx ();
@@ -220,17 +240,12 @@ namespace Mono.Btls
 			ctx.SetDebugBio (errbio);
 #endif
 
-			ctx.CertificateStore.LoadLocations (null, MonoBtlsProvider.GetSystemStoreLocation ());
-			ctx.CertificateStore.SetDefaultPaths ();
+			SetupCertificateStore ();
 
 #if MONODROID
+			ctx.CertificateStore.SetDefaultPaths ();
 			ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodAndroid ());
 #endif
-
-			if (Settings != null && Settings.TrustAnchors != null) {
-				var trust = IsServer ? MonoBtlsX509TrustKind.TRUST_CLIENT : MonoBtlsX509TrustKind.TRUST_SERVER;
-				ctx.CertificateStore.AddLookup (new MonoBtlsX509LookupMethodCollection (Settings.TrustAnchors, trust));
-			}
 
 			if (!IsServer || AskForClientCertificate)
 				ctx.SetVerifyCallback (VerifyCallback, false);

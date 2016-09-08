@@ -1,5 +1,5 @@
 //
-// MonoBtlsX509LookupMethodCollection.cs
+// MonoBtlsX509LookupMonoCollection.cs
 //
 // Author:
 //       Martin Baulig <martin.baulig@xamarin.com>
@@ -36,14 +36,14 @@ using MonoTouch;
 
 namespace Mono.Btls
 {
-	internal class MonoBtlsX509LookupMethodCollection : MonoBtlsX509LookupMethodMono
+	internal class MonoBtlsX509LookupMonoCollection : MonoBtlsX509LookupMono
 	{
 		long[] hashes;
 		MonoBtlsX509[] certificates;
 		X509CertificateCollection collection;
 		MonoBtlsX509TrustKind trust;
 
-		internal MonoBtlsX509LookupMethodCollection (X509CertificateCollection collection, MonoBtlsX509TrustKind trust)
+		internal MonoBtlsX509LookupMonoCollection (X509CertificateCollection collection, MonoBtlsX509TrustKind trust)
 		{
 			this.collection = collection;
 			this.trust = trust;
@@ -66,8 +66,9 @@ namespace Mono.Btls
 			}
 		}
 
-		protected override MonoBtlsX509 LookupBySubject (MonoBtlsX509Name name)
+		protected override MonoBtlsX509 OnGetBySubject (MonoBtlsX509Name name)
 		{
+			Console.WriteLine ("COLLECTION LOOKUP: {0:x} - {1}", name.GetHash (), name.GetString ());
 			Initialize ();
 
 			var hash = name.GetHash ();

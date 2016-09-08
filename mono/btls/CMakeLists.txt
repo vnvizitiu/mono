@@ -57,10 +57,10 @@ set (
 	btls-x509-chain.h
 	btls-x509-crl.c
 	btls-x509-crl.h
-	btls-x509-lookup-method.c
-	btls-x509-lookup-method.h
 	btls-x509-lookup.c
 	btls-x509-lookup.h
+	btls-x509-lookup-mono.c
+	btls-x509-lookup-mono.h
 	btls-x509-name.c
 	btls-x509-name.h
 	btls-x509-revoked.c

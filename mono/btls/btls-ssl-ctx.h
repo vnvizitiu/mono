@@ -19,7 +19,7 @@ typedef struct MonoBtlsBio MonoBtlsBio;
 typedef struct MonoBtlsX509Chain MonoBtlsX509Chain;
 typedef struct MonoBtlsX509Crl MonoBtlsX509Crl;
 typedef struct MonoBtlsX509Lookup MonoBtlsX509Lookup;
-typedef struct MonoBtlsX509LookupMethod MonoBtlsX509LookupMethod;
+typedef struct MonoBtlsX509LookupMono MonoBtlsX509LookupMono;
 typedef struct MonoBtlsX509Name MonoBtlsX509Name;
 typedef struct MonoBtlsX509Store MonoBtlsX509Store;
 typedef struct MonoBtlsX509StoreCtx MonoBtlsX509StoreCtx;

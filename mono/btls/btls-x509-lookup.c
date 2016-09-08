@@ -7,33 +7,57 @@
 //
 
 #include <btls-x509-lookup.h>
+#include <btls-x509-lookup-mono.h>
 
 struct MonoBtlsX509Lookup {
+	MonoBtlsX509LookupType type;
 	X509_LOOKUP *lookup;
+	int owns_lookup;
 	MonoBtlsX509Store *store;
-	MonoBtlsX509LookupMethod *method;
 	CRYPTO_refcount_t references;
 };
 
+static X509_LOOKUP_METHOD *
+get_lookup_method (MonoBtlsX509LookupType type)
+{
+	switch (type) {
+	case MONO_BTLS_X509_LOOKUP_TYPE_FILE:
+		return X509_LOOKUP_file ();
+	case MONO_BTLS_X509_LOOKUP_TYPE_HASH_DIR:
+		return X509_LOOKUP_hash_dir ();
+	case MONO_BTLS_X509_LOOKUP_TYPE_MONO:
+		return mono_btls_x509_lookup_mono_method ();
+	default:
+		return NULL;
+	}
+}
+
 MonoBtlsX509Lookup *
-mono_btls_x509_lookup_new (MonoBtlsX509Store *store, MonoBtlsX509LookupMethod *method)
+mono_btls_x509_lookup_new (MonoBtlsX509Store *store, MonoBtlsX509LookupType type)
 {
 	MonoBtlsX509Lookup *lookup;
 	X509_LOOKUP *store_lookup;
+	X509_LOOKUP_METHOD *method;
+
+	method = get_lookup_method (type);
+	if (!method)
+		return NULL;
 
 	lookup = OPENSSL_malloc (sizeof(MonoBtlsX509Lookup));
 	if (!lookup)
 		return NULL;
 
-	store_lookup = X509_STORE_add_lookup (mono_btls_x509_store_peek_store (store), mono_btls_x509_lookup_method_peek_method (method));
+	store_lookup = X509_STORE_add_lookup (mono_btls_x509_store_peek_store (store), method);
 	if (!store_lookup)
 		return NULL;
 
 	memset (lookup, 0, sizeof(MonoBtlsX509Lookup));
-	lookup->method = mono_btls_x509_lookup_method_up_ref (method);
+	// The X509_STORE owns the X509_LOOKUP.
 	lookup->store = mono_btls_x509_store_up_ref (store);
 	lookup->lookup = store_lookup;
+	lookup->owns_lookup = 0;
 	lookup->references = 1;
+	lookup->type = type;
 	return lookup;
 }
 
@@ -62,10 +86,17 @@ mono_btls_x509_lookup_free (MonoBtlsX509Lookup *lookup)
 	if (!CRYPTO_refcount_dec_and_test_zero (&lookup->references))
 		return 0;
 
-	if (lookup->lookup) {
-		X509_LOOKUP_free (lookup->lookup);
-		lookup = NULL;
+	if (lookup->store) {
+		mono_btls_x509_store_free (lookup->store);
+		lookup->store = NULL;
 	}
+
+	if (lookup->lookup) {
+		if (lookup->owns_lookup)
+			X509_LOOKUP_free (lookup->lookup);
+		lookup->lookup = NULL;
+	}
+
 	OPENSSL_free (lookup);
 	return 1;
 }
@@ -80,6 +111,18 @@ int
 mono_btls_x509_lookup_shutdown (MonoBtlsX509Lookup *lookup)
 {
 	return X509_LOOKUP_shutdown (lookup->lookup);
+}
+
+MonoBtlsX509LookupType
+mono_btls_x509_lookup_get_type (MonoBtlsX509Lookup *lookup)
+{
+	return lookup->type;
+}
+
+X509_LOOKUP *
+mono_btls_x509_lookup_peek_lookup (MonoBtlsX509Lookup *lookup)
+{
+	return lookup->lookup;
 }
 
 X509 *

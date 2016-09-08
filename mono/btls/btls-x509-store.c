@@ -70,7 +70,7 @@ mono_btls_x509_store_free (MonoBtlsX509Store *store)
 		return 0;
 
 	if (store->store) {
-		CRYPTO_refcount_dec_and_test_zero(&store->store->references);
+		X509_STORE_free (store->store);
 		store->store = NULL;
 	}
 	OPENSSL_free (store);

@@ -10,7 +10,6 @@ Mono.Btls.Interface/BtlsX509Chain.cs
 Mono.Btls.Interface/BtlsX509Error.cs
 Mono.Btls.Interface/BtlsX509Format.cs
 Mono.Btls.Interface/BtlsX509Lookup.cs
-Mono.Btls.Interface/BtlsX509LookupMethod.cs
 Mono.Btls.Interface/BtlsX509Name.cs
 Mono.Btls.Interface/BtlsX509Purpose.cs
 Mono.Btls.Interface/BtlsX509Store.cs

@@ -29,6 +29,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Mono.Btls
 {
@@ -76,7 +77,7 @@ namespace Mono.Btls
 		[MethodImpl (MethodImplOptions.InternalCall)]
 		extern static void mono_btls_x509_store_free (IntPtr handle);
 
-		List<MonoBtlsX509Lookup> lookups;
+		Dictionary<IntPtr,MonoBtlsX509Lookup> lookupHash;
 
 		public void LoadLocations (string file, string path)
 		{
@@ -162,23 +163,55 @@ namespace Mono.Btls
 			LoadLocations (null, systemRoot);
 		}
 
-		public MonoBtlsX509Lookup AddLookup (MonoBtlsX509LookupMethod method)
+		public MonoBtlsX509Lookup AddLookup (MonoBtlsX509LookupType type)
 		{
-			if (lookups == null)
-				lookups = new List<MonoBtlsX509Lookup> ();
+			if (lookupHash == null)
+				lookupHash = new Dictionary<IntPtr,MonoBtlsX509Lookup> ();
 
-			var lookup = new MonoBtlsX509Lookup (this, method, true);
-			lookups.Add (lookup);
+			/*
+			 * X509_STORE_add_lookup() returns the same 'X509_LOOKUP *' for each
+			 * unique 'X509_LOOKUP_METHOD *' (which is supposed to be a static struct)
+			 * and we want to use the same managed object for each unique 'X509_LOOKUP *'.
+			*/
+			var lookup = new MonoBtlsX509Lookup (this, type);
+			var nativeLookup = lookup.GetNativeLookup ();
+			if (lookupHash.ContainsKey (nativeLookup)) {
+				lookup.Dispose ();
+				lookup = lookupHash [nativeLookup];
+			} else {
+				lookupHash.Add (nativeLookup, lookup);
+			}
+
 			return lookup;
+		}
+
+		public void AddDirectoryLookup (string dir, MonoBtlsX509FileType type)
+		{
+			var lookup = AddLookup (MonoBtlsX509LookupType.HASH_DIR);
+			lookup.AddDirectory (dir, type);
+		}
+
+		public void AddFileLookup (string file, MonoBtlsX509FileType type)
+		{
+			var lookup = AddLookup (MonoBtlsX509LookupType.FILE);
+			lookup.LoadFile (file, type);
+		}
+
+		public void AddCollection (X509CertificateCollection collection, MonoBtlsX509TrustKind trust)
+		{
+			var monoLookup = new MonoBtlsX509LookupMonoCollection (collection, trust);
+			var lookup = new MonoBtlsX509Lookup (this, MonoBtlsX509LookupType.MONO);
+			lookup.AddMono (monoLookup);
+			Console.Error.WriteLine ("ADDED MONO LOOKUP!");
 		}
 
 		protected override void Close ()
 		{
 			try {
-				if (lookups != null) {
-					foreach (var lookup in lookups)
+				if (lookupHash != null) {
+					foreach (var lookup in lookupHash.Values)
 						lookup.Dispose ();
-					lookups = null;
+					lookupHash = null;
 				}
 			} finally {
 				base.Close ();
