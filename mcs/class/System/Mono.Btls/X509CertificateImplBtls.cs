@@ -325,15 +325,19 @@ namespace Mono.Btls
 			return FallbackImpl.GetNameInfo (nameType, forIssuer);
 		}
 
-		public override void Import (byte [] rawData, string password, X509KeyStorageFlags keyStorageFlags)
+		public override void Import (byte [] data, string password, X509KeyStorageFlags keyStorageFlags)
 		{
 			if (password == null) {
-				x509 = MonoBtlsX509.LoadFromData (rawData, MonoBtlsX509Format.PEM);
+				// Does it look like PEM?
+				if ((data.Length > 0) && (data [0] != 0x30))
+					x509 = MonoBtlsX509.LoadFromData (data, MonoBtlsX509Format.PEM);
+				else
+					x509 = MonoBtlsX509.LoadFromData (data, MonoBtlsX509Format.DER);
 				return;
 			}
 
 			using (var pkcs12 = new MonoBtlsPkcs12 ()) {
-				pkcs12.Import (rawData, password);
+				pkcs12.Import (data, password);
 				x509 = pkcs12.GetCertificate (0);
 				if (pkcs12.HasPrivateKey)
 					privateKey = pkcs12.GetPrivateKey ();
