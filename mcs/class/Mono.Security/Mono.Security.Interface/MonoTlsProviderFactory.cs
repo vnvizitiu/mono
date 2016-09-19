@@ -39,6 +39,36 @@ namespace Mono.Security.Interface
 	public static partial class MonoTlsProviderFactory
 	{
 		/*
+		 * TLS Provider Initialization
+		 * ===========================
+		 * 
+		 * The "global" TLS Provider (returned by GetProvider()) may only be modified at
+		 * application startup (before any of the TLS / Certificate code has been used).
+		 * 
+		 * On mobile, the default provider is specified at compile time using a property
+		 * in the .csproj file (which can be set from the IDE).  When using the linker, all
+		 * other providers will be linked-out, so you won't be able to choose a different
+		 * provider at run-time.
+		 * 
+		 * On desktop, the default provider can be specified with the MONO_TLS_PROVIDER
+		 * environment variable.  The following options are currently supported:
+		 * 
+		 *    "default" - let Mono pick the best one for you (recommended)
+		 *    "old" or "legacy" - Mono's old managed TLS implementation
+		 *    "appletls" (currently XamMac only, set via .csproj property)
+		 *    "btls" - the new boringssl based provider (coming soon).
+		 * 
+		 * On all platforms (except mobile with linker), you can call
+		 * 
+		 *     MonoTlsProviderFactory.Initialize(string)
+		 * 
+		 * to use a different provider.
+		 * 
+		 */
+
+		#region Provider Initialization
+
+		/*
 		 * Returns the global @MonoTlsProvider, initializing the TLS Subsystem if necessary.
 		 *
 		 * This method throws @NotSupportedException if no TLS Provider can be found.
@@ -74,7 +104,10 @@ namespace Mono.Security.Interface
 		 * May only be called at application startup (before any of the TLS / Certificate
 		 * APIs have been used).
 		 * 
-		 * This method throws @NotSupportedException if @IsInitialized returns true.
+		 * Throws @NotSupportedException if the TLS Subsystem is already initialized
+		 * (@IsInitialized returns true) or the requested provider is not supported.
+		 * 
+		 * On mobile, this will always throw @NotSupportedException when using the linker.
 		 */
 		public static void Initialize (string provider)
 		{
@@ -82,17 +115,28 @@ namespace Mono.Security.Interface
 		}
 
 		/*
-		 * Call-by-call TLS Provider selection.
+		 * Checks whether @provider is supported.
 		 *
+		 * On mobile, this will always return false when using the linker.
 		 */
-		public static bool IsProviderSupported (string name)
+		public static bool IsProviderSupported (string provider)
 		{
-			return NoReflectionHelper.IsProviderSupported (name);
+			return NoReflectionHelper.IsProviderSupported (provider);
 		}
 
-		public static MonoTlsProvider GetProvider (string name)
+		#endregion
+
+		#region Call-by-call selection
+
+		/*
+		 * Returns the requested TLS Provider, for use with the call-by-call APIs below.
+		 * 
+		 * Throw @NotSupportedException if the requested provider is not supported or
+		 * when using the linker on mobile.
+		 */
+		public static MonoTlsProvider GetProvider (string provider)
 		{
-			return (MonoTlsProvider)NoReflectionHelper.GetProvider (name);
+			return (MonoTlsProvider)NoReflectionHelper.GetProvider (provider);
 		}
 
 		/*
@@ -116,6 +160,8 @@ namespace Mono.Security.Interface
 		{
 			return (IMonoSslStream)NoReflectionHelper.GetMonoSslStream (stream);
 		}
+
+		#endregion
 	}
 }
 
