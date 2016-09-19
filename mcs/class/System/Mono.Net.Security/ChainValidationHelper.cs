@@ -139,7 +139,7 @@ namespace Mono.Net.Security
 			if (cloneSettings)
 				settings = settings.CloneWithValidator (this);
 			if (provider == null)
-				provider = MonoTlsProviderFactory.GetDefaultProvider ();
+				provider = MonoTlsProviderFactory.GetProvider ();
 
 			this.provider = provider;
 			this.settings = settings;

@@ -39,7 +39,7 @@ namespace Mono.Security.Interface
 	public static partial class MonoTlsProviderFactory
 	{
 		/*
-		 * Returns the currently installed @MonoTlsProvider, falling back to the default one.
+		 * Returns the global @MonoTlsProvider, initializing the TLS Subsystem if necessary.
 		 *
 		 * This method throws @NotSupportedException if no TLS Provider can be found.
 		 */
@@ -49,41 +49,45 @@ namespace Mono.Security.Interface
 		}
 
 		/*
-		 * Returns the default @MonoTlsProvider.
-		 *
-		 * This method throws @NotSupportedException if no TLS Provider can be found.
+		 * Check whether the TLS Subsystem is initialized.
 		 */
-		public static MonoTlsProvider GetDefaultProvider ()
-		{
-			return (MonoTlsProvider)NoReflectionHelper.GetDefaultProvider ();
-		}
-
-		/*
-		 * GetProvider() attempts to load and install the default provider and throws on error.
-		 *
-		 * This property checks whether a provider has previously been installed by a call
-		 * to either GetProvider() or InstallProvider().
-		 *
-		 */
-		public static bool HasProvider {
+		public static bool IsInitialized {
 			get {
-				return NoReflectionHelper.HasProvider;
+				return NoReflectionHelper.IsInitialized;
 			}
 		}
 
 		/*
-		 * Selects the current TLS Provider.
-		 *
+		 * Initialize the TLS Subsystem.
+		 * 
+		 * This method may be called at any time.  It ensures that the TLS Subsystem is
+		 * initialized and a provider available.
 		 */
-		public static void SetProvider (string name)
+		public static void Initialize ()
 		{
-			NoReflectionHelper.SetProvider (name);
+			NoReflectionHelper.Initialize ();
 		}
 
-		[Obsolete ("Use SetProvider(name); modifying the default provider is not supported.")]
-		public static void SetDefaultProvider (string name)
+		/*
+		 * Initialize the TLS Subsystem with a specific provider.
+		 * 
+		 * May only be called at application startup (before any of the TLS / Certificate
+		 * APIs have been used).
+		 * 
+		 * This method throws @NotSupportedException if @IsInitialized returns true.
+		 */
+		public static void Initialize (string provider)
 		{
-			NoReflectionHelper.SetProvider (name);
+			NoReflectionHelper.Initialize (provider);
+		}
+
+		/*
+		 * Call-by-call TLS Provider selection.
+		 *
+		 */
+		public static bool IsProviderSupported (string name)
+		{
+			return NoReflectionHelper.IsProviderSupported (name);
 		}
 
 		public static MonoTlsProvider GetProvider (string name)
@@ -98,7 +102,7 @@ namespace Mono.Security.Interface
 		 *        mobile build.
 		 * 
 		 */
-		public static HttpWebRequest CreateHttpsRequest (System.Uri requestUri, MonoTlsProvider provider, MonoTlsSettings settings = null)
+		public static HttpWebRequest CreateHttpsRequest (System.Uri requestUri, MonoTlsProvider provider = null, MonoTlsSettings settings = null)
 		{
 			return NoReflectionHelper.CreateHttpsRequest (requestUri, provider, settings);
 		}
