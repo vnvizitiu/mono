@@ -101,7 +101,9 @@ namespace Mono.Net.Security
 			lock (locker) {
 				if (initialized)
 					throw new NotSupportedException ("TLS Subsystem already initialized.");
-				LookupProvider (provider, true);
+
+				var msiProvider = LookupProvider (provider, true);
+				defaultProvider = new Private.MonoTlsProviderWrapper (msiProvider);
 				initialized = true;
 			}
 		}
