@@ -162,6 +162,22 @@ namespace Mono.Security.Interface
 		}
 
 		#endregion
+
+		#region Obsolete APIs
+
+		[Obsolete]
+		public static MonoTlsProvider GetDefaultProvider ()
+		{
+			return GetProvider ();
+		}
+
+		[Obsolete]
+		public static void SetDefaultProvider (string name)
+		{
+			Initialize (name);
+		}
+
+		#endregion
 	}
 }
 
