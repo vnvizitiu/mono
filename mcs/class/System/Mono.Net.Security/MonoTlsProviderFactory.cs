@@ -172,7 +172,6 @@ namespace Mono.Net.Security
 					return;
 				providerRegistration = new Dictionary<string,string> ();
 				providerRegistration.Add ("legacy", "Mono.Net.Security.Private.MonoLegacyTlsProvider");
-				providerRegistration.Add ("newtls", "Mono.Security.Providers.NewTls.NewTlsProvider, Mono.Security.Providers.NewTls, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756");
 				providerRegistration.Add ("oldtls", "Mono.Security.Providers.OldTls.OldTlsProvider, Mono.Security.Providers.OldTls, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756");
 				if (Mono.Btls.MonoBtlsProvider.IsSupported ())
 					providerRegistration.Add ("btls", "Mono.Btls.MonoBtlsProvider");
