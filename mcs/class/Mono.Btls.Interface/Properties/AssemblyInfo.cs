@@ -38,9 +38,9 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyCompany ("MONO development team")]
 [assembly: AssemblyCopyright ("(c) 2016 Xamarin")]
-[assembly: AssemblyDescription ("Mono.Security.Providers.Btls.dll")]
+[assembly: AssemblyDescription ("Mono.Btls.Interface")]
 [assembly: AssemblyProduct ("MONO CLI")]
-[assembly: AssemblyTitle ("Mono.Security.Providers.Btls.dll")]
+[assembly: AssemblyTitle ("Mono.Btls.Interface")]
 [assembly: CLSCompliant (true)]
 [assembly: ComVisible (false)]
 [assembly: NeutralResourcesLanguage ("en-US")]

@@ -134,7 +134,7 @@ xammac_4_5_dirs := \
 	Mono.CompilerServices.SymbolWriter	\
 	System.Data.Linq		\
 	System.Net.Http \
-	Mono.Security.Providers.Btls \
+	Mono.Btls.Interface \
 	System.Net.Http.WebRequest \
 	System.Runtime.InteropServices.RuntimeInformation \
 	System.Reflection.Context	\
@@ -267,7 +267,7 @@ net_4_x_parallel_dirs := \
 	System.ComponentModel.Composition.4.5 \
 	System.Windows \
 	System.Xml.Serialization \
-	Mono.Security.Providers.Btls \
+	Mono.Btls.Interface \
 	System.DirectoryServices.Protocols	\
 	RabbitMQ.Client			\
 	Microsoft.VisualC		\
