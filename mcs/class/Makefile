@@ -53,8 +53,6 @@ mobile_common_dirs := \
 	System.Xml.Serialization \
 	Mono.CSharp	\
 	Microsoft.CSharp \
-	Mono.Security.Providers.Btls	\
-	Mono.Security.Providers.DotNet	\
 	System.Runtime.InteropServices.RuntimeInformation	\
 	System.Reflection.DispatchProxy	\
 	System.Xml.XPath.XmlDocument \
@@ -138,8 +136,6 @@ xammac_4_5_dirs := \
 	System.Net.Http \
 	Mono.Security.Providers.Btls \
 	System.Net.Http.WebRequest \
-	Mono.Security.Providers.DotNet \
-	Mono.Security.Providers.OldTls \
 	System.Runtime.InteropServices.RuntimeInformation \
 	System.Reflection.Context	\
 	System.Net.Http.WinHttpHandler	\
@@ -272,8 +268,6 @@ net_4_x_parallel_dirs := \
 	System.Windows \
 	System.Xml.Serialization \
 	Mono.Security.Providers.Btls \
-	Mono.Security.Providers.DotNet \
-	Mono.Security.Providers.OldTls \
 	System.DirectoryServices.Protocols	\
 	RabbitMQ.Client			\
 	Microsoft.VisualC		\
