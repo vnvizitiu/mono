@@ -153,6 +153,12 @@ namespace Mono.Security.Interface
 			return (ICertificateValidator2)NoReflectionHelper.GetInternalValidator (provider, settings);
 		}
 
+		[Obsolete ("Use GetInternalValidator")]
+		internal static ICertificateValidator2 GetDefaultValidator (MonoTlsSettings settings, MonoTlsProvider provider)
+		{
+			return GetInternalValidator (settings, provider);
+		}
+
 		/*
 		 * Use this overloaded version in user code.
 		 */
