@@ -148,17 +148,17 @@ namespace Mono.Security.Interface
 		/*
 		 * Internal API, intended to be used by MonoTlsProvider implementations.
 		 */
-		internal static ICertificateValidator2 GetDefaultValidator (MonoTlsSettings settings, MonoTlsProvider provider)
+		internal static ICertificateValidator2 GetInternalValidator (MonoTlsSettings settings, MonoTlsProvider provider)
 		{
-			return (ICertificateValidator2)NoReflectionHelper.GetDefaultCertificateValidator (provider, settings);
+			return (ICertificateValidator2)NoReflectionHelper.GetInternalValidator (provider, settings);
 		}
 
 		/*
 		 * Use this overloaded version in user code.
 		 */
-		public static ICertificateValidator GetValidator (MonoTlsSettings settings, MonoTlsProvider provider = null)
+		public static ICertificateValidator GetValidator (MonoTlsSettings settings)
 		{
-			return GetDefaultValidator (settings, provider);
+			return (ICertificateValidator)NoReflectionHelper.GetDefaultValidator (settings);
 		}
 	}
 }
