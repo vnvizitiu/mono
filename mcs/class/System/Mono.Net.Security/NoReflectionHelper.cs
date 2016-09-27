@@ -65,15 +65,6 @@ namespace Mono.Net.Security
 			#endif
 		}
 
-		internal static object GetDefaultValidator (object settings)
-		{
-			#if SECURITY_DEP
-			return ChainValidationHelper.GetDefaultValidator ((MSI.MonoTlsSettings)settings);
-			#else
-			throw new NotSupportedException ();
-			#endif
-		}
-
 		internal static object GetProvider ()
 		{
 			#if SECURITY_DEP
