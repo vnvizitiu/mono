@@ -99,11 +99,8 @@ namespace Mono.Btls
 				var leaf = managedChain.ChainElements[0].Certificate;
 				var result = ValidateCertificate (leaf, managedChain);
 				certificateValidated = true;
-				if (result != null && result.Trusted && !result.UserDenied)
-					return 1;
+				return result ? 1 : 0;
 			}
-
-			return 0;
 		}
 
 		int SelectCallback ()
@@ -114,7 +111,7 @@ namespace Mono.Btls
 			if (remoteCertificate == null)
 				throw new TlsException (AlertDescription.InternalError, "Cannot request client certificate before receiving one from the server.");
 
-			var clientCert = SelectClientCertificate (null);
+			var clientCert = SelectClientCertificate (remoteCertificate, null);
 			Debug ("SELECT CALLBACK #1: {0}", clientCert);
 			if (clientCert == null)
 				return 1;
@@ -278,8 +275,7 @@ namespace Mono.Btls
 			GetPeerCertificate ();
 
 			if (IsServer && AskForClientCertificate && !certificateValidated) {
-				var result = ValidateCertificate (null, null);
-				if (result == null || !result.Trusted || result.UserDenied)
+				if (!ValidateCertificate (null, null))
 					throw new TlsException (AlertDescription.CertificateUnknown);
 			}
 
