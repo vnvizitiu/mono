@@ -16,7 +16,7 @@ namespace Mono.Net.Security
 			case null:
 			case "default":
 			case "legacy":
-				return new Private.MonoLegacyTlsProvider ();
+				return new LegacyTlsProvider ();
 			case "btls":
 				if (!MonoBtlsProvider.IsSupported ())
 					throw new NotSupportedException ("BTLS in not supported!");
