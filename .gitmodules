@@ -39,3 +39,6 @@
 	path = external/cecil-legacy
 	url = git://github.com/mono/cecil.git
 	branch = mono-legacy-0.9.5
+[submodule "external/bockbuild"]
+	path = external/bockbuild
+	url = git@github.com:mono/bockbuild.git
