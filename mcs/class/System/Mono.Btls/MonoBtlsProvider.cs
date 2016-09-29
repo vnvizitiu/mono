@@ -68,15 +68,6 @@ namespace Mono.Btls
 				throw new NotSupportedException ("BTLS is not supported in this runtime.");
 		}
 
-		internal override IMonoTlsContext CreateTlsContext (
-			string hostname, bool serverMode, TlsProtocols protocolFlags,
-			X509Certificate serverCertificate, X509CertificateCollection clientCertificates,
-			bool remoteCertRequired, MonoEncryptionPolicy encryptionPolicy,
-			MonoTlsSettings settings)
-		{
-			throw new NotSupportedException ();
-		}
-
 		public override bool SupportsSslStream {
 			get { return true; }
 		}
@@ -92,11 +83,6 @@ namespace Mono.Btls
 		public override SslProtocols SupportedProtocols {
 			get { return SslProtocols.Tls12 | SslProtocols.Tls11 | SslProtocols.Tls; }
 		}
-
-		internal override bool SupportsTlsContext {
-			get { return false; }
-		}
-
 
 		public override IMonoSslStream CreateSslStream (
 			Stream innerStream, bool leaveInnerStreamOpen,
@@ -129,10 +115,6 @@ namespace Mono.Btls
 			return new X509CertificateImplBtls (data, MonoBtlsX509Format.DER, false);
 		}
 
-		internal override bool HasCustomSystemCertificateValidator {
-			get { return true; }
-		}
-
 		internal static MonoBtlsX509VerifyParam GetVerifyParam (string targetHost, bool serverMode)
 		{
 			MonoBtlsX509VerifyParam param;
@@ -153,19 +135,19 @@ namespace Mono.Btls
 			}
 		}
 
-		internal override bool InvokeSystemCertificateValidator (
+		internal override bool ValidateCertificate (
 			ICertificateValidator2 validator, string targetHost, bool serverMode,
 			X509CertificateCollection certificates, bool wantsChain, ref X509Chain chain,
-			out bool success, ref MonoSslPolicyErrors errors, ref int status11)
+			ref MonoSslPolicyErrors errors, ref int status11)
 		{
 			if (chain != null) {
 				var chainImpl = (X509ChainImplBtls)chain.Impl;
-				success = chainImpl.StoreCtx.VerifyResult == 1;
+				var success = chainImpl.StoreCtx.VerifyResult == 1;
 				CheckValidationResult (
 					validator, targetHost, serverMode, certificates,
 					wantsChain, chain, chainImpl.StoreCtx,
 					success, ref errors, ref status11);
-				return true;
+				return success;
 			}
 
 			using (var store = new MonoBtlsX509Store ())
@@ -181,7 +163,7 @@ namespace Mono.Btls
 
 				var ret = storeCtx.Verify ();
 
-				success = ret == 1;
+				var success = ret == 1;
 
 				if (wantsChain && chain == null) {
 					chain = GetManagedChain (nativeChain);
@@ -191,7 +173,7 @@ namespace Mono.Btls
 					validator, targetHost, serverMode, certificates,
 					wantsChain, null, storeCtx,
 					success, ref errors, ref status11);
-				return true;
+				return success;
 			}
 		}
 
