@@ -6,7 +6,8 @@
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 
-#include "mini.h"
+#include "config.h"
+
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/debug-mono-symfile.h>
 #include <mono/metadata/mempool-internals.h>
@@ -32,6 +33,8 @@
 #include "llvm-jit.h"
 #include "aot-compiler.h"
 #include "mini-llvm.h"
+
+#ifndef DISABLE_JIT
 
 #ifdef __MINGW32__
 
@@ -148,6 +151,7 @@ typedef struct {
 	LLVMValueRef rgctx_arg;
 	LLVMValueRef this_arg;
 	LLVMTypeRef *vreg_types;
+	gboolean *is_vphi;
 	LLVMTypeRef method_type;
 	LLVMBasicBlockRef init_bb, inited_bb;
 	gboolean *is_dead;
@@ -1740,6 +1744,8 @@ get_handler_clause (MonoCompile *cfg, MonoBasicBlock *bb)
 static MonoExceptionClause *
 get_most_deep_clause (MonoCompile *cfg, EmitContext *ctx, MonoBasicBlock *bb)
 {
+	if (bb == cfg->bb_init)
+		return NULL;
 	// Since they're sorted by nesting we just need
 	// the first one that the bb is a member of
 	for (int i = 0; i < cfg->header->num_clauses; i++) {
@@ -3483,6 +3489,9 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 	 */
 
 	lcall = emit_call (ctx, bb, &builder, callee, args, LLVMCountParamTypes (llvm_sig));
+
+	if (ins->opcode != OP_TAILCALL && LLVMGetInstructionOpcode (lcall) == LLVMCall)
+		mono_llvm_set_call_notail (lcall);
 
 	/*
 	 * Modify cconv and parameter attributes to pass rgctx/imt correctly.
@@ -6566,7 +6575,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 
 		/* Convert the value to the type required by phi nodes */
 		if (spec [MONO_INST_DEST] != ' ' && !MONO_IS_STORE_MEMBASE (ins) && ctx->vreg_types [ins->dreg]) {
-			if (!values [ins->dreg])
+			if (ctx->is_vphi [ins->dreg])
 				/* vtypes */
 				values [ins->dreg] = addresses [ins->dreg];
 			else
@@ -6715,6 +6724,7 @@ free_ctx (EmitContext *ctx)
 	g_free (ctx->values);
 	g_free (ctx->addresses);
 	g_free (ctx->vreg_types);
+	g_free (ctx->is_vphi);
 	g_free (ctx->vreg_cli_types);
 	g_free (ctx->is_dead);
 	g_free (ctx->unreachable);
@@ -6775,6 +6785,7 @@ mono_llvm_emit_method (MonoCompile *cfg)
 	 */
 	ctx->addresses = g_new0 (LLVMValueRef, cfg->next_vreg);
 	ctx->vreg_types = g_new0 (LLVMTypeRef, cfg->next_vreg);
+	ctx->is_vphi = g_new0 (gboolean, cfg->next_vreg);
 	ctx->vreg_cli_types = g_new0 (MonoType*, cfg->next_vreg);
 	ctx->phi_values = g_ptr_array_sized_new (256);
 	/* 
@@ -7123,8 +7134,11 @@ emit_method_inner (EmitContext *ctx)
 				for (i = 0; i < ins->inst_phi_args [0]; i++) {
 					int sreg1 = ins->inst_phi_args [i + 1];
 					
-					if (sreg1 != -1)
+					if (sreg1 != -1) {
+						if (ins->opcode == OP_VPHI)
+							ctx->is_vphi [sreg1] = TRUE;
 						ctx->vreg_types [sreg1] = phi_type;
+					}
 				}
 				break;
 				}
@@ -8381,7 +8395,7 @@ mono_llvm_create_aot_module (MonoAssembly *assembly, const char *global_prefix, 
 	module->llvm_only = llvm_only;
 	/* The first few entries are reserved */
 	module->max_got_offset = 16;
-	module->context = LLVMContextCreate ();
+	module->context = LLVMGetGlobalContext ();
 
 	if (llvm_only)
 		/* clang ignores our debug info because it has an invalid version */
@@ -9189,3 +9203,27 @@ default_mono_llvm_unhandled_exception (void)
  *   code.
  * - use pointer types to help optimizations.
  */
+
+#else /* DISABLE_JIT */
+
+void
+mono_llvm_cleanup (void)
+{
+}
+
+void
+mono_llvm_free_domain_info (MonoDomain *domain)
+{
+}
+
+void
+mono_llvm_init (void)
+{
+}
+
+void
+default_mono_llvm_unhandled_exception (void)
+{
+}
+
+#endif /* DISABLE_JIT */
