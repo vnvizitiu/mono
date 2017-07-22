@@ -28,8 +28,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if SECURITY_DEP
-
 using System.Collections;
 using System.Collections.Specialized;
 using System.Globalization;
@@ -404,7 +402,7 @@ namespace System.Net {
 		}
 
 		public long ContentLength64 {
-			get { return content_length; }
+			get { return is_chunked ? -1 : content_length; }
 		}
 
 		public string ContentType {
@@ -579,5 +577,4 @@ namespace System.Net {
 		}
 	}
 }
-#endif
 

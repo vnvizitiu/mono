@@ -43,7 +43,6 @@ namespace MonoTests.System.Net
 		}
 
 		[Test]
-		[Category ("InetAccess")]
 		public void DownloadTwice ()
 		{
 			WebClient wc = new WebClient();
@@ -436,6 +435,17 @@ namespace MonoTests.System.Net
 				Assert.IsNull (inner.InnerException, "#8");
 				Assert.IsNotNull (inner.Message, "#9");
 			}
+		}
+
+		[Test]
+		public void OpenReadTaskAsyncOnFile ()
+		{
+			var tmp = Path.GetTempFileName ();
+			string url = "file://" + tmp;
+
+			var client = new WebClient ();
+			var task = client.OpenReadTaskAsync (url);
+			Assert.IsTrue (task.Wait (2000));
 		}
 
 		[Test] // OpenWrite (string)

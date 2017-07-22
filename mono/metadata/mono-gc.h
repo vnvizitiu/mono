@@ -1,5 +1,6 @@
-/*
- * mono-gc.h: GC related public interface
+/**
+ * \file
+ * GC related public interface
  *
  */
 #ifndef __METADATA_MONO_GC_H__
@@ -43,6 +44,15 @@ typedef enum {
 	// Handle structures, used for object passed to internal functions
 	MONO_ROOT_SOURCE_HANDLE = 14,
 } MonoGCRootSource;
+
+typedef enum {
+	MONO_GC_HANDLE_TYPE_MIN = 0,
+	MONO_GC_HANDLE_WEAK = MONO_GC_HANDLE_TYPE_MIN,
+	MONO_GC_HANDLE_WEAK_TRACK_RESURRECTION,
+	MONO_GC_HANDLE_NORMAL,
+	MONO_GC_HANDLE_PINNED,
+	MONO_GC_HANDLE_TYPE_MAX,
+} MonoGCHandleType;
 
 MONO_API void   mono_gc_collect         (int generation);
 MONO_API int    mono_gc_max_generation  (void);

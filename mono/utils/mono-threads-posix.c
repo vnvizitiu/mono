@@ -1,5 +1,6 @@
-/*
- * mono-threads-posix.c: Low-level threading, posix version
+/**
+ * \file
+ * Low-level threading, posix version
  *
  * Author:
  *	Rodrigo Kumpera (kumpera@gmail.com)
@@ -29,25 +30,23 @@
 extern int tkill (pid_t tid, int signal);
 #endif
 
-#if defined(_POSIX_VERSION) || defined(__native_client__)
+#if defined(_POSIX_VERSION)
 
 #include <pthread.h>
 
 #include <sys/resource.h>
 
-int
-mono_threads_platform_create_thread (MonoThreadStart thread_fn, gpointer thread_data, gsize* const stack_size, MonoNativeThreadId *out_tid)
+gboolean
+mono_thread_platform_create_thread (MonoThreadStart thread_fn, gpointer thread_data, gsize* const stack_size, MonoNativeThreadId *tid)
 {
 	pthread_attr_t attr;
 	pthread_t thread;
-	int policy;
-	struct sched_param param;
 	gint res;
 	gsize set_stack_size;
-	size_t min_size;
 
 	res = pthread_attr_init (&attr);
-	g_assert (!res);
+	if (res != 0)
+		g_error ("%s: pthread_attr_init failed, error: \"%s\" (%d)", __func__, g_strerror (res), res);
 
 	if (stack_size)
 		set_stack_size = *stack_size;
@@ -72,65 +71,45 @@ mono_threads_platform_create_thread (MonoThreadStart thread_fn, gpointer thread_
 #endif
 
 	res = pthread_attr_setstacksize (&attr, set_stack_size);
-	g_assert (!res);
+	if (res != 0)
+		g_error ("%s: pthread_attr_setstacksize failed, error: \"%s\" (%d)", __func__, g_strerror (res), res);
 #endif /* HAVE_PTHREAD_ATTR_SETSTACKSIZE */
-
-	memset (&param, 0, sizeof (param));
-
-	res = pthread_attr_getschedpolicy (&attr, &policy);
-	if (res != 0)
-		g_error ("%s: pthread_attr_getschedpolicy failed, error: \"%s\" (%d)", g_strerror (res), res);
-
-#ifdef _POSIX_PRIORITY_SCHEDULING
-	int max, min;
-
-	/* Necessary to get valid priority range */
-
-	min = sched_get_priority_min (policy);
-	max = sched_get_priority_max (policy);
-
-	if (max > 0 && min >= 0 && max > min)
-		param.sched_priority = (max - min) / 2 + min;
-	else
-#endif
-	{
-		switch (policy) {
-		case SCHED_FIFO:
-		case SCHED_RR:
-			param.sched_priority = 50;
-			break;
-#ifdef SCHED_BATCH
-		case SCHED_BATCH:
-#endif
-		case SCHED_OTHER:
-			param.sched_priority = 0;
-			break;
-		default:
-			g_error ("%s: unknown policy %d", __func__, policy);
-		}
-	}
-
-	res = pthread_attr_setschedparam (&attr, &param);
-	if (res != 0)
-		g_error ("%s: pthread_attr_setschedparam failed, error: \"%s\" (%d)", g_strerror (res), res);
-
-	if (stack_size) {
-		res = pthread_attr_getstacksize (&attr, &min_size);
-		if (res != 0)
-			g_error ("%s: pthread_attr_getstacksize failed, error: \"%s\" (%d)", g_strerror (res), res);
-		else
-			*stack_size = min_size;
-	}
 
 	/* Actually start the thread */
 	res = mono_gc_pthread_create (&thread, &attr, (gpointer (*)(gpointer)) thread_fn, thread_data);
-	if (res)
-		return -1;
+	if (res) {
+		res = pthread_attr_destroy (&attr);
+		if (res != 0)
+			g_error ("%s: pthread_attr_destroy failed, error: \"%s\" (%d)", __func__, g_strerror (res), res);
 
-	if (out_tid)
-		*out_tid = thread;
+		return FALSE;
+	}
 
-	return 0;
+	if (tid)
+		*tid = thread;
+
+	if (stack_size) {
+		res = pthread_attr_getstacksize (&attr, stack_size);
+		if (res != 0)
+			g_error ("%s: pthread_attr_getstacksize failed, error: \"%s\" (%d)", __func__, g_strerror (res), res);
+	}
+
+	res = pthread_attr_destroy (&attr);
+	if (res != 0)
+		g_error ("%s: pthread_attr_destroy failed, error: \"%s\" (%d)", __func__, g_strerror (res), res);
+
+	return TRUE;
+}
+
+void
+mono_threads_platform_init (void)
+{
+}
+
+gboolean
+mono_threads_platform_in_critical_region (MonoNativeThreadId tid)
+{
+	return FALSE;
 }
 
 gboolean
@@ -163,22 +142,29 @@ int
 mono_threads_pthread_kill (MonoThreadInfo *info, int signum)
 {
 	THREADS_SUSPEND_DEBUG ("sending signal %d to %p[%p]\n", signum, info, mono_thread_info_get_tid (info));
+
+	int result;
+
 #ifdef USE_TKILL_ON_ANDROID
-	int result, old_errno = errno;
+	int old_errno = errno;
+
 	result = tkill (info->native_handle, signum);
+
 	if (result < 0) {
 		result = errno;
 		errno = old_errno;
 	}
-	return result;
-#elif defined(__native_client__)
-	/* Workaround pthread_kill abort() in NaCl glibc. */
-	return 0;
-#elif !defined(HAVE_PTHREAD_KILL)
-	g_error ("pthread_kill() is not supported by this platform");
+#elif defined (HAVE_PTHREAD_KILL)
+	result = pthread_kill (mono_thread_info_get_tid (info), signum);
 #else
-	return pthread_kill (mono_thread_info_get_tid (info), signum);
+	result = -1;
+	g_error ("pthread_kill () is not supported by this platform");
 #endif
+
+	if (result && result != ESRCH)
+		g_error ("%s: pthread_kill failed with error %d - potential kernel OOM or signal queue overflow", __func__, result);
+
+	return result;
 }
 
 MonoNativeThreadId
@@ -220,8 +206,8 @@ mono_native_thread_set_name (MonoNativeThreadId tid, const char *name)
 	} else {
 		char n [63];
 
-		strncpy (n, name, 63);
-		n [62] = '\0';
+		memcpy (n, name, sizeof (n) - 1);
+		n [sizeof (n) - 1] = '\0';
 		pthread_setname_np (n);
 	}
 #elif defined (__NetBSD__)
@@ -230,8 +216,8 @@ mono_native_thread_set_name (MonoNativeThreadId tid, const char *name)
 	} else {
 		char n [PTHREAD_MAX_NAMELEN_NP];
 
-		strncpy (n, name, PTHREAD_MAX_NAMELEN_NP);
-		n [PTHREAD_MAX_NAMELEN_NP - 1] = '\0';
+		memcpy (n, name, sizeof (n) - 1);
+		n [sizeof (n) - 1] = '\0';
 		pthread_setname_np (tid, "%s", (void*)n);
 	}
 #elif defined (HAVE_PTHREAD_SETNAME_NP)
@@ -240,8 +226,8 @@ mono_native_thread_set_name (MonoNativeThreadId tid, const char *name)
 	} else {
 		char n [16];
 
-		strncpy (n, name, 16);
-		n [15] = '\0';
+		memcpy (n, name, sizeof (n) - 1);
+		n [sizeof (n) - 1] = '\0';
 		pthread_setname_np (tid, n);
 	}
 #endif
@@ -255,7 +241,7 @@ mono_native_thread_join (MonoNativeThreadId tid)
 	return !pthread_join (tid, &res);
 }
 
-#endif /* defined(_POSIX_VERSION) || defined(__native_client__) */
+#endif /* defined(_POSIX_VERSION) */
 
 #if defined(USE_POSIX_BACKEND)
 
@@ -304,12 +290,6 @@ mono_threads_suspend_abort_syscall (MonoThreadInfo *info)
 	if (mono_threads_pthread_kill (info, mono_threads_suspend_get_abort_signal ()) == 0) {
 		mono_threads_add_to_pending_operation_set (info);
 	}
-}
-
-gboolean
-mono_threads_suspend_needs_abort_syscall (void)
-{
-	return TRUE;
 }
 
 void

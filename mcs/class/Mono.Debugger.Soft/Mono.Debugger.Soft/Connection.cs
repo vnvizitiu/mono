@@ -36,7 +36,7 @@ namespace Mono.Debugger.Soft
 
 	struct SourceInfo {
 		public string source_file;
-		public byte[] guid, hash;
+		public byte[] hash;
 	}
 
 	class DebugInfo {
@@ -420,7 +420,7 @@ namespace Mono.Debugger.Soft
 		 * with newer runtimes, and vice versa.
 		 */
 		internal const int MAJOR_VERSION = 2;
-		internal const int MINOR_VERSION = 44;
+		internal const int MINOR_VERSION = 45;
 
 		enum WPSuspendPolicy {
 			NONE = 0,
@@ -532,7 +532,8 @@ namespace Mono.Debugger.Soft
 			GET_MANIFEST_MODULE = 3,
 			GET_OBJECT = 4,
 			GET_TYPE = 5,
-			GET_NAME = 6
+			GET_NAME = 6,
+			GET_DOMAIN = 7
 		}
 
 		enum CmdModule {
@@ -1235,6 +1236,8 @@ namespace Mono.Debugger.Soft
 					bool res = ReceivePacket ();
 					if (!res)
 						break;
+				} catch (ThreadAbortException) {
+					break;
 				} catch (Exception ex) {
 					if (!closed) {
 						Console.WriteLine (ex);
@@ -2114,6 +2117,10 @@ namespace Mono.Debugger.Soft
 			return SendReceive (CommandSet.ASSEMBLY, (int)CmdAssembly.GET_NAME, new PacketWriter ().WriteId (id)).ReadString ();
 		}
 
+		internal long Assembly_GetIdDomain (long id) {
+			return SendReceive (CommandSet.ASSEMBLY, (int)CmdAssembly.GET_DOMAIN, new PacketWriter ().WriteId (id)).ReadId ();
+		}
+
 		/*
 		 * TYPE
 		 */
@@ -2207,7 +2214,7 @@ namespace Mono.Debugger.Soft
 		internal ValueImpl[] Type_GetValues (long id, long[] fields, long thread_id) {
 			int len = fields.Length;
 			PacketReader r;
-			if (thread_id != 0)
+			if (thread_id != 0 && Version.AtLeast(2, 3))
 				r = SendReceive (CommandSet.TYPE, (int)CmdType.GET_VALUES_2, new PacketWriter ().WriteId (id).WriteId (thread_id).WriteInt (len).WriteIds (fields));
 			else
 				r = SendReceive (CommandSet.TYPE, (int)CmdType.GET_VALUES, new PacketWriter ().WriteId (id).WriteInt (len).WriteIds (fields));

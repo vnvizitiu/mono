@@ -36,8 +36,6 @@ mono_btls_ssl_new (MonoBtlsSslCtx *ctx)
 	ptr->ctx = mono_btls_ssl_ctx_up_ref (ctx);
 	ptr->ssl = SSL_new (mono_btls_ssl_ctx_get_ctx (ptr->ctx));
 
-	SSL_set_options (ptr->ssl, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
-
 	return ptr;
 }
 
@@ -60,6 +58,18 @@ MONO_API void
 mono_btls_ssl_close (MonoBtlsSsl *ptr)
 {
 	;
+}
+
+MONO_API int
+mono_btls_ssl_shutdown (MonoBtlsSsl *ptr)
+{
+    return SSL_shutdown (ptr->ssl);
+}
+
+MONO_API void
+mono_btls_ssl_set_quiet_shutdown (MonoBtlsSsl *ptr, int mode)
+{
+    SSL_set_quiet_shutdown (ptr->ssl, mode);
 }
 
 MONO_API void
@@ -206,4 +216,10 @@ MONO_API int
 mono_btls_ssl_set_server_name (MonoBtlsSsl *ptr, const char *name)
 {
 	return SSL_set_tlsext_host_name (ptr->ssl, name);
+}
+
+MONO_API const char *
+mono_btls_ssl_get_server_name (MonoBtlsSsl *ptr)
+{
+	return SSL_get_servername (ptr->ssl, TLSEXT_NAMETYPE_host_name);
 }

@@ -1,5 +1,6 @@
-/*
- * string-icalls.c: String internal calls for the corlib
+/**
+ * \file
+ * String internal calls for the corlib
  *
  * Author:
  *   Patrik Torstensson (patrik.torstensson@labs2.com)
@@ -22,8 +23,6 @@
 #include <mono/metadata/object.h>
 #include <mono/metadata/exception.h>
 #include <mono/metadata/debug-helpers.h>
-#include <mono/metadata/profiler.h>
-#include <mono/metadata/profiler-private.h>
 #include <mono/metadata/gc-internals.h>
 
 /* This function is redirected to String.CreateString ()

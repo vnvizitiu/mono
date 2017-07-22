@@ -1,5 +1,6 @@
-/*
- * mono-security-windows-uwp.c: UWP security support for Mono.
+/**
+ * \file
+ * UWP security support for Mono.
  *
  * Copyright 2016 Microsoft
  * Licensed under the MIT license. See LICENSE file in the project root for full license information.
@@ -13,26 +14,28 @@
 #include "mono/metadata/mono-security-windows-internals.h"
 
 gpointer
-ves_icall_System_Security_Principal_WindowsIdentity_GetCurrentToken (void)
+mono_security_principal_windows_identity_get_current_token ()
 {
-	MonoError mono_error;
-	mono_error_init (&mono_error);
-
 	g_unsupported_api ("OpenThreadToken, OpenProcessToken");
 
-	mono_error_set_not_supported (&mono_error, G_UNSUPPORTED_API, "OpenThreadToken, OpenProcessToken");
-	mono_error_set_pending_exception (&mono_error);
-
 	SetLastError (ERROR_NOT_SUPPORTED);
-
 	return NULL;
+}
+
+gpointer
+ves_icall_System_Security_Principal_WindowsIdentity_GetCurrentToken (MonoError *error)
+{
+	error_init (error);
+
+	mono_error_set_not_supported (error, G_UNSUPPORTED_API, "OpenThreadToken, OpenProcessToken");
+	return mono_security_principal_windows_identity_get_current_token ();
 }
 
 MonoArray*
 ves_icall_System_Security_Principal_WindowsIdentity_GetRoles (gpointer token)
 {
 	MonoError mono_error;
-	mono_error_init (&mono_error);
+	error_init (&mono_error);
 
 	g_unsupported_api ("GetTokenInformation");
 
@@ -48,7 +51,7 @@ gpointer
 ves_icall_System_Security_Principal_WindowsImpersonationContext_DuplicateToken (gpointer token)
 {
 	MonoError mono_error;
-	mono_error_init (&mono_error);
+	error_init (&mono_error);
 
 	g_unsupported_api ("DuplicateToken");
 
@@ -64,7 +67,7 @@ gboolean
 ves_icall_System_Security_Principal_WindowsImpersonationContext_SetCurrentToken (gpointer token)
 {
 	MonoError mono_error;
-	mono_error_init (&mono_error);
+	error_init (&mono_error);
 
 	g_unsupported_api ("ImpersonateLoggedOnUser");
 
@@ -80,7 +83,7 @@ gboolean
 ves_icall_System_Security_Principal_WindowsImpersonationContext_RevertToSelf (void)
 {
 	MonoError mono_error;
-	mono_error_init (&mono_error);
+	error_init (&mono_error);
 
 	g_unsupported_api ("RevertToSelf");
 
@@ -96,7 +99,7 @@ gint32
 mono_security_win_get_token_name (gpointer token, gunichar2 ** uniname)
 {
 	MonoError mono_error;
-	mono_error_init (&mono_error);
+	error_init (&mono_error);
 
 	g_unsupported_api ("GetTokenInformation");
 
@@ -112,7 +115,7 @@ gboolean
 mono_security_win_is_machine_protected (gunichar2 *path)
 {
 	MonoError mono_error;
-	mono_error_init (&mono_error);
+	error_init (&mono_error);
 
 	g_unsupported_api ("GetNamedSecurityInfo, LocalFree");
 
@@ -128,7 +131,7 @@ gboolean
 mono_security_win_is_user_protected (gunichar2 *path)
 {
 	MonoError mono_error;
-	mono_error_init (&mono_error);
+	error_init (&mono_error);
 
 	g_unsupported_api ("GetNamedSecurityInfo, LocalFree");
 
@@ -144,7 +147,7 @@ gboolean
 mono_security_win_protect_machine (gunichar2 *path)
 {
 	MonoError mono_error;
-	mono_error_init (&mono_error);
+	error_init (&mono_error);
 
 	g_unsupported_api ("BuildTrusteeWithSid, SetEntriesInAcl, SetNamedSecurityInfo, LocalFree, FreeSid");
 
@@ -160,7 +163,7 @@ gboolean
 mono_security_win_protect_user (gunichar2 *path)
 {
 	MonoError mono_error;
-	mono_error_init (&mono_error);
+	error_init (&mono_error);
 
 	g_unsupported_api ("BuildTrusteeWithSid, SetEntriesInAcl, SetNamedSecurityInfo, LocalFree");
 

@@ -1,5 +1,6 @@
-/*
- * sgen-pinning.c: The pin queue.
+/**
+ * \file
+ * The pin queue.
  *
  * Copyright 2001-2003 Ximian, Inc
  * Copyright 2003-2010 Novell, Inc.
@@ -40,9 +41,14 @@ sgen_pinning_init (void)
 void
 sgen_init_pinning (void)
 {
-	mono_os_mutex_lock (&pin_queue_mutex);
 	memset (pin_hash_filter, 0, sizeof (pin_hash_filter));
 	pin_queue.mem_type = INTERNAL_MEM_PIN_QUEUE;
+}
+
+void
+sgen_init_pinning_for_conc (void)
+{
+	mono_os_mutex_lock (&pin_queue_mutex);
 	sgen_pointer_queue_clear (&pin_queue_objs);
 }
 
@@ -51,6 +57,11 @@ sgen_finish_pinning (void)
 {
 	last_num_pinned = pin_queue.next_slot;
 	sgen_pointer_queue_clear (&pin_queue);
+}
+
+void
+sgen_finish_pinning_for_conc (void)
+{
 	mono_os_mutex_unlock (&pin_queue_mutex);
 }
 
@@ -321,8 +332,11 @@ sgen_cement_lookup_or_register (GCObject *obj)
 	SGEN_ASSERT (5, sgen_ptr_in_nursery (obj), "Can only cement pointers to nursery objects");
 
 	if (!hash [i].obj) {
-		SGEN_ASSERT (5, !hash [i].count, "Cementing hash inconsistent");
-		hash [i].obj = obj;
+		GCObject *old_obj;
+		old_obj = InterlockedCompareExchangePointer ((gpointer*)&hash [i].obj, obj, NULL);
+		/* Check if the slot was occupied by some other object */
+		if (old_obj != NULL && old_obj != obj)
+			return FALSE;
 	} else if (hash [i].obj != obj) {
 		return FALSE;
 	}
@@ -330,8 +344,7 @@ sgen_cement_lookup_or_register (GCObject *obj)
 	if (hash [i].count >= SGEN_CEMENT_THRESHOLD)
 		return TRUE;
 
-	++hash [i].count;
-	if (hash [i].count == SGEN_CEMENT_THRESHOLD) {
+	if (InterlockedIncrement ((gint32*)&hash [i].count) == SGEN_CEMENT_THRESHOLD) {
 		SGEN_ASSERT (9, sgen_get_current_collection_generation () >= 0, "We can only cement objects when we're in a collection pause.");
 		SGEN_ASSERT (9, SGEN_OBJECT_IS_PINNED (obj), "Can only cement pinned objects");
 		SGEN_CEMENT_OBJECT (obj);

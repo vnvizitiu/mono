@@ -24,12 +24,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 #if SECURITY_DEP && MONO_FEATURE_BTLS
+#if MONO_SECURITY_ALIAS
+extern alias MonoSecurity;
+#endif
 using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
+
+#if MONO_SECURITY_ALIAS
+using MonoSecurity::Mono.Security.Interface;
+#else
+using Mono.Security.Interface;
+#endif
 
 namespace Mono.Btls
 {
@@ -159,8 +168,7 @@ namespace Mono.Btls
 
 		internal void AddTrustedRoots ()
 		{
-			var systemRoot = MonoBtlsProvider.GetSystemStoreLocation ();
-			LoadLocations (null, systemRoot);
+			MonoBtlsProvider.SetupCertificateStore (this, MonoTlsSettings.DefaultSettings, false);
 		}
 
 		public MonoBtlsX509Lookup AddLookup (MonoBtlsX509LookupType type)

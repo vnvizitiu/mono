@@ -1,5 +1,6 @@
-/*
- * magic-types.c: intrinsics for variable sized int/floats
+/**
+ * \file
+ * intrinsics for variable sized int/floats
  *
  * Author:
  *   Rodrigo Kumpera (kumpera@gmail.com)
@@ -351,6 +352,9 @@ mono_class_is_magic_assembly (MonoClass *klass)
 		return TRUE;
 	if (!strcmp ("Xamarin.WatchOS", klass->image->assembly_name))
 		return TRUE;
+	/* regression test suite */
+	if (!strcmp ("builtin-types", klass->image->assembly_name))
+		return TRUE;
 	return FALSE;
 }
 
@@ -411,8 +415,9 @@ mono_class_is_magic_float (MonoClass *klass)
 		MonoClassField *value_field = mono_class_get_field_from_name (klass, "v");
 		g_assert (value_field);
 		MonoType *t = mono_field_get_type (value_field);
-		g_assert (t->type == mini_native_type_replace_type (&klass->byval_arg)->type);
-
+		MonoType *native = mini_native_type_replace_type (&klass->byval_arg);
+		if (t->type != native->type)
+			g_error ("Assembly used for native types '%s' doesn't match this runtime, %s is mapped to %s, expecting %s.\n", klass->image->name, klass->name, mono_type_full_name (t), mono_type_full_name (native));
 		return TRUE;
 	}
 	return FALSE;

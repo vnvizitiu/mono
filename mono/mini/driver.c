@@ -1,5 +1,6 @@
-/*
- * driver.c: The new mono JIT compiler.
+/**
+ * \file
+ * The new mono JIT compiler.
  *
  * Author:
  *   Paolo Molaro (lupus@ximian.com)
@@ -21,7 +22,7 @@
 #include <unistd.h>
 #endif
 
-#include <mono/metadata/assembly.h>
+#include <mono/metadata/assembly-internals.h>
 #include <mono/metadata/loader.h>
 #include <mono/metadata/tabledefs.h>
 #include <mono/metadata/class.h>
@@ -33,11 +34,8 @@
 #include <mono/metadata/tabledefs.h>
 #include <mono/metadata/threads.h>
 #include <mono/metadata/marshal.h>
-#include <mono/metadata/socket-io.h>
 #include <mono/metadata/appdomain.h>
 #include <mono/metadata/debug-helpers.h>
-#include <mono/io-layer/io-layer.h>
-#include "mono/metadata/profiler.h"
 #include <mono/metadata/profiler-private.h>
 #include <mono/metadata/mono-config.h>
 #include <mono/metadata/environment.h>
@@ -58,6 +56,7 @@
 #include "mini.h"
 #include "jit.h"
 #include "aot-compiler.h"
+#include "interp/interp.h"
 
 #include <string.h>
 #include <ctype.h>
@@ -121,15 +120,6 @@ opt_names [] = {
 
 #endif
 
-static const OptFunc
-opt_funcs [sizeof (int) * 8] = {
-	NULL
-};
-
-#ifdef __native_client__
-extern char *nacl_mono_path;
-#endif
-
 #define DEFAULT_OPTIMIZATIONS (	\
 	MONO_OPT_PEEPHOLE |	\
 	MONO_OPT_CFOLD |	\
@@ -155,7 +145,8 @@ parse_optimizations (guint32 opt, const char* p, gboolean cpu_opts)
 {
 	guint32 exclude = 0;
 	const char *n;
-	int i, invert, len;
+	int i, invert;
+	char **parts, **ptr;
 
 	/* Initialize the hwcap module if necessary. */
 	mono_hwcap_init ();
@@ -168,7 +159,11 @@ parse_optimizations (guint32 opt, const char* p, gboolean cpu_opts)
 	if (!p)
 		return opt;
 
-	while (*p) {
+	parts = g_strsplit (p, ",", -1);
+	for (ptr = parts; ptr && *ptr; ptr ++) {
+		char *arg = *ptr;
+		char *p = arg;
+
 		if (*p == '-') {
 			p++;
 			invert = TRUE;
@@ -177,24 +172,11 @@ parse_optimizations (guint32 opt, const char* p, gboolean cpu_opts)
 		}
 		for (i = 0; i < G_N_ELEMENTS (opt_names) && optflag_get_name (i); ++i) {
 			n = optflag_get_name (i);
-			len = strlen (n);
-			if (strncmp (p, n, len) == 0) {
+			if (!strcmp (p, n)) {
 				if (invert)
 					opt &= ~ (1 << i);
 				else
 					opt |= 1 << i;
-				p += len;
-				if (*p == ',') {
-					p++;
-					break;
-				} else if (*p == '=') {
-					p++;
-					if (opt_funcs [i])
-						opt_funcs [i] (p);
-					while (*p && *p++ != ',');
-					break;
-				}
-				/* error out */
 				break;
 			}
 		}
@@ -204,15 +186,16 @@ parse_optimizations (guint32 opt, const char* p, gboolean cpu_opts)
 					opt = 0;
 				else
 					opt = ~(EXCLUDED_FROM_ALL | exclude);
-				p += 3;
-				if (*p == ',')
-					p++;
 			} else {
 				fprintf (stderr, "Invalid optimization name `%s'\n", p);
 				exit (1);
 			}
 		}
+
+		g_free (arg);
 	}
+	g_free (parts);
+
 	return opt;
 }
 
@@ -285,6 +268,9 @@ mono_parse_graph_options (const char* p)
 	exit (1);
 }
 
+/**
+ * mono_parse_default_optimizations:
+ */
 int
 mono_parse_default_optimizations (const char* p)
 {
@@ -526,6 +512,11 @@ mini_regression (MonoImage *image, int verbose, int *total_run)
 		}
 	} else {
 		for (opt = 0; opt < G_N_ELEMENTS (opt_sets); ++opt) {
+			/* builtin-types.cs needs OPT_INTRINS enabled */
+			if (!strcmp ("builtin-types", image->assembly_name))
+				if (!(opt_sets [opt] & MONO_OPT_INTRINS))
+					continue;
+
 			mini_regression_step (image, verbose, total_run, &total,
 					opt_sets [opt] & ~exclude,
 					timer, domain);
@@ -549,7 +540,7 @@ mini_regression_list (int verbose, int count, char *images [])
 	
 	total_run =  total = 0;
 	for (i = 0; i < count; ++i) {
-		ass = mono_assembly_open (images [i], NULL);
+		ass = mono_assembly_open_predicate (images [i], FALSE, FALSE, NULL, NULL, NULL);
 		if (!ass) {
 			g_warning ("failed to load assembly: %s", images [i]);
 			continue;
@@ -955,7 +946,7 @@ compile_all_methods_thread_main_inner (CompileAllThreadArgs *args)
 			g_print ("Compiling %d %s\n", count, desc);
 			g_free (desc);
 		}
-		cfg = mini_method_compile (method, mono_get_optimizations_for_method (method, args->opts), mono_get_root_domain (), (JitFlags)0, 0, -1);
+		cfg = mini_method_compile (method, mono_get_optimizations_for_method (method, args->opts), mono_get_root_domain (), (JitFlags)JIT_FLAG_DISCARD_RESULTS, 0, -1);
 		if (cfg->exception_type != MONO_EXCEPTION_NONE) {
 			printf ("Compilation of %s failed with exception '%s':\n", mono_method_full_name (cfg->method, TRUE), cfg->exception_message);
 			fail_count ++;
@@ -998,10 +989,9 @@ compile_all_methods (MonoAssembly *ass, int verbose, guint32 opts, guint32 recom
 
 /**
  * mono_jit_exec:
- * @assembly: reference to an assembly
- * @argc: argument count
- * @argv: argument vector
- *
+ * \param assembly reference to an assembly
+ * \param argc argument count
+ * \param argv argument vector
  * Start execution of a program.
  */
 int 
@@ -1135,7 +1125,7 @@ load_agent (MonoDomain *domain, char *desc)
 		args = NULL;
 	}
 
-	agent_assembly = mono_assembly_open (agent, &open_status);
+	agent_assembly = mono_assembly_open_predicate (agent, FALSE, FALSE, NULL, NULL, &open_status);
 	if (!agent_assembly) {
 		fprintf (stderr, "Cannot open agent assembly '%s': %s.\n", agent, mono_image_strerror (open_status));
 		g_free (agent);
@@ -1166,8 +1156,11 @@ load_agent (MonoDomain *domain, char *desc)
 
 	if (args) {
 		main_args = (MonoArray*)mono_array_new_checked (domain, mono_defaults.string_class, 1, &error);
-		if (main_args)
-			mono_array_set (main_args, MonoString*, 0, mono_string_new (domain, args));
+		if (main_args) {
+			MonoString *str = mono_string_new_checked (domain, args, &error);
+			if (str)
+				mono_array_set (main_args, MonoString*, 0, str);
+		}
 	} else {
 		main_args = (MonoArray*)mono_array_new_checked (domain, mono_defaults.string_class, 0, &error);
 	}
@@ -1200,6 +1193,7 @@ mini_usage_jitdeveloper (void)
 	
 	fprintf (stdout,
 		 "Runtime and JIT debugging options:\n"
+		 "    --apply-bindings=FILE  Apply assembly bindings from FILE (only for AOT)\n"
 		 "    --breakonex            Inserts a breakpoint on exceptions\n"
 		 "    --break METHOD         Inserts a breakpoint at METHOD entry\n"
 		 "    --break-at-bb METHOD N Inserts a breakpoint in METHOD at BB N\n"
@@ -1211,7 +1205,6 @@ mini_usage_jitdeveloper (void)
 		 "    --single-method=OPTS   Runs regressions with only one method optimized with OPTS at any time\n"
 		 "    --statfile FILE        Sets the stat file to FILE\n"
 		 "    --stats                Print statistics about the JIT operations\n"
-		 "    --wapi=hps|semdel|seminfo IO-layer maintenance\n"
 		 "    --inject-async-exc METHOD OFFSET Inject an asynchronous exception at METHOD\n"
 		 "    --verify-all           Run the verifier on all assemblies and methods\n"
 		 "    --full-aot             Avoid JITting any code\n"
@@ -1276,6 +1269,7 @@ mini_usage (void)
 	        "    --mixed-mode           Enable mixed-mode image support.\n"
 #endif
 		"    --handlers             Install custom handlers, use --help-handlers for details.\n"
+		"    --aot-path=PATH        List of additional directories to search for AOT images.\n"
 	  );
 }
 
@@ -1372,11 +1366,11 @@ static const char info[] =
 
 static gboolean enable_debugging;
 
-/*
+/**
  * mono_jit_parse_options:
  *
- *   Process the command line options in ARGV as done by the runtime executable. 
- * This should be called before mono_jit_init ().
+ * Process the command line options in \p argv as done by the runtime executable.
+ * This should be called before \c mono_jit_init.
  */
 void
 mono_jit_parse_options (int argc, char * argv[])
@@ -1562,11 +1556,20 @@ switch_arch (char* argv[], const char* target_arch)
 #define MONO_HANDLERS_ARGUMENT "--handlers="
 #define MONO_HANDLERS_ARGUMENT_LEN G_N_ELEMENTS(MONO_HANDLERS_ARGUMENT)-1
 
+static void
+apply_root_domain_configuration_file_bindings (MonoDomain *domain, char *root_domain_configuration_file)
+{
+	g_assert (domain->setup == NULL || domain->setup->configuration_file == NULL);
+	g_assert (!domain->assembly_bindings_parsed);
+
+	mono_domain_parse_assembly_bindings (domain, 0, 0, root_domain_configuration_file);
+
+}
+
 /**
  * mono_main:
- * @argc: number of arguments in the argv array
- * @argv: array of strings containing the startup arguments
- *
+ * \param argc number of arguments in the argv array
+ * \param argv array of strings containing the startup arguments
  * Launches the Mono JIT engine and parses all the command line options
  * in the same way that the mono command line VM would.
  */
@@ -1586,21 +1589,17 @@ mono_main (int argc, char* argv[])
 	guint32 opt, action = DO_EXEC, recompilation_times = 1;
 	MonoGraphOptions mono_graph_options = (MonoGraphOptions)0;
 	int mini_verbose = 0;
-	gboolean enable_profile = FALSE;
 	char *trace_options = NULL;
-	char *profile_options = NULL;
 	char *aot_options = NULL;
 	char *forced_version = NULL;
 	GPtrArray *agents = NULL;
 	char *attach_options = NULL;
+	char *extra_bindings_config_file = NULL;
 #ifdef MONO_JIT_INFO_TABLE_TEST
 	int test_jit_info_table = FALSE;
 #endif
 #ifdef HOST_WIN32
 	int mixed_mode = FALSE;
-#endif
-#ifdef __native_client__
-	gboolean nacl_null_checks_off = FALSE;
 #endif
 
 #ifdef MOONLIGHT
@@ -1618,7 +1617,7 @@ mono_main (int argc, char* argv[])
 	darwin_change_default_file_handles ();
 #endif
 
-	if (g_getenv ("MONO_NO_SMP"))
+	if (g_hasenv ("MONO_NO_SMP"))
 		mono_set_use_smp (FALSE);
 	
 	g_log_set_always_fatal (G_LOG_LEVEL_ERROR);
@@ -1779,6 +1778,18 @@ mono_main (int argc, char* argv[])
 			mono_compile_aot = TRUE;
 			aot_options = &argv [i][6];
 #endif
+		} else if (strncmp (argv [i], "--apply-bindings=", 17) == 0) {
+			extra_bindings_config_file = &argv[i][17];
+		} else if (strncmp (argv [i], "--aot-path=", 11) == 0) {
+			char **splitted;
+
+			splitted = g_strsplit (argv [i] + 11, G_SEARCHPATH_SEPARATOR_S, 1000);
+			while (*splitted) {
+				char *tmp = *splitted;
+				mono_aot_paths = g_list_append (mono_aot_paths, g_strdup (tmp));
+				g_free (tmp);
+				splitted++;
+			}
 		} else if (strncmp (argv [i], "--compile-all=", 14) == 0) {
 			action = DO_COMPILE;
 			recompilation_times = atoi (argv [i] + 14);
@@ -1789,11 +1800,9 @@ mono_main (int argc, char* argv[])
 		} else if (strcmp (argv [i], "--jitmap") == 0) {
 			mono_enable_jit_map ();
 		} else if (strcmp (argv [i], "--profile") == 0) {
-			enable_profile = TRUE;
-			profile_options = NULL;
+			mini_add_profiler_argument (NULL);
 		} else if (strncmp (argv [i], "--profile=", 10) == 0) {
-			enable_profile = TRUE;
-			profile_options = argv [i] + 10;
+			mini_add_profiler_argument (argv [i] + 10);
 		} else if (strncmp (argv [i], "--agent=", 8) == 0) {
 			if (agents == NULL)
 				agents = g_ptr_array_new ();
@@ -1908,12 +1917,27 @@ mono_main (int argc, char* argv[])
 #endif
 		} else if (strcmp (argv [i], "--nollvm") == 0){
 			mono_use_llvm = FALSE;
-#ifdef __native_client__
-		} else if (strcmp (argv [i], "--nacl-mono-path") == 0){
-			nacl_mono_path = g_strdup(argv[++i]);
-		} else if (strcmp (argv [i], "--nacl-null-checks-off") == 0){
-			nacl_null_checks_off = TRUE;
+		} else if ((strcmp (argv [i], "--interpreter") == 0) || !strcmp (argv [i], "--interp")) {
+#ifdef ENABLE_INTERPRETER
+			mono_use_interpreter = TRUE;
+#else
+			fprintf (stderr, "Mono Warning: --interpreter not enabled in this runtime.\n");
 #endif
+		} else if (strncmp (argv [i], "--interp=", 9) == 0) {
+#ifdef ENABLE_INTERPRETER
+			mono_use_interpreter = TRUE;
+			mono_interp_parse_options (argv [i] + 9);
+#else
+			fprintf (stderr, "Mono Warning: --interp= not enabled in this runtime.\n");
+#endif
+		} else if (strncmp (argv [i], "--assembly-loader=", strlen("--assembly-loader=")) == 0) {
+			gchar *arg = argv [i] + strlen ("--assembly-loader=");
+			if (strcmp (arg, "strict") == 0)
+				mono_loader_set_strict_strong_names (TRUE);
+			else if (strcmp (arg, "legacy") == 0)
+				mono_loader_set_strict_strong_names (FALSE);
+			else
+				fprintf (stderr, "Warning: unknown argument to --assembly-loader. Should be \"strict\" or \"legacy\"\n");
 		} else if (strncmp (argv [i], MONO_HANDLERS_ARGUMENT, MONO_HANDLERS_ARGUMENT_LEN) == 0) {
 			//Install specific custom handlers.
 			if (!mono_runtime_install_custom_handlers (argv[i] + MONO_HANDLERS_ARGUMENT_LEN)) {
@@ -1929,13 +1953,6 @@ mono_main (int argc, char* argv[])
 			return 1;
 		}
 	}
-
-#ifdef __native_client_codegen__
-	if (!nacl_null_checks_off) {
-		MonoDebugOptions *opt = mini_get_debug_options ();
-		opt->explicit_null_checks = TRUE;
-	}
-#endif
 
 #if defined(DISABLE_HW_TRAPS) || defined(MONO_ARCH_DISABLE_HW_TRAPS)
 	// Signal handlers not available
@@ -1965,7 +1982,7 @@ mono_main (int argc, char* argv[])
 	}
 #endif
 
-	if (g_getenv ("MONO_XDEBUG"))
+	if (g_hasenv ("MONO_XDEBUG"))
 		enable_debugging = TRUE;
 
 #ifdef MONO_CROSS_COMPILE
@@ -1994,11 +2011,6 @@ mono_main (int argc, char* argv[])
 
 	/* Set rootdir before loading config */
 	mono_set_rootdir ();
-
-	if (enable_profile) {
-		mono_profiler_load (profile_options);
-		mono_profiler_thread_name (MONO_NATIVE_THREAD_ID_TO_UINT (mono_native_thread_id_get ()), "Main");
-	}
 
 	mono_attach_parse_options (attach_options);
 
@@ -2060,6 +2072,17 @@ mono_main (int argc, char* argv[])
 	case DO_SINGLE_METHOD_REGRESSION:
 		mono_do_single_method_regression = TRUE;
 	case DO_REGRESSION:
+#ifdef ENABLE_INTERPRETER
+		if (mono_use_interpreter) {
+			if (mono_interp_regression_list (2, argc -i, argv + i)) {
+				g_print ("Regression ERRORS!\n");
+				// mini_cleanup (domain);
+				return 1;
+			}
+			// mini_cleanup (domain);
+			return 0;
+		}
+#endif
 		if (mini_regression_list (mini_verbose, argc -i, argv + i)) {
 			g_print ("Regression ERRORS!\n");
 			mini_cleanup (domain);
@@ -2106,7 +2129,11 @@ mono_main (int argc, char* argv[])
 		jit_info_table_test (domain);
 #endif
 
-	assembly = mono_assembly_open (aname, &open_status);
+	if (mono_compile_aot && extra_bindings_config_file != NULL) {
+		apply_root_domain_configuration_file_bindings (domain, extra_bindings_config_file);
+	}
+
+	assembly = mono_assembly_open_predicate (aname, FALSE, FALSE, NULL, NULL, &open_status);
 	if (!assembly) {
 		fprintf (stderr, "Cannot open assembly '%s': %s.\n", aname, mono_image_strerror (open_status));
 		mini_cleanup (domain);
@@ -2272,6 +2299,9 @@ mono_main (int argc, char* argv[])
  	return 0;
 }
 
+/**
+ * mono_jit_init:
+ */
 MonoDomain * 
 mono_jit_init (const char *file)
 {
@@ -2280,22 +2310,22 @@ mono_jit_init (const char *file)
 
 /**
  * mono_jit_init_version:
- * @domain_name: the name of the root domain
- * @runtime_version: the version of the runtime to load
+ * \param domain_name the name of the root domain
+ * \param runtime_version the version of the runtime to load
  *
  * Use this version when you want to force a particular runtime
  * version to be used.  By default Mono will pick the runtime that is
- * referenced by the initial assembly (specified in @file), this
+ * referenced by the initial assembly (specified in \p file), this
  * routine allows programmers to specify the actual runtime to be used
  * as the initial runtime is inherited by all future assemblies loaded
  * (since Mono does not support having more than one mscorlib runtime
  * loaded at once).
  *
- * The @runtime_version can be one of these strings: "v4.0.30319" for
+ * The \p runtime_version can be one of these strings: "v4.0.30319" for
  * desktop, "mobile" for mobile or "moonlight" for Silverlight compat.
  * If an unrecognized string is input, the vm will default to desktop.
  *
- * Returns: the MonoDomain representing the domain where the assembly
+ * \returns the \c MonoDomain representing the domain where the assembly
  * was loaded.
  */
 MonoDomain * 
@@ -2304,6 +2334,9 @@ mono_jit_init_version (const char *domain_name, const char *runtime_version)
 	return mini_init (domain_name, runtime_version);
 }
 
+/**
+ * mono_jit_cleanup:
+ */
 void        
 mono_jit_cleanup (MonoDomain *domain)
 {
@@ -2318,6 +2351,9 @@ mono_jit_set_aot_only (gboolean val)
 	mono_aot_only = val;
 }
 
+/**
+ * mono_jit_set_aot_mode:
+ */
 void
 mono_jit_set_aot_mode (MonoAotMode mode)
 {
@@ -2336,16 +2372,19 @@ mono_jit_set_aot_mode (MonoAotMode mode)
 		mono_set_generic_sharing_vt_supported (TRUE);
 		mono_set_partial_sharing_supported (TRUE);
 	}
+	if (mono_aot_mode == MONO_AOT_MODE_INTERP) {
+		mono_aot_only = TRUE;
+		mono_use_interpreter = TRUE;
+	}
 }
 
 /**
  * mono_jit_set_trace_options:
- * @options: string representing the trace options
- *
+ * \param options string representing the trace options
  * Set the options of the tracing engine. This function can be called before initializing
  * the mono runtime. See the --trace mono(1) manpage for the options format.
  *
- * Returns: #TRUE if the options where parsed and set correctly, #FALSE otherwise.
+ * \returns TRUE if the options were parsed and set correctly, FALSE otherwise.
  */
 gboolean
 mono_jit_set_trace_options (const char* options)
@@ -2360,14 +2399,14 @@ mono_jit_set_trace_options (const char* options)
 /**
  * mono_set_signal_chaining:
  *
- *   Enable/disable signal chaining. This should be called before mono_jit_init ().
+ * Enable/disable signal chaining. This should be called before \c mono_jit_init.
  * If signal chaining is enabled, the runtime saves the original signal handlers before
  * installing its own handlers, and calls the original ones in the following cases:
- * - a SIGSEGV/SIGABRT signal received while executing native (i.e. not JITted) code.
- * - SIGPROF
- * - SIGFPE
- * - SIGQUIT
- * - SIGUSR2
+ * - a \c SIGSEGV / \c SIGABRT signal received while executing native (i.e. not JITted) code.
+ * - \c SIGPROF
+ * - \c SIGFPE
+ * - \c SIGQUIT
+ * - \c SIGUSR2
  * Signal chaining only works on POSIX platforms.
  */
 void
@@ -2391,14 +2430,14 @@ mono_set_crash_chaining (gboolean chain_crashes)
 
 /**
  * mono_parse_options_from:
- * @options: string containing strings 
- * @ref_argc: pointer to the argc variable that might be updated 
- * @ref_argv: pointer to the argv string vector variable that might be updated
+ * \param options string containing strings 
+ * \param ref_argc pointer to the \c argc variable that might be updated 
+ * \param ref_argv pointer to the \c argv string vector variable that might be updated
  *
- * This function parses the contents of the `MONO_ENV_OPTIONS`
+ * This function parses the contents of the \c MONO_ENV_OPTIONS
  * environment variable as if they were parsed by a command shell
  * splitting the contents by spaces into different elements of the
- * @argv vector.  This method supports quoting with both the " and '
+ * \p argv vector.  This method supports quoting with both the " and '
  * characters.  Inside quoting, spaces and tabs are significant,
  * otherwise, they are considered argument separators.
  *
@@ -2407,14 +2446,14 @@ mono_set_crash_chaining (gboolean chain_crashes)
  * inside quotes.   If the quotes are not balanced, this method 
  *
  * If the environment variable is empty, no changes are made
- * to the values pointed by @ref_argc and @ref_argv.
+ * to the values pointed by \p ref_argc and \p ref_argv.
  *
- * Otherwise the @ref_argv is modified to point to a new array that contains
+ * Otherwise the \p ref_argv is modified to point to a new array that contains
  * all the previous elements contained in the vector, plus the values parsed.
- * The @argc is updated to match the new number of parameters.
+ * The \p argc is updated to match the new number of parameters.
  *
- * Returns: The value NULL is returned on success, otherwise a g_strdup allocated
- * string is returned (this is an alias to malloc under normal circumstances) that
+ * \returns The value NULL is returned on success, otherwise a \c g_strdup allocated
+ * string is returned (this is an alias to \c malloc under normal circumstances) that
  * contains the error message that happened during parsing.
  */
 char *
@@ -2498,13 +2537,13 @@ mono_parse_options_from (const char *options, int *ref_argc, char **ref_argv [])
 
 /**
  * mono_parse_env_options:
- * @ref_argc: pointer to the argc variable that might be updated 
- * @ref_argv: pointer to the argv string vector variable that might be updated
+ * \param ref_argc pointer to the \c argc variable that might be updated 
+ * \param ref_argv pointer to the \c argv string vector variable that might be updated
  *
- * This function parses the contents of the `MONO_ENV_OPTIONS`
+ * This function parses the contents of the \c MONO_ENV_OPTIONS
  * environment variable as if they were parsed by a command shell
  * splitting the contents by spaces into different elements of the
- * @argv vector.  This method supports quoting with both the " and '
+ * \p argv vector.  This method supports quoting with both the " and '
  * characters.  Inside quoting, spaces and tabs are significant,
  * otherwise, they are considered argument separators.
  *
@@ -2513,11 +2552,11 @@ mono_parse_options_from (const char *options, int *ref_argc, char **ref_argv [])
  * inside quotes.   If the quotes are not balanced, this method 
  *
  * If the environment variable is empty, no changes are made
- * to the values pointed by @ref_argc and @ref_argv.
+ * to the values pointed by \p ref_argc and \p ref_argv.
  *
- * Otherwise the @ref_argv is modified to point to a new array that contains
+ * Otherwise the \p ref_argv is modified to point to a new array that contains
  * all the previous elements contained in the vector, plus the values parsed.
- * The @argc is updated to match the new number of parameters.
+ * The \p argc is updated to match the new number of parameters.
  *
  * If there is an error parsing, this method will terminate the process by
  * calling exit(1).
@@ -2530,10 +2569,11 @@ mono_parse_env_options (int *ref_argc, char **ref_argv [])
 {
 	char *ret;
 	
-	const char *env_options = g_getenv ("MONO_ENV_OPTIONS");
+	char *env_options = g_getenv ("MONO_ENV_OPTIONS");
 	if (env_options == NULL)
 		return;
 	ret = mono_parse_options_from (env_options, ref_argc, ref_argv);
+	g_free (env_options);
 	if (ret == NULL)
 		return;
 	fprintf (stderr, "%s", ret);

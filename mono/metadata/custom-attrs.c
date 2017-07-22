@@ -1,5 +1,6 @@
-/*
- * custom-attrs.c: Custom attributes.
+/**
+ * \file
+ * Custom attributes.
  * 
  * Author:
  *   Paolo Molaro (lupus@ximian.com)
@@ -16,7 +17,6 @@
 #include "mono/metadata/gc-internals.h"
 #include "mono/metadata/mono-endian.h"
 #include "mono/metadata/object-internals.h"
-#include "mono/metadata/reflection-cache.h"
 #include "mono/metadata/custom-attrs-internals.h"
 #include "mono/metadata/sre-internals.h"
 #include "mono/metadata/reflection-internals.h"
@@ -40,8 +40,11 @@
 
 static gboolean type_is_reference (MonoType *type);
 
-static GENERATE_GET_CLASS_WITH_CACHE (custom_attribute_typed_argument, System.Reflection, CustomAttributeTypedArgument);
-static GENERATE_GET_CLASS_WITH_CACHE (custom_attribute_named_argument, System.Reflection, CustomAttributeNamedArgument);
+static GENERATE_GET_CLASS_WITH_CACHE (custom_attribute_typed_argument, "System.Reflection", "CustomAttributeTypedArgument");
+static GENERATE_GET_CLASS_WITH_CACHE (custom_attribute_named_argument, "System.Reflection", "CustomAttributeNamedArgument");
+
+static MonoCustomAttrInfo*
+mono_custom_attrs_from_builders_handle (MonoImage *alloc_img, MonoImage *image, MonoArrayHandle cattrs);
 
 /*
  * LOCKING: Acquires the loader lock. 
@@ -132,12 +135,14 @@ find_field_index (MonoClass *klass, MonoClassField *field) {
  * Find the property index in the metadata Property table.
  */
 static guint32
-find_property_index (MonoClass *klass, MonoProperty *property) {
+find_property_index (MonoClass *klass, MonoProperty *property)
+{
 	int i;
+	MonoClassPropertyInfo *info = mono_class_get_property_info (klass);
 
-	for (i = 0; i < klass->ext->property.count; ++i) {
-		if (property == &klass->ext->properties [i])
-			return klass->ext->property.first + 1 + i;
+	for (i = 0; i < info->count; ++i) {
+		if (property == &info->properties [i])
+			return info->first + 1 + i;
 	}
 	return 0;
 }
@@ -146,12 +151,14 @@ find_property_index (MonoClass *klass, MonoProperty *property) {
  * Find the event index in the metadata Event table.
  */
 static guint32
-find_event_index (MonoClass *klass, MonoEvent *event) {
+find_event_index (MonoClass *klass, MonoEvent *event)
+{
 	int i;
+	MonoClassEventInfo *info = mono_class_get_event_info (klass);
 
-	for (i = 0; i < klass->ext->event.count; ++i) {
-		if (event == &klass->ext->events [i])
-			return klass->ext->event.first + 1 + i;
+	for (i = 0; i < info->count; ++i) {
+		if (event == &info->events [i])
+			return info->first + 1 + i;
 	}
 	return 0;
 }
@@ -184,7 +191,7 @@ load_cattr_enum_type (MonoImage *image, const char *p, const char **end, MonoErr
 	MonoType *t;
 	int slen = mono_metadata_decode_value (p, &p);
 
-	mono_error_init (error);
+	error_init (error);
 
 	n = (char *)g_memdup (p, slen + 1);
 	n [slen] = 0;
@@ -202,7 +209,7 @@ load_cattr_value (MonoImage *image, MonoType *t, const char *p, const char **end
 	int slen, type = t->type;
 	MonoClass *tklass = t->data.klass;
 
-	mono_error_init (error);
+	error_init (error);
 
 handle_enum:
 	switch (type) {
@@ -444,7 +451,7 @@ handle_type:
 static MonoObject*
 load_cattr_value_boxed (MonoDomain *domain, MonoImage *image, MonoType *t, const char* p, const char** end, MonoError *error)
 {
-	mono_error_init (error);
+	error_init (error);
 
 	gboolean is_ref = type_is_reference (t);
 
@@ -470,7 +477,7 @@ create_cattr_typed_arg (MonoType *t, MonoObject *val, MonoError *error)
 	MonoObject *retval;
 	void *params [2], *unboxed;
 
-	mono_error_init (error);
+	error_init (error);
 
 	if (!ctor)
 		ctor = mono_class_get_method_from_name (mono_class_get_custom_attribute_typed_argument_class (), ".ctor", 2);
@@ -496,7 +503,7 @@ create_cattr_named_arg (void *minfo, MonoObject *typedarg, MonoError *error)
 	MonoObject *retval;
 	void *unboxed, *params [2];
 
-	mono_error_init (error);
+	error_init (error);
 
 	if (!ctor)
 		ctor = mono_class_get_method_from_name (mono_class_get_custom_attribute_named_argument_class (), ".ctor", 2);
@@ -514,6 +521,12 @@ create_cattr_named_arg (void *minfo, MonoObject *typedarg, MonoError *error)
 	return retval;
 }
 
+
+static MonoCustomAttrInfo*
+mono_custom_attrs_from_builders_handle (MonoImage *alloc_img, MonoImage *image, MonoArrayHandle cattrs)
+{
+	return mono_custom_attrs_from_builders (alloc_img, image, MONO_HANDLE_RAW (cattrs)); /* FIXME use coop handles for mono_custom_attrs_from_builders */
+}
 
 MonoCustomAttrInfo*
 mono_custom_attrs_from_builders (MonoImage *alloc_img, MonoImage *image, MonoArray *cattrs)
@@ -575,7 +588,7 @@ create_custom_attr (MonoImage *image, MonoMethod *method, const guchar *data, gu
 	void **params = NULL;
 	MonoMethodSignature *sig;
 
-	mono_error_init (error);
+	error_init (error);
 
 	mono_class_init (method->klass);
 
@@ -756,7 +769,7 @@ mono_reflection_create_custom_attr_data_args (MonoImage *image, MonoMethod *meth
 	*named_args = NULL;
 	*named_arg_info = NULL;
 
-	mono_error_init (error);
+	error_init (error);
 
 	if (!mono_verifier_verify_cattr_content (image, method, data, len, NULL)) {
 		mono_error_set_generic_error (error, "System.Reflection", "CustomAttributeFormatException", "Binary format of the specified custom attribute was invalid.");
@@ -885,7 +898,7 @@ reflection_resolve_custom_attribute_data (MonoReflectionMethod *ref_method, Mono
 	CattrNamedArg *arginfo = NULL;
 	int i;
 
-	mono_error_init (error);
+	error_init (error);
 
 	*ctor_args = NULL;
 	*named_args = NULL;
@@ -959,16 +972,15 @@ ves_icall_System_Reflection_CustomAttributeData_ResolveArgumentsInternal (MonoRe
 	mono_error_set_pending_exception (&error);
 }
 
-static MonoObject*
-create_custom_attr_data (MonoImage *image, MonoCustomAttrEntry *cattr, MonoError *error)
+static MonoObjectHandle
+create_custom_attr_data_handle (MonoImage *image, MonoCustomAttrEntry *cattr, MonoError *error)
 {
 	static MonoMethod *ctor;
 
 	MonoDomain *domain;
-	MonoObject *attr;
 	void *params [4];
 
-	mono_error_init (error);
+	error_init (error);
 
 	g_assert (image->assembly);
 
@@ -976,18 +988,34 @@ create_custom_attr_data (MonoImage *image, MonoCustomAttrEntry *cattr, MonoError
 		ctor = mono_class_get_method_from_name (mono_defaults.customattribute_data_class, ".ctor", 4);
 
 	domain = mono_domain_get ();
-	attr = mono_object_new_checked (domain, mono_defaults.customattribute_data_class, error);
-	return_val_if_nok (error, NULL);
-	params [0] = mono_method_get_object_checked (domain, cattr->ctor, NULL, error);
-	return_val_if_nok (error, NULL);
-	params [1] = mono_assembly_get_object_checked (domain, image->assembly, error);
-	return_val_if_nok (error, NULL);
+
+	MonoObjectHandle attr = MONO_HANDLE_NEW (MonoObject, mono_object_new_checked (domain, mono_defaults.customattribute_data_class, error));
+	if (!is_ok (error))
+		goto fail;
+
+	MonoReflectionMethod *ctor_obj = mono_method_get_object_checked (domain, cattr->ctor, NULL, error);
+	if (!is_ok (error))
+		goto fail;
+	MonoReflectionAssemblyHandle assm = mono_assembly_get_object_handle (domain, image->assembly, error);
+	if (!is_ok (error))
+		goto fail;
+	params [0] = ctor_obj;
+	params [1] = MONO_HANDLE_RAW (assm);
 	params [2] = (gpointer)&cattr->data;
 	params [3] = &cattr->data_size;
 
-	mono_runtime_invoke_checked (ctor, attr, params, error);
-	return_val_if_nok (error, NULL);
+	mono_runtime_invoke_checked (ctor, MONO_HANDLE_RAW (attr), params, error);
 	return attr;
+fail:
+	return MONO_HANDLE_NEW (MonoObject, NULL);
+}
+
+static MonoObject *
+create_custom_attr_data (MonoImage *image, MonoCustomAttrEntry *cattr, MonoError *error)
+{
+	HANDLE_FUNCTION_ENTER ();
+	MonoObjectHandle obj = create_custom_attr_data_handle (image, cattr, error);
+	HANDLE_FUNCTION_RETURN_OBJ (obj);
 }
 
 static MonoArray*
@@ -997,7 +1025,7 @@ mono_custom_attrs_construct_by_type (MonoCustomAttrInfo *cinfo, MonoClass *attr_
 	MonoObject *attr;
 	int i, n;
 
-	mono_error_init (error);
+	error_init (error);
 
 	for (i = 0; i < cinfo->num_attrs; ++i) {
 		MonoCustomAttrEntry *centry = &cinfo->attrs[i];
@@ -1037,6 +1065,9 @@ mono_custom_attrs_construct_by_type (MonoCustomAttrInfo *cinfo, MonoClass *attr_
 	return result;
 }
 
+/**
+ * mono_custom_attrs_construct:
+ */
 MonoArray*
 mono_custom_attrs_construct (MonoCustomAttrInfo *cinfo)
 {
@@ -1054,7 +1085,7 @@ mono_custom_attrs_data_construct (MonoCustomAttrInfo *cinfo, MonoError *error)
 	MonoObject *attr;
 	int i;
 	
-	mono_error_init (error);
+	error_init (error);
 	result = mono_array_new_checked (mono_domain_get (), mono_defaults.customattribute_data_class, cinfo->num_attrs, error);
 	return_val_if_nok (error, NULL);
 	for (i = 0; i < cinfo->num_attrs; ++i) {
@@ -1080,8 +1111,7 @@ mono_custom_attrs_from_index (MonoImage *image, guint32 idx)
 }
 /**
  * mono_custom_attrs_from_index_checked:
- *
- * Returns: NULL if no attributes are found.  On error returns NULL and sets @error.
+ * \returns NULL if no attributes are found.  On error returns NULL and sets \p error.
  */
 MonoCustomAttrInfo*
 mono_custom_attrs_from_index_checked (MonoImage *image, guint32 idx, gboolean ignore_missing, MonoError *error)
@@ -1094,7 +1124,7 @@ mono_custom_attrs_from_index_checked (MonoImage *image, guint32 idx, gboolean ig
 	const char *data;
 	MonoCustomAttrEntry* attr;
 
-	mono_error_init (error);
+	error_init (error);
 
 	ca = &image->tables [MONO_TABLE_CUSTOMATTRIBUTE];
 
@@ -1134,7 +1164,7 @@ mono_custom_attrs_from_index_checked (MonoImage *image, guint32 idx, gboolean ig
 			g_warning ("Can't find custom attr constructor image: %s mtoken: 0x%08x due to: %s", image->name, mtoken, mono_error_get_message (error));
 			if (ignore_missing) {
 				mono_error_cleanup (error);
-				mono_error_init (error);
+				error_init (error);
 			} else {
 				g_list_free (list);
 				g_free (ainfo);
@@ -1158,6 +1188,9 @@ mono_custom_attrs_from_index_checked (MonoImage *image, guint32 idx, gboolean ig
 	return ainfo;
 }
 
+/**
+ * mono_custom_attrs_from_method:
+ */
 MonoCustomAttrInfo*
 mono_custom_attrs_from_method (MonoMethod *method)
 {
@@ -1172,7 +1205,7 @@ mono_custom_attrs_from_method_checked (MonoMethod *method, MonoError *error)
 {
 	guint32 idx;
 
-	mono_error_init (error);
+	error_init (error);
 
 	/*
 	 * An instantiated method has the same cattrs as the generic method definition.
@@ -1196,6 +1229,9 @@ mono_custom_attrs_from_method_checked (MonoMethod *method, MonoError *error)
 	return mono_custom_attrs_from_index_checked (method->klass->image, idx, FALSE, error);
 }
 
+/**
+ * mono_custom_attrs_from_class:
+ */
 MonoCustomAttrInfo*
 mono_custom_attrs_from_class (MonoClass *klass)
 {
@@ -1210,7 +1246,7 @@ mono_custom_attrs_from_class_checked (MonoClass *klass, MonoError *error)
 {
 	guint32 idx;
 
-	mono_error_init (error);
+	error_init (error);
 
 	if (mono_class_is_ginst (klass))
 		klass = mono_class_get_generic_class (klass)->container_class;
@@ -1230,6 +1266,9 @@ mono_custom_attrs_from_class_checked (MonoClass *klass, MonoError *error)
 	return mono_custom_attrs_from_index_checked (klass->image, idx, FALSE, error);
 }
 
+/**
+ * mono_custom_attrs_from_assembly:
+ */
 MonoCustomAttrInfo*
 mono_custom_attrs_from_assembly (MonoAssembly *assembly)
 {
@@ -1244,7 +1283,7 @@ mono_custom_attrs_from_assembly_checked (MonoAssembly *assembly, gboolean ignore
 {
 	guint32 idx;
 	
-	mono_error_init (error);
+	error_init (error);
 
 	if (image_is_dynamic (assembly->image))
 		return lookup_custom_attr (assembly->image, assembly);
@@ -1258,6 +1297,8 @@ static MonoCustomAttrInfo*
 mono_custom_attrs_from_module (MonoImage *image, MonoError *error)
 {
 	guint32 idx;
+
+	error_init (error);
 	
 	if (image_is_dynamic (image))
 		return lookup_custom_attr (image, image);
@@ -1267,6 +1308,9 @@ mono_custom_attrs_from_module (MonoImage *image, MonoError *error)
 	return mono_custom_attrs_from_index_checked (image, idx, FALSE, error);
 }
 
+/**
+ * mono_custom_attrs_from_property:
+ */
 MonoCustomAttrInfo*
 mono_custom_attrs_from_property (MonoClass *klass, MonoProperty *property)
 {
@@ -1280,6 +1324,8 @@ MonoCustomAttrInfo*
 mono_custom_attrs_from_property_checked (MonoClass *klass, MonoProperty *property, MonoError *error)
 {
 	guint32 idx;
+
+	error_init (error);
 	
 	if (image_is_dynamic (klass->image)) {
 		property = mono_metadata_get_corresponding_property_from_generic_type_definition (property);
@@ -1291,6 +1337,9 @@ mono_custom_attrs_from_property_checked (MonoClass *klass, MonoProperty *propert
 	return mono_custom_attrs_from_index_checked (klass->image, idx, FALSE, error);
 }
 
+/**
+ * mono_custom_attrs_from_event:
+ */
 MonoCustomAttrInfo*
 mono_custom_attrs_from_event (MonoClass *klass, MonoEvent *event)
 {
@@ -1304,6 +1353,8 @@ MonoCustomAttrInfo*
 mono_custom_attrs_from_event_checked (MonoClass *klass, MonoEvent *event, MonoError *error)
 {
 	guint32 idx;
+
+	error_init (error);
 	
 	if (image_is_dynamic (klass->image)) {
 		event = mono_metadata_get_corresponding_event_from_generic_type_definition (event);
@@ -1315,6 +1366,9 @@ mono_custom_attrs_from_event_checked (MonoClass *klass, MonoEvent *event, MonoEr
 	return mono_custom_attrs_from_index_checked (klass->image, idx, FALSE, error);
 }
 
+/**
+ * mono_custom_attrs_from_field:
+ */
 MonoCustomAttrInfo*
 mono_custom_attrs_from_field (MonoClass *klass, MonoClassField *field)
 {
@@ -1328,7 +1382,7 @@ MonoCustomAttrInfo*
 mono_custom_attrs_from_field_checked (MonoClass *klass, MonoClassField *field, MonoError *error)
 {
 	guint32 idx;
-	mono_error_init (error);
+	error_init (error);
 
 	if (image_is_dynamic (klass->image)) {
 		field = mono_metadata_get_corresponding_field_from_generic_type_definition (field);
@@ -1342,12 +1396,12 @@ mono_custom_attrs_from_field_checked (MonoClass *klass, MonoClassField *field, M
 
 /**
  * mono_custom_attrs_from_param:
- * @method: handle to the method that we want to retrieve custom parameter information from
- * @param: parameter number, where zero represent the return value, and one is the first parameter in the method
+ * \param method handle to the method that we want to retrieve custom parameter information from
+ * \param param parameter number, where zero represent the return value, and one is the first parameter in the method
  *
  * The result must be released with mono_custom_attrs_free().
  *
- * Returns: the custom attribute object for the specified parameter, or NULL if there are none.
+ * \returns the custom attribute object for the specified parameter, or NULL if there are none.
  */
 MonoCustomAttrInfo*
 mono_custom_attrs_from_param (MonoMethod *method, guint32 param)
@@ -1360,13 +1414,13 @@ mono_custom_attrs_from_param (MonoMethod *method, guint32 param)
 
 /**
  * mono_custom_attrs_from_param_checked:
- * @method: handle to the method that we want to retrieve custom parameter information from
- * @param: parameter number, where zero represent the return value, and one is the first parameter in the method
- * @error: set on error
+ * \param method handle to the method that we want to retrieve custom parameter information from
+ * \param param parameter number, where zero represent the return value, and one is the first parameter in the method
+ * \param error set on error
  *
  * The result must be released with mono_custom_attrs_free().
  *
- * Returns: the custom attribute object for the specified parameter, or NULL if there are none.  On failure returns NULL and sets @error.
+ * \returns the custom attribute object for the specified parameter, or NULL if there are none.  On failure returns NULL and sets \p error.
  */
 MonoCustomAttrInfo*
 mono_custom_attrs_from_param_checked (MonoMethod *method, guint32 param, MonoError *error)
@@ -1377,7 +1431,7 @@ mono_custom_attrs_from_param_checked (MonoMethod *method, guint32 param, MonoErr
 	MonoImage *image;
 	MonoReflectionMethodAux *aux;
 
-	mono_error_init (error);
+	error_init (error);
 
 	/*
 	 * An instantiated method has the same cattrs as the generic method definition.
@@ -1436,6 +1490,9 @@ mono_custom_attrs_from_param_checked (MonoMethod *method, guint32 param, MonoErr
 	return mono_custom_attrs_from_index_checked (image, idx, FALSE, error);
 }
 
+/**
+ * mono_custom_attrs_has_attr:
+ */
 gboolean
 mono_custom_attrs_has_attr (MonoCustomAttrInfo *ainfo, MonoClass *attr_klass)
 {
@@ -1451,6 +1508,9 @@ mono_custom_attrs_has_attr (MonoCustomAttrInfo *ainfo, MonoClass *attr_klass)
 	return FALSE;
 }
 
+/**
+ * mono_custom_attrs_get_attr:
+ */
 MonoObject*
 mono_custom_attrs_get_attr (MonoCustomAttrInfo *ainfo, MonoClass *attr_klass)
 {
@@ -1468,7 +1528,7 @@ mono_custom_attrs_get_attr_checked (MonoCustomAttrInfo *ainfo, MonoClass *attr_k
 
 	g_assert (attr_klass != NULL);
 
-	mono_error_init (error);
+	error_init (error);
 
 	for (i = 0; i < ainfo->num_attrs; ++i) {
 		centry = &ainfo->attrs[i];
@@ -1484,92 +1544,108 @@ mono_custom_attrs_get_attr_checked (MonoCustomAttrInfo *ainfo, MonoClass *attr_k
 	return create_custom_attr (ainfo->image, centry->ctor, centry->data, centry->data_size, error);
 }
 
-/*
+/**
  * mono_reflection_get_custom_attrs_info:
- * @obj: a reflection object handle
+ * \param obj a reflection object handle
  *
- * Return the custom attribute info for attributes defined for the
- * reflection handle @obj. The objects.
+ * \returns the custom attribute info for attributes defined for the
+ * reflection handle \p obj. The objects.
  *
  * FIXME this function leaks like a sieve for SRE objects.
  */
 MonoCustomAttrInfo*
-mono_reflection_get_custom_attrs_info (MonoObject *obj)
+mono_reflection_get_custom_attrs_info (MonoObject *obj_raw)
 {
+	HANDLE_FUNCTION_ENTER ();
 	MonoError error;
+	MONO_HANDLE_DCL (MonoObject, obj);
 	MonoCustomAttrInfo *result = mono_reflection_get_custom_attrs_info_checked (obj, &error);
 	mono_error_assert_ok (&error);
-	return result;
+	HANDLE_FUNCTION_RETURN_VAL (result);
 }
 
 /**
  * mono_reflection_get_custom_attrs_info_checked:
- * @obj: a reflection object handle
- * @error: set on error
+ * \param obj a reflection object handle
+ * \param error set on error
  *
- * Return the custom attribute info for attributes defined for the
- * reflection handle @obj. The objects.
- *
- * On failure returns NULL and sets @error.
+ * \returns the custom attribute info for attributes defined for the
+ * reflection handle \p obj. The objects. On failure returns NULL and sets \p error.
  *
  * FIXME this function leaks like a sieve for SRE objects.
  */
 MonoCustomAttrInfo*
-mono_reflection_get_custom_attrs_info_checked (MonoObject *obj, MonoError *error)
+mono_reflection_get_custom_attrs_info_checked (MonoObjectHandle obj, MonoError *error)
 {
+	HANDLE_FUNCTION_ENTER ();
 	MonoClass *klass;
 	MonoCustomAttrInfo *cinfo = NULL;
 	
-	mono_error_init (error);
+	error_init (error);
 
-	klass = obj->vtable->klass;
+	klass = mono_handle_class (obj);
 	if (klass == mono_defaults.runtimetype_class) {
-		MonoType *type = mono_reflection_type_get_handle ((MonoReflectionType *)obj, error);
-		return_val_if_nok (error, NULL);
+		MonoType *type = mono_reflection_type_handle_mono_type (MONO_HANDLE_CAST(MonoReflectionType, obj), error);
+		if (!is_ok (error))
+			goto leave;
 		klass = mono_class_from_mono_type (type);
 		/*We cannot mono_class_init the class from which we'll load the custom attributes since this must work with broken types.*/
 		cinfo = mono_custom_attrs_from_class_checked (klass, error);
-		return_val_if_nok (error, NULL);
+		if (!is_ok (error))
+			goto leave;
 	} else if (strcmp ("Assembly", klass->name) == 0 || strcmp ("MonoAssembly", klass->name) == 0) {
-		MonoReflectionAssembly *rassembly = (MonoReflectionAssembly*)obj;
-		cinfo = mono_custom_attrs_from_assembly_checked (rassembly->assembly, FALSE, error);
-		return_val_if_nok (error, NULL);
+		MonoReflectionAssemblyHandle rassembly = MONO_HANDLE_CAST (MonoReflectionAssembly, obj);
+		cinfo = mono_custom_attrs_from_assembly_checked (MONO_HANDLE_GETVAL (rassembly, assembly), FALSE, error);
+		if (!is_ok (error))
+			goto leave;
 	} else if (strcmp ("Module", klass->name) == 0 || strcmp ("MonoModule", klass->name) == 0) {
-		MonoReflectionModule *module = (MonoReflectionModule*)obj;
-		cinfo = mono_custom_attrs_from_module (module->image, error);
-		return_val_if_nok (error, NULL);
+		MonoReflectionModuleHandle module = MONO_HANDLE_CAST (MonoReflectionModule, obj);
+		cinfo = mono_custom_attrs_from_module (MONO_HANDLE_GETVAL (module, image), error);
+		if (!is_ok (error))
+			goto leave;
 	} else if (strcmp ("MonoProperty", klass->name) == 0) {
-		MonoReflectionProperty *rprop = (MonoReflectionProperty*)obj;
-		cinfo = mono_custom_attrs_from_property_checked (rprop->property->parent, rprop->property, error);
-		return_val_if_nok (error, NULL);
+		MonoReflectionPropertyHandle rprop = MONO_HANDLE_CAST (MonoReflectionProperty, obj);
+		MonoProperty *property = MONO_HANDLE_GETVAL (rprop, property);
+		cinfo = mono_custom_attrs_from_property_checked (property->parent, property, error);
+		if (!is_ok (error))
+			goto leave;
 	} else if (strcmp ("MonoEvent", klass->name) == 0) {
-		MonoReflectionMonoEvent *revent = (MonoReflectionMonoEvent*)obj;
-		cinfo = mono_custom_attrs_from_event_checked (revent->event->parent, revent->event, error);
-		return_val_if_nok (error, NULL);
+		MonoReflectionMonoEventHandle revent = MONO_HANDLE_CAST (MonoReflectionMonoEvent, obj);
+		MonoEvent *event = MONO_HANDLE_GETVAL (revent, event);
+		cinfo = mono_custom_attrs_from_event_checked (event->parent, event, error);
+		if (!is_ok (error))
+			goto leave;
 	} else if (strcmp ("MonoField", klass->name) == 0) {
-		MonoReflectionField *rfield = (MonoReflectionField*)obj;
-		cinfo = mono_custom_attrs_from_field_checked (rfield->field->parent, rfield->field, error);
-		return_val_if_nok (error, NULL);
+		MonoReflectionFieldHandle rfield = MONO_HANDLE_CAST (MonoReflectionField, obj);
+		MonoClassField *field = MONO_HANDLE_GETVAL (rfield, field);
+		cinfo = mono_custom_attrs_from_field_checked (field->parent, field, error);
+		if (!is_ok (error))
+			goto leave;
 	} else if ((strcmp ("MonoMethod", klass->name) == 0) || (strcmp ("MonoCMethod", klass->name) == 0)) {
-		MonoReflectionMethod *rmethod = (MonoReflectionMethod*)obj;
-		cinfo = mono_custom_attrs_from_method_checked (rmethod->method, error);
-		return_val_if_nok (error, NULL);
+		MonoReflectionMethodHandle rmethod = MONO_HANDLE_CAST (MonoReflectionMethod, obj);
+		cinfo = mono_custom_attrs_from_method_checked (MONO_HANDLE_GETVAL (rmethod, method), error);
+		if (!is_ok (error))
+			goto leave;
 	} else if (strcmp ("ParameterInfo", klass->name) == 0 || strcmp ("MonoParameterInfo", klass->name) == 0) {
-		MonoReflectionParameter *param = (MonoReflectionParameter*)obj;
-		MonoClass *member_class = mono_object_class (param->MemberImpl);
+		MonoReflectionParameterHandle param = MONO_HANDLE_CAST (MonoReflectionParameter, obj);
+		MonoObjectHandle member_impl = MONO_HANDLE_NEW_GET (MonoObject, param, MemberImpl);
+		MonoClass *member_class = mono_handle_class (member_impl);
 		if (mono_class_is_reflection_method_or_constructor (member_class)) {
-			MonoReflectionMethod *rmethod = (MonoReflectionMethod*)param->MemberImpl;
-			cinfo = mono_custom_attrs_from_param_checked (rmethod->method, param->PositionImpl + 1, error);
-			return_val_if_nok (error, NULL);
+			MonoReflectionMethodHandle rmethod = MONO_HANDLE_CAST (MonoReflectionMethod, member_impl);
+			cinfo = mono_custom_attrs_from_param_checked (MONO_HANDLE_GETVAL (rmethod, method), MONO_HANDLE_GETVAL (param, PositionImpl) + 1, error);
+			if (!is_ok (error))
+				goto leave;
 		} else if (mono_is_sr_mono_property (member_class)) {
-			MonoReflectionProperty *prop = (MonoReflectionProperty *)param->MemberImpl;
+			MonoReflectionPropertyHandle prop = MONO_HANDLE_CAST (MonoReflectionProperty, member_impl);
+			MonoProperty *property = MONO_HANDLE_GETVAL (prop, property);
 			MonoMethod *method;
-			if (!(method = prop->property->get))
-				method = prop->property->set;
+			if (!(method = property->get))
+				method = property->set;
 			g_assert (method);
 
-			cinfo = mono_custom_attrs_from_param_checked (method, param->PositionImpl + 1, error);
-			return_val_if_nok (error, NULL);
+			cinfo = mono_custom_attrs_from_param_checked (method, MONO_HANDLE_GETVAL (param, PositionImpl) + 1, error);
+			if (!is_ok (error))
+				goto leave;
 		} 
 #ifndef DISABLE_REFLECTION_EMIT
 		else if (mono_is_sre_method_on_tb_inst (member_class)) {/*XXX This is a workaround for Compiler Context*/
@@ -1586,101 +1662,131 @@ mono_reflection_get_custom_attrs_info_checked (MonoObject *obj, MonoError *error
 						      "Custom attributes on a ParamInfo with member %s are not supported",
 						      type_name);
 			g_free (type_name);
-			return NULL;
+			goto leave;
 		}
 	} else if (strcmp ("AssemblyBuilder", klass->name) == 0) {
-		MonoReflectionAssemblyBuilder *assemblyb = (MonoReflectionAssemblyBuilder*)obj;
-		cinfo = mono_custom_attrs_from_builders (NULL, assemblyb->assembly.assembly->image, assemblyb->cattrs);
+		MonoReflectionAssemblyBuilderHandle assemblyb = MONO_HANDLE_CAST (MonoReflectionAssemblyBuilder, obj);
+		MonoReflectionAssemblyHandle assembly = MONO_HANDLE_CAST (MonoReflectionAssembly, assemblyb);
+		MonoArrayHandle cattrs = MONO_HANDLE_NEW_GET (MonoArray, assemblyb, cattrs);
+		cinfo = mono_custom_attrs_from_builders_handle (NULL, MONO_HANDLE_GETVAL (assembly, assembly)->image, cattrs);
 	} else if (strcmp ("TypeBuilder", klass->name) == 0) {
-		MonoReflectionTypeBuilder *tb = (MonoReflectionTypeBuilder*)obj;
-		cinfo = mono_custom_attrs_from_builders (NULL, &tb->module->dynamic_image->image, tb->cattrs);
+		MonoReflectionTypeBuilderHandle tb = MONO_HANDLE_CAST (MonoReflectionTypeBuilder, obj);
+		MonoReflectionModuleBuilderHandle module = MONO_HANDLE_NEW_GET (MonoReflectionModuleBuilder, tb, module);
+		MonoDynamicImage *dynamic_image = MONO_HANDLE_GETVAL (module, dynamic_image);
+		MonoArrayHandle cattrs = MONO_HANDLE_NEW_GET (MonoArray, tb, cattrs);
+		cinfo = mono_custom_attrs_from_builders_handle (NULL, &dynamic_image->image, cattrs);
 	} else if (strcmp ("ModuleBuilder", klass->name) == 0) {
-		MonoReflectionModuleBuilder *mb = (MonoReflectionModuleBuilder*)obj;
-		cinfo = mono_custom_attrs_from_builders (NULL, &mb->dynamic_image->image, mb->cattrs);
+		MonoReflectionModuleBuilderHandle mb = MONO_HANDLE_CAST (MonoReflectionModuleBuilder, obj);
+		MonoDynamicImage *dynamic_image = MONO_HANDLE_GETVAL (mb, dynamic_image);
+		MonoArrayHandle cattrs = MONO_HANDLE_NEW_GET (MonoArray, mb, cattrs);
+		cinfo = mono_custom_attrs_from_builders_handle (NULL, &dynamic_image->image, cattrs);
 	} else if (strcmp ("ConstructorBuilder", klass->name) == 0) {
-		MonoReflectionCtorBuilder *cb = (MonoReflectionCtorBuilder*)obj;
-		cinfo = mono_custom_attrs_from_builders (NULL, cb->mhandle->klass->image, cb->cattrs);
+		MonoReflectionCtorBuilderHandle cb = MONO_HANDLE_CAST (MonoReflectionCtorBuilder, obj);
+		MonoMethod *mhandle = MONO_HANDLE_GETVAL (cb, mhandle);
+		MonoArrayHandle cattrs = MONO_HANDLE_NEW_GET (MonoArray, cb, cattrs);
+		cinfo = mono_custom_attrs_from_builders_handle (NULL, mhandle->klass->image, cattrs);
 	} else if (strcmp ("MethodBuilder", klass->name) == 0) {
-		MonoReflectionMethodBuilder *mb = (MonoReflectionMethodBuilder*)obj;
-		cinfo = mono_custom_attrs_from_builders (NULL, mb->mhandle->klass->image, mb->cattrs);
+		MonoReflectionMethodBuilderHandle mb = MONO_HANDLE_CAST (MonoReflectionMethodBuilder, obj);
+		MonoMethod *mhandle = MONO_HANDLE_GETVAL (mb, mhandle);
+		MonoArrayHandle cattrs = MONO_HANDLE_NEW_GET (MonoArray, mb, cattrs);
+		cinfo = mono_custom_attrs_from_builders_handle (NULL, mhandle->klass->image, cattrs);
 	} else if (strcmp ("FieldBuilder", klass->name) == 0) {
-		MonoReflectionFieldBuilder *fb = (MonoReflectionFieldBuilder*)obj;
-		cinfo = mono_custom_attrs_from_builders (NULL, &((MonoReflectionTypeBuilder*)fb->typeb)->module->dynamic_image->image, fb->cattrs);
+		MonoReflectionFieldBuilderHandle fb = MONO_HANDLE_CAST (MonoReflectionFieldBuilder, obj);
+		MonoReflectionTypeBuilderHandle tb = MONO_HANDLE_NEW_GET (MonoReflectionTypeBuilder, fb, typeb);
+		MonoReflectionModuleBuilderHandle mb = MONO_HANDLE_NEW_GET (MonoReflectionModuleBuilder, tb, module);
+		MonoDynamicImage *dynamic_image = MONO_HANDLE_GETVAL (mb, dynamic_image);
+		MonoArrayHandle cattrs = MONO_HANDLE_NEW_GET (MonoArray, fb, cattrs);
+		cinfo = mono_custom_attrs_from_builders_handle (NULL, &dynamic_image->image, cattrs);
 	} else if (strcmp ("MonoGenericClass", klass->name) == 0) {
-		MonoReflectionGenericClass *gclass = (MonoReflectionGenericClass*)obj;
-		cinfo = mono_reflection_get_custom_attrs_info_checked ((MonoObject*)gclass->generic_type, error);
-		return_val_if_nok (error, NULL);
+		MonoReflectionGenericClassHandle gclass = MONO_HANDLE_CAST (MonoReflectionGenericClass, obj);
+		MonoReflectionTypeHandle generic_type = MONO_HANDLE_NEW_GET (MonoReflectionType, gclass, generic_type);
+		cinfo = mono_reflection_get_custom_attrs_info_checked (MONO_HANDLE_CAST (MonoObject, generic_type), error);
+		if (!is_ok (error))
+			goto leave;
 	} else { /* handle other types here... */
 		g_error ("get custom attrs not yet supported for %s", klass->name);
 	}
 
-	return cinfo;
+leave:
+	HANDLE_FUNCTION_RETURN_VAL (cinfo);
 }
 
-/*
+/**
  * mono_reflection_get_custom_attrs_by_type:
- * @obj: a reflection object handle
- *
- * Return an array with all the custom attributes defined of the
- * reflection handle @obj. If @attr_klass is non-NULL, only custom attributes 
+ * \param obj a reflection object handle
+ * \returns an array with all the custom attributes defined of the
+ * reflection handle \p obj. If \p attr_klass is non-NULL, only custom attributes 
  * of that type are returned. The objects are fully build. Return NULL if a loading error
  * occurs.
  */
 MonoArray*
-mono_reflection_get_custom_attrs_by_type (MonoObject *obj, MonoClass *attr_klass, MonoError *error)
+mono_reflection_get_custom_attrs_by_type (MonoObject *obj_raw, MonoClass *attr_klass, MonoError *error)
 {
-	MonoArray *result;
+	HANDLE_FUNCTION_ENTER ();
+	MONO_HANDLE_DCL (MonoObject, obj);
+	MonoArrayHandle result = mono_reflection_get_custom_attrs_by_type_handle (obj, attr_klass, error);
+	HANDLE_FUNCTION_RETURN_OBJ (result);
+}
+
+MonoArrayHandle
+mono_reflection_get_custom_attrs_by_type_handle (MonoObjectHandle obj, MonoClass *attr_klass, MonoError *error)
+{
+	MonoArrayHandle result = MONO_HANDLE_NEW (MonoArray, NULL);
 	MonoCustomAttrInfo *cinfo;
 
-	mono_error_init (error);
+	error_init (error);
 
 	cinfo = mono_reflection_get_custom_attrs_info_checked (obj, error);
-	return_val_if_nok (error, NULL);
+	if (!is_ok (error))
+		goto leave;
 	if (cinfo) {
-		result = mono_custom_attrs_construct_by_type (cinfo, attr_klass, error);
+		MONO_HANDLE_ASSIGN (result, MONO_HANDLE_NEW (MonoArray, mono_custom_attrs_construct_by_type (cinfo, attr_klass, error))); /* FIXME use coop handles for mono_custom_attrs_construct_by_type */
 		if (!cinfo->cached)
 			mono_custom_attrs_free (cinfo);
 		if (!result)
-			return NULL;
+			goto leave;
 	} else {
-		result = mono_array_new_cached (mono_domain_get (), mono_defaults.attribute_class, 0, error);
+		MONO_HANDLE_ASSIGN (result, mono_array_new_handle (mono_domain_get (), mono_defaults.attribute_class, 0, error));
 	}
 
+leave:
 	return result;
 }
 
-/*
+/**
  * mono_reflection_get_custom_attrs:
- * @obj: a reflection object handle
- *
- * Return an array with all the custom attributes defined of the
- * reflection handle @obj. The objects are fully build. Return NULL if a loading error
+ * \param obj a reflection object handle
+ * \return an array with all the custom attributes defined of the
+ * reflection handle \p obj. The objects are fully build. Return NULL if a loading error
  * occurs.
  */
 MonoArray*
-mono_reflection_get_custom_attrs (MonoObject *obj)
+mono_reflection_get_custom_attrs (MonoObject *obj_raw)
 {
+	HANDLE_FUNCTION_ENTER ();
 	MonoError error;
-
-	return mono_reflection_get_custom_attrs_by_type (obj, NULL, &error);
+	MONO_HANDLE_DCL (MonoObject, obj);
+	MonoArrayHandle result = mono_reflection_get_custom_attrs_by_type_handle (obj, NULL, &error);
+	mono_error_cleanup (&error);
+	HANDLE_FUNCTION_RETURN_OBJ (result);
 }
 
-/*
+/**
  * mono_reflection_get_custom_attrs_data:
- * @obj: a reflection obj handle
- *
- * Returns an array of System.Reflection.CustomAttributeData,
+ * \param obj a reflection obj handle
+ * \returns an array of \c System.Reflection.CustomAttributeData,
  * which include information about attributes reflected on
  * types loaded using the Reflection Only methods
  */
 MonoArray*
-mono_reflection_get_custom_attrs_data (MonoObject *obj)
+mono_reflection_get_custom_attrs_data (MonoObject *obj_raw)
 {
+	HANDLE_FUNCTION_ENTER ();
 	MonoError error;
-	MonoArray* result;
-	result = mono_reflection_get_custom_attrs_data_checked (obj, &error);
+	MONO_HANDLE_DCL (MonoObject, obj);
+	MonoArrayHandle result = mono_reflection_get_custom_attrs_data_checked (obj, &error);
 	mono_error_cleanup (&error);
-	return result;
+	HANDLE_FUNCTION_RETURN_OBJ (result);
 }
 
 /*
@@ -1692,24 +1798,27 @@ mono_reflection_get_custom_attrs_data (MonoObject *obj)
  * which include information about attributes reflected on
  * types loaded using the Reflection Only methods
  */
-MonoArray*
-mono_reflection_get_custom_attrs_data_checked (MonoObject *obj, MonoError *error)
+MonoArrayHandle
+mono_reflection_get_custom_attrs_data_checked (MonoObjectHandle obj, MonoError *error)
 {
-	MonoArray *result;
+	MonoArrayHandle result = MONO_HANDLE_NEW (MonoArray, NULL);
 	MonoCustomAttrInfo *cinfo;
 
-	mono_error_init (error);
+	error_init (error);
 
 	cinfo = mono_reflection_get_custom_attrs_info_checked (obj, error);
-	return_val_if_nok (error, NULL);
+	if (!is_ok (error))
+		goto leave;
 	if (cinfo) {
-		result = mono_custom_attrs_data_construct (cinfo, error);
+		MONO_HANDLE_ASSIGN (result, MONO_HANDLE_NEW (MonoArray, mono_custom_attrs_data_construct (cinfo, error))); /* FIXME use coop handles in mono_custom_attrs_data_construct */
 		if (!cinfo->cached)
 			mono_custom_attrs_free (cinfo);
-		return_val_if_nok (error, NULL);
+		if (!is_ok (error))
+			goto leave;
 	} else 
-		result = mono_array_new_checked (mono_domain_get (), mono_defaults.customattribute_data_class, 0, error);
+		MONO_HANDLE_ASSIGN (result, mono_array_new_handle (mono_domain_get (), mono_defaults.customattribute_data_class, 0, error));
 
+leave:
 	return result;
 }
 
@@ -1820,13 +1929,11 @@ custom_attr_class_name_from_method_token (MonoImage *image, guint32 method_token
 
 /**
  * mono_assembly_metadata_foreach_custom_attr:
- * @assembly: the assembly to iterate over
- * @func: the function to call for each custom attribute
- * @user_data: passed to @func
- *
- * Calls @func for each custom attribute type on the given assembly until @func returns TRUE.
+ * \param assembly the assembly to iterate over
+ * \param func the function to call for each custom attribute
+ * \param user_data passed to \p func
+ * Calls \p func for each custom attribute type on the given assembly until \p func returns TRUE.
  * Everything is done using low-level metadata APIs, so it is safe to use during assembly loading.
- *
  */
 void
 mono_assembly_metadata_foreach_custom_attr (MonoAssembly *assembly, MonoAssemblyMetadataCustomAttrIterFunc func, gpointer user_data)
@@ -1843,6 +1950,9 @@ mono_assembly_metadata_foreach_custom_attr (MonoAssembly *assembly, MonoAssembly
 	 */
 
 	image = assembly->image;
+	/* Dynamic images would need to go through the AssemblyBuilder's
+	 * CustomAttributeBuilder array.  Going through the tables below
+	 * definitely won't work. */
 	g_assert (!image_is_dynamic (image));
 	idx = 1; /* there is only one assembly */
 	idx <<= MONO_CUSTOM_ATTR_BITS;

@@ -2,8 +2,9 @@ if HOST_WIN32
 win32_sources = \
 	console-win32.c \
 	console-win32-internals.h \
-	file-io-windows.c \
-	file-io-windows-internals.h \
+	cominterop-win32-internals.h \
+	w32file-win32.c \
+	w32file-win32-internals.h \
 	icall-windows.c \
 	icall-windows-internals.h \
 	marshal-windows.c \
@@ -15,7 +16,8 @@ win32_sources = \
 	w32event-win32.c \
 	w32process-win32.c \
 	w32process-win32-internals.h \
-	socket-io-windows.c
+	w32socket-win32.c \
+	w32error-win32.c
 
 platform_sources = $(win32_sources)
 
@@ -47,7 +49,12 @@ unix_sources = \
 	w32process-unix-osx.c \
 	w32process-unix-bsd.c \
 	w32process-unix-haiku.c \
-	w32process-unix-default.c
+	w32process-unix-default.c \
+	w32socket-unix.c \
+	w32file-unix.c \
+	w32file-unix-glob.c \
+	w32file-unix-glob.h \
+	w32error-unix.c
 
 platform_sources = $(unix_sources)
 endif
@@ -114,10 +121,13 @@ null_sources = \
 	console-null.c
 
 null_gc_sources = \
-	null-gc.c
+	null-gc.c \
+	null-gc-handles.h \
+	null-gc-handles.c
 
 common_sources = \
 	$(platform_sources)	\
+	appdomain-icalls.h	\
 	assembly.c		\
 	assembly-internals.h	\
 	attach.h		\
@@ -148,9 +158,9 @@ common_sources = \
 	exception.c		\
 	exception.h		\
 	exception-internals.h	\
-	file-io.c		\
-	file-io.h		\
-	file-io-internals.h \
+	w32file.c		\
+	w32file.h		\
+	w32file-internals.h \
 	filewatcher.c		\
 	filewatcher.h		\
 	gc-internals.h		\
@@ -181,10 +191,11 @@ common_sources = \
 	mono-config.c		\
 	mono-debug.h		\
 	mono-debug.c		\
-	mono-debug-debugger.h	\
+	debug-internals.h	\
 	mono-endian.c		\
 	mono-endian.h		\
 	mono-hash.h		\
+	mono-conc-hash.h		\
 	mono-mlist.c		\
 	mono-mlist.h		\
 	mono-perfcounters.c	\
@@ -194,19 +205,23 @@ common_sources = \
 	mono-route.c		\
 	mono-route.h		\
 	monitor.h		\
-	nacl-stub.c		\
 	normalization-tables.h	\
 	number-formatter.h	\
 	number-ms.c		\
 	number-ms.h		\
 	object-internals.h	\
 	opcodes.c		\
-	socket-io.c		\
-	socket-io.h		\
+	property-bag.h	\
+	property-bag.c	\
+	w32socket.c		\
+	w32socket.h		\
+	w32socket-internals.h		\
 	w32process.c		\
 	w32process.h		\
 	w32process-internals.h		\
 	profiler.c		\
+	profiler-events.h	\
+	profiler-legacy.c	\
 	profiler-private.h	\
 	rand.h			\
 	rand.c			\
@@ -226,10 +241,12 @@ common_sources = \
 	tabledefs.h 		\
 	threads.c		\
 	threads-types.h		\
-	threadpool-ms.c	\
-	threadpool-ms.h	\
-	threadpool-ms-io.c	\
-	threadpool-ms-io.h	\
+	threadpool.c	\
+	threadpool.h	\
+	threadpool-worker-default.c	\
+	threadpool-worker.h	\
+	threadpool-io.c	\
+	threadpool-io.h	\
 	verify.c		\
 	verify-internals.h	\
 	wrapper-types.h	\
@@ -256,7 +273,8 @@ common_sources = \
 	w32handle-namespace.h	\
 	w32handle-namespace.c	\
 	w32handle.h	\
-	w32handle.c
+	w32handle.c	\
+	w32error.h
 
 # These source files have compile time dependencies on GC code
 gc_dependent_sources = \
@@ -266,6 +284,7 @@ gc_dependent_sources = \
 	gc.c		\
 	monitor.c	\
 	mono-hash.c	\
+	mono-conc-hash.c	\
 	object.c	\
 	dynamic-image.c	\
 	sre.c	\
@@ -338,4 +357,4 @@ libmonoruntimeinclude_HEADERS = \
 	verify.h		
 
 EXTRA_DIST = $(win32_sources) $(unix_sources) $(null_sources) runtime.h \
-		threadpool-ms-io-poll.c threadpool-ms-io-epoll.c threadpool-ms-io-kqueue.c sgen-dynarray.h
+		threadpool-io-poll.c threadpool-io-epoll.c threadpool-io-kqueue.c sgen-dynarray.h

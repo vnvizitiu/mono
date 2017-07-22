@@ -1,5 +1,6 @@
-/*
- * trace.c: Tracing facilities for the Mono Runtime.
+/**
+ * \file
+ * Tracing facilities for the Mono Runtime.
  *
  * Author:
  *   Paolo Molaro (lupus@ximian.com)
@@ -166,9 +167,10 @@ static void get_string (void)
 	}
 	if (value != NULL)
 		g_free (value);
-	value = (char *)g_malloc (input - start + 1);
-	strncpy (value, start, input-start);
-	value [input-start] = 0;
+	size_t len = input - start;
+	value = (char *)g_malloc (len + 1);
+	memcpy (value, start, len);
+	value [len] = 0;
 }
 
 enum Token {

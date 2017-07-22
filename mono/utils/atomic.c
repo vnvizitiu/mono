@@ -1,6 +1,7 @@
-/*
- * atomic.c:  Workarounds for atomic operations for platforms that dont have
- *	      really atomic asm functions in atomic.h
+/**
+ * \file
+ * Workarounds for atomic operations for platforms that dont have
+ * really atomic asm functions in atomic.h
  *
  * Author:
  *	Dick Porter (dick@ximian.com)
@@ -524,7 +525,7 @@ InterlockedCompareExchange64(volatile gint64 *dest, gint64 exch, gint64 comp)
  * so we have to roll our own...
  */
 
-gint64 InterlockedCompareExchange64(volatile gint64 *dest, gint64 exch, gint64 comp) __attribute__ ((naked));
+gint64 InterlockedCompareExchange64(volatile gint64 *dest, gint64 exch, gint64 comp) __attribute__ ((__naked__));
 
 gint64
 InterlockedCompareExchange64(volatile gint64 *dest, gint64 exch, gint64 comp)

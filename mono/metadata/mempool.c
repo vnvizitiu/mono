@@ -1,5 +1,6 @@
-/*
- * mempool.c: efficient memory allocation
+/**
+ * \file
+ * efficient memory allocation
  *
  * MonoMemPool is for fast allocation of memory. We free
  * all memory when the pool is destroyed.
@@ -19,6 +20,7 @@
 
 #include "mempool.h"
 #include "mempool-internals.h"
+#include "utils/mono-compiler.h"
 
 /*
  * MonoMemPool is for fast allocation of memory. We free
@@ -91,10 +93,19 @@ mono_mempool_new (void)
 
 /**
  * mono_mempool_new_size:
- * @initial_size: the amount of memory to initially reserve for the memory pool.
  *
- * Returns: a new memory pool with a specific initial memory reservation.
+ *   clang's ThreadSanitizer detects races of total_bytes_allocated and pool->d.allocated throughout the functions
+ *     * mono_mempool_alloc
+ *     * mono_mempool_new_size
+ *     * mono_mempool_destroy
+ *   while these races could lead to wrong values, total_bytes_allocated is just used for debugging / reporting and since
+ *   the mempool.c functions are called quite often, a discussion led the the conclusion of ignoring these races:
+ *   https://bugzilla.xamarin.com/show_bug.cgi?id=57936
+ *
+ * \param initial_size the amount of memory to initially reserve for the memory pool.
+ * \returns a new memory pool with a specific initial memory reservation.
  */
+MONO_NO_SANITIZE_THREAD
 MonoMemPool *
 mono_mempool_new_size (int initial_size)
 {
@@ -120,10 +131,20 @@ mono_mempool_new_size (int initial_size)
 
 /**
  * mono_mempool_destroy:
- * @pool: the memory pool to destroy
+ *
+ *   clang's ThreadSanitizer detects races of total_bytes_allocated and pool->d.allocated throughout the functions
+ *     * mono_mempool_alloc
+ *     * mono_mempool_new_size
+ *     * mono_mempool_destroy
+ *   while these races could lead to wrong values, total_bytes_allocated is just used for debugging / reporting and since
+ *   the mempool.c functions are called quite often, a discussion led the the conclusion of ignoring these races:
+ *   https://bugzilla.xamarin.com/show_bug.cgi?id=57936
+ *
+ * \param pool the memory pool to destroy
  *
  * Free all memory associated with this pool.
  */
+MONO_NO_SANITIZE_THREAD
 void
 mono_mempool_destroy (MonoMemPool *pool)
 {
@@ -141,7 +162,7 @@ mono_mempool_destroy (MonoMemPool *pool)
 
 /**
  * mono_mempool_invalidate:
- * @pool: the memory pool to invalidate
+ * \param pool the memory pool to invalidate
  *
  * Fill the memory associated with this pool to 0x2a (42). Useful for debugging.
  */
@@ -160,7 +181,7 @@ mono_mempool_invalidate (MonoMemPool *pool)
 
 /**
  * mono_mempool_stats:
- * @pool: the momory pool we need stats for
+ * \param pool the memory pool we need stats for
  *
  * Print a few stats about the mempool:
  * - Total memory allocated (malloced) by mem pool
@@ -224,7 +245,7 @@ mono_backtrace (int size)
 #endif
 
 /**
- * mono_mempool_alloc:
+ * get_next_size:
  * @pool: the memory pool to use
  * @size: size of the memory entity we are trying to allocate
  *
@@ -251,13 +272,23 @@ get_next_size (MonoMemPool *pool, int size)
 
 /**
  * mono_mempool_alloc:
- * @pool: the memory pool to use
- * @size: size of the memory block
  *
- * Allocates a new block of memory in @pool.
+ *   clang's ThreadSanitizer detects races of total_bytes_allocated and pool->d.allocated throughout the functions
+ *     * mono_mempool_alloc
+ *     * mono_mempool_new_size
+ *     * mono_mempool_destroy
+ *   while these races could lead to wrong values, total_bytes_allocated is just used for debugging / reporting and since
+ *   the mempool.c functions are called quite often, a discussion led the the conclusion of ignoring these races:
+ *   https://bugzilla.xamarin.com/show_bug.cgi?id=57936
  *
- * Returns: the address of a newly allocated memory block.
+ * \param pool the memory pool to use
+ * \param size size of the memory block
+ *
+ * Allocates a new block of memory in \p pool .
+ *
+ * \returns the address of a newly allocated memory block.
  */
+MONO_NO_SANITIZE_THREAD
 gpointer
 mono_mempool_alloc (MonoMemPool *pool, guint size)
 {
@@ -314,7 +345,7 @@ mono_mempool_alloc (MonoMemPool *pool, guint size)
 /**
  * mono_mempool_alloc0:
  *
- * same as mono_mempool_alloc, but fills memory with zero.
+ * same as \c mono_mempool_alloc, but fills memory with zero.
  */
 gpointer
 mono_mempool_alloc0 (MonoMemPool *pool, guint size)
@@ -343,7 +374,7 @@ mono_mempool_alloc0 (MonoMemPool *pool, guint size)
 /**
  * mono_mempool_contains_addr:
  *
- *  Determines whenever ADDR is inside the memory used by the mempool.
+ * Determines whether \p addr is inside the memory used by the mempool.
  */
 gboolean
 mono_mempool_contains_addr (MonoMemPool *pool,

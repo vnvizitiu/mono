@@ -1,3 +1,6 @@
+/**
+ * \file
+ */
 
 #include "w32process.h"
 #include "w32process-unix-internals.h"
@@ -24,7 +27,7 @@ mono_w32process_get_name (pid_t pid)
 	gint mib [6];
 	gsize size;
 	struct kinfo_proc *pi;
-	gchar *ret;
+	gchar *ret = NULL;
 
 #if defined(__FreeBSD__)
 	mib [0] = CTL_KERN;

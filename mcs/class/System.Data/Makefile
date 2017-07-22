@@ -7,6 +7,7 @@ LIBRARY = System.Data.dll
 LIB_REFS = System System.Xml System.Core System.Numerics
 LIB_MCS_FLAGS = \
 	-nowarn:219,414,649 \
+	-d:COREFX	\
 	-d:PLATFORM_UNIX \
 	-d:USEOFFSET \
 	-d:MONO_PARTIAL_DATA_IMPORT \
@@ -34,6 +35,9 @@ endif
 
 TXT_RESOURCE_STRINGS = ../referencesource/System.Data/system.data.txt
 
+RESX_RESOURCE_STRING = \
+	../../../external/corefx/src/System.Data.Common/src/Resources/Strings.resx
+
 TEST_LIB_REFS = System.Core Mono.Data.Sqlite
 TEST_MCS_FLAGS = $(LIB_MCS_FLAGS) -nowarn:618,169,612,219,168
 
@@ -49,8 +53,9 @@ EXTRA_DISTFILES = \
 	$(wildcard Test/System.Data/schemas/*.xsd)		\
 	Test/test-config-file			\
 	Test/System.Data/binserialize/*.bin	\
+	Test/ProviderTests/sql/*.sql	\
 	SqliteTest.db	\
-	referencesource.sources
+	corefx.common.sources
 
 gen_OdbcConnection.cs: ../referencesource/System.Data/System/Data/ProviderBase/DbConnectionHelper.cs
 	sed -e "s/NAMESPACE/System.Data.Odbc/g" $< |\

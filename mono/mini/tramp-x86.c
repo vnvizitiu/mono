@@ -1,5 +1,6 @@
-/*
- * tramp-x86.c: JIT trampoline code for x86
+/**
+ * \file
+ * JIT trampoline code for x86
  *
  * Authors:
  *   Dietmar Maurer (dietmar@ximian.com)
@@ -15,8 +16,6 @@
 #include <mono/metadata/metadata-internals.h>
 #include <mono/metadata/marshal.h>
 #include <mono/metadata/tabledefs.h>
-#include <mono/metadata/mono-debug.h>
-#include <mono/metadata/mono-debug-debugger.h>
 #include <mono/metadata/profiler-private.h>
 #include <mono/metadata/gc-internals.h>
 #include <mono/arch/x86/x86-codegen.h>
@@ -55,7 +54,7 @@ mono_arch_get_unbox_trampoline (MonoMethod *m, gpointer addr)
 	x86_jump_code (code, addr);
 	g_assert ((code - start) < size);
 
-	mono_profiler_code_buffer_new (start, code - start, MONO_PROFILER_CODE_BUFFER_UNBOX_TRAMPOLINE, m);
+	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_UNBOX_TRAMPOLINE, m));
 
 	mono_tramp_info_register (mono_tramp_info_create (NULL, start, code - start, NULL, unwind_ops), domain);
 
@@ -63,7 +62,7 @@ mono_arch_get_unbox_trampoline (MonoMethod *m, gpointer addr)
 }
 
 gpointer
-mono_arch_get_static_rgctx_trampoline (MonoMethod *m, MonoMethodRuntimeGenericContext *mrgctx, gpointer addr)
+mono_arch_get_static_rgctx_trampoline (gpointer arg, gpointer addr)
 {
 	guint8 *code, *start;
 	int buf_len;
@@ -77,12 +76,12 @@ mono_arch_get_static_rgctx_trampoline (MonoMethod *m, MonoMethodRuntimeGenericCo
 
 	unwind_ops = mono_arch_get_cie_program ();
 
-	x86_mov_reg_imm (code, MONO_ARCH_RGCTX_REG, mrgctx);
+	x86_mov_reg_imm (code, MONO_ARCH_RGCTX_REG, arg);
 	x86_jump_code (code, addr);
 	g_assert ((code - start) <= buf_len);
 
 	mono_arch_flush_icache (start, code - start);
-	mono_profiler_code_buffer_new (start, code - start, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL);
+	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL));
 
 	mono_tramp_info_register (mono_tramp_info_create (NULL, start, code - start, NULL, unwind_ops), domain);
 
@@ -428,7 +427,7 @@ mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInf
 	}
 
 	g_assert ((code - buf) <= 256);
-	mono_profiler_code_buffer_new (buf, code - buf, MONO_PROFILER_CODE_BUFFER_HELPER, NULL);
+	MONO_PROFILER_RAISE (jit_code_buffer, (buf, code - buf, MONO_PROFILER_CODE_BUFFER_HELPER, NULL));
 
 	tramp_name = mono_get_generic_trampoline_name (tramp_type);
 	*info = mono_tramp_info_create (tramp_name, buf, code - buf, ji, unwind_ops);
@@ -453,7 +452,7 @@ mono_arch_create_specific_trampoline (gpointer arg1, MonoTrampolineType tramp_ty
 	g_assert ((buf - code) <= TRAMPOLINE_SIZE);
 
 	mono_arch_flush_icache (code, buf - code);
-	mono_profiler_code_buffer_new (code, buf - code, MONO_PROFILER_CODE_BUFFER_SPECIFIC_TRAMPOLINE, mono_get_generic_trampoline_simple_name (tramp_type));
+	MONO_PROFILER_RAISE (jit_code_buffer, (code, buf - code, MONO_PROFILER_CODE_BUFFER_SPECIFIC_TRAMPOLINE, mono_get_generic_trampoline_simple_name (tramp_type)));
 
 	if (code_len)
 		*code_len = buf - code;
@@ -547,7 +546,7 @@ mono_arch_create_rgctx_lazy_fetch_trampoline (guint32 slot, MonoTrampInfo **info
 	}
 
 	mono_arch_flush_icache (buf, code - buf);
-	mono_profiler_code_buffer_new (buf, code - buf, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL);
+	MONO_PROFILER_RAISE (jit_code_buffer, (buf, code - buf, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL));
 
 	g_assert (code - buf <= tramp_size);
 
@@ -590,7 +589,7 @@ mono_arch_create_general_rgctx_lazy_fetch_trampoline (MonoTrampInfo **info, gboo
 	x86_jump_reg (code, X86_EAX);
 
 	mono_arch_flush_icache (buf, code - buf);
-	mono_profiler_code_buffer_new (buf, code - buf, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL);
+	MONO_PROFILER_RAISE (jit_code_buffer, (buf, code - buf, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL));
 
 	g_assert (code - buf <= tramp_size);
 
@@ -612,7 +611,7 @@ mono_arch_invalidate_method (MonoJitInfo *ji, void *func, gpointer func_arg)
 static gpointer
 handler_block_trampoline_helper (void)
 {
-	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
+	MonoJitTlsData *jit_tls = mono_tls_get_jit_tls ();
 	return jit_tls->handler_block_return_address;
 }
 
@@ -640,13 +639,8 @@ mono_arch_create_handler_block_trampoline (MonoTrampInfo **info, gboolean aot)
 	 * We are in a method frame after the call emitted by OP_CALL_HANDLER.
 	 */
 
-	if (mono_get_jit_tls_offset () != -1) {
-		code = mono_x86_emit_tls_get (code, X86_EAX, mono_get_jit_tls_offset ());
-		x86_mov_reg_membase (code, X86_EAX, X86_EAX, MONO_STRUCT_OFFSET (MonoJitTlsData, handler_block_return_address), 4);
-	} else {
-		/*Slow path uses a c helper*/
-		x86_call_code (code, handler_block_trampoline_helper);
-	}
+	/*Slow path uses a c helper*/
+	x86_call_code (code, handler_block_trampoline_helper);
 	/* Simulate a call */
 	/*Fix stack alignment*/
 	x86_alu_reg_imm (code, X86_SUB, X86_ESP, 0x4);
@@ -665,7 +659,7 @@ mono_arch_create_handler_block_trampoline (MonoTrampInfo **info, gboolean aot)
 	x86_jump_code (code, tramp);
 
 	mono_arch_flush_icache (buf, code - buf);
-	mono_profiler_code_buffer_new (buf, code - buf, MONO_PROFILER_CODE_BUFFER_HELPER, NULL);
+	MONO_PROFILER_RAISE (jit_code_buffer, (buf, code - buf, MONO_PROFILER_CODE_BUFFER_HELPER, NULL));
 	g_assert (code - buf <= tramp_size);
 
 	*info = mono_tramp_info_create ("handler_block_trampoline", buf, code - buf, ji, unwind_ops);
@@ -716,7 +710,7 @@ mono_arch_get_gsharedvt_arg_trampoline (MonoDomain *domain, gpointer arg, gpoint
 	g_assert ((code - start) <= buf_len);
 
 	mono_arch_flush_icache (start, code - start);
-	mono_profiler_code_buffer_new (start, code - start, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL);
+	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_GENERICS_TRAMPOLINE, NULL));
 
 	mono_tramp_info_register (mono_tramp_info_create (NULL, start, code - start, NULL, unwind_ops), domain);
 
@@ -822,5 +816,12 @@ mono_arch_create_sdb_trampoline (gboolean single_step, MonoTrampInfo **info, gbo
 	*info = mono_tramp_info_create (tramp_name, buf, code - buf, ji, unwind_ops);
 
 	return buf;
+}
+
+gpointer
+mono_arch_get_enter_icall_trampoline (MonoTrampInfo **info)
+{
+	g_assert_not_reached ();
+	return NULL;
 }
 

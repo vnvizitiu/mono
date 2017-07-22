@@ -14,6 +14,7 @@
 #endif
 
 #include <stdint.h>
+#include <inttypes.h>
 
 #include <eglib-config.h>
 #ifndef EGLIB_NO_REMAP
@@ -160,7 +161,8 @@ typedef struct _GMemChunk GMemChunk;
  * Misc.
  */
 
-const gchar *    g_getenv(const gchar *variable);
+gboolean         g_hasenv(const gchar *variable);
+gchar *          g_getenv(const gchar *variable);
 gboolean         g_setenv(const gchar *variable, const gchar *value, gboolean overwrite);
 void             g_unsetenv(const gchar *variable);
 

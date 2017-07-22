@@ -87,7 +87,7 @@ namespace MonoTests.System.Net.Sockets
 		}
 
 		[Test]
-		[Category ("InetAccess")]
+		[Category ("NotWorking")]
 #if FEATURE_NO_BSD_SOCKETS
 		[ExpectedException (typeof (PlatformNotSupportedException))]
 #endif
@@ -3718,27 +3718,84 @@ namespace MonoTests.System.Net.Sockets
 			}
 		}
 
+		// Test case for https://bugzilla.novell.com/show_bug.cgi?id=443346
+		// See also https://bugzilla.xamarin.com/show_bug.cgi?id=52157
 		[Test]
-		[Category ("NotOnMac")]
-                public void ConnectedProperty ()
-                {
-			TcpListener listener = new TcpListener (IPAddress.Loopback, NetworkHelpers.FindFreePort ());
+		public void ConnectedProperty ()
+		{
+			var port = NetworkHelpers.FindFreePort ();
+			var listener = new TcpListener (IPAddress.Loopback, port);
 			listener.Start();
 
-			Socket client = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-			client.Connect (IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port);
-			Socket server = listener.AcceptSocket ();
+			var client = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+			client.Connect (IPAddress.Loopback, port);
+			var server = listener.AcceptSocket ();
 
-			try {
-				server.EndSend(server.BeginSend (new byte[10], 0, 10, SocketFlags.None, null, null));
+			const int blobSize = 2048;
+
+			// Small send/recv buffers so that our send operation will fill them
+			server.ReceiveBufferSize = server.SendBufferSize = 256;
+			client.ReceiveBufferSize = client.SendBufferSize = 256;
+
+			// Setting this linger state causes shutdown to be a hard close (RST if send data is pending)
+			server.LingerState = client.LingerState = new LingerOption (true, 0);
+
+			// KeepAlive being set introduces another opportunity for a RST according to some documentation
+			server.SetSocketOption (SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+			client.SetSocketOption (SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+
+			try 
+			{
+				// Fill the send buffer
+				client.Send (new byte[blobSize]);
+				// Now shut down the socket. Because of the linger state this will hard close and send RST.
+				client.Shutdown (SocketShutdown.Both);
 				client.Close ();
-				try {
-					server.EndReceive (server.BeginReceive (new byte[10], 0, 10, SocketFlags.None, null, null));
-				} catch {
+
+				Assert.IsFalse (client.Connected);
+				Assert.IsTrue (server.Connected);
+
+				var isDead = false;
+
+				try 
+				{
+					// On Windows this BeginSend succeeds... it really shouldn't and a sync send fails.
+					// On Linux this fails with a ConnectionReset.
+					var ar = server.BeginSend (new byte[blobSize], 0, blobSize, SocketFlags.None, null, null);
+					// On Mac we get an erroneous WSAESHUTDOWN (10058) here
+					server.EndSend (ar);
+				} 
+				catch (SocketException se) 
+				{
+					isDead = true;
+
+					if (
+						(se.SocketErrorCode != SocketError.ConnectionReset) &&
+						(se.SocketErrorCode != SocketError.Shutdown)
+					)
+						throw;
+				} 
+
+				if (!isDead) 
+				{
+					try 
+					{
+						// On Windows this second send operation will fail with a ConnectionReset.
+						var ar = server.BeginSend (new byte[blobSize], 0, blobSize, SocketFlags.None, null, null);
+						server.EndSend (ar);
+					} 
+					catch (SocketException se) 
+					{
+						if (se.SocketErrorCode != SocketError.ConnectionReset)
+							throw;
+					} 
 				}
-				Assert.IsTrue (!client.Connected);
-				Assert.IsTrue (!server.Connected);
-			} finally {
+
+				Assert.IsFalse (client.Connected);
+				Assert.IsFalse (server.Connected);
+			} 
+			finally 
+			{
 				listener.Stop ();
 				client.Close ();
 				server.Close ();
@@ -4538,10 +4595,8 @@ namespace MonoTests.System.Net.Sockets
 					mSent.Set ();
 				}, clientSocket);
 
-				if (!mSent.WaitOne (1500))
-					throw new TimeoutException ();
-				if (!mReceived.WaitOne (1500))
-					throw new TimeoutException ();
+				Assert.IsTrue (mSent.WaitOne (5000), "#1");
+				Assert.IsTrue (mReceived.WaitOne (5000), "#2");
 			} finally {
 				if (File.Exists (temp))
 					File.Delete (temp);
@@ -4619,6 +4674,8 @@ namespace MonoTests.System.Net.Sockets
 				client.DualMode = true;
 				var ar1 = client.BeginConnect (ep, BCCallback, client);
 				Assert.IsTrue (BCCalledBack.WaitOne (10000), "#1");
+				Assert.AreEqual(server.AddressFamily, client.RemoteEndPoint.AddressFamily, "#2");
+				Assert.AreEqual(server.AddressFamily, client.LocalEndPoint.AddressFamily, "#3");
 				client.Disconnect (false);
 				client.Close ();
 
@@ -4626,7 +4683,9 @@ namespace MonoTests.System.Net.Sockets
 				client = new Socket (AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
 				client.DualMode = true;
 				var ar2 = client.BeginConnect (IPAddress.Loopback, ep.Port, BCCallback, client);
-				Assert.IsTrue (BCCalledBack.WaitOne (10000), "#2");
+				Assert.IsTrue (BCCalledBack.WaitOne (10000), "#4");
+				Assert.AreEqual(server.AddressFamily, client.RemoteEndPoint.AddressFamily, "#5");
+				Assert.AreEqual(server.AddressFamily, client.LocalEndPoint.AddressFamily, "#6");
 				client.Disconnect (false);
 				client.Close ();
 
@@ -4634,7 +4693,9 @@ namespace MonoTests.System.Net.Sockets
 				client = new Socket (AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
 				client.DualMode = true;
 				var ar3 = client.BeginConnect (new [] {IPAddress.Loopback}, ep.Port, BCCallback, client);
-				Assert.IsTrue (BCCalledBack.WaitOne (10000), "#2");
+				Assert.IsTrue (BCCalledBack.WaitOne (10000), "#7");
+				Assert.AreEqual(server.AddressFamily, client.RemoteEndPoint.AddressFamily, "#8");
+				Assert.AreEqual(server.AddressFamily, client.LocalEndPoint.AddressFamily, "#9");
 				client.Disconnect (false);
 				client.Close();
 			}
@@ -4671,6 +4732,26 @@ namespace MonoTests.System.Net.Sockets
 			socket.ConnectAsync (socketArgs);
 
 			Assert.IsTrue (mre.WaitOne (1000), "ConnectedAsync timeout");
+		}
+
+		[Test] // Covers https://bugzilla.xamarin.com/show_bug.cgi?id=52549
+		public void SocketMismatchProtocol ()
+		{
+			try {
+				using (Socket socket = new Socket (AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Tcp));
+				Assert.Fail ("#1");
+			} catch (SocketException e) {
+				// Only work on OSX
+				// Assert.AreEqual(SocketError.ProtocolType, e.SocketErrorCode, "#2");
+			}
+
+			try {
+				using (Socket socket = new Socket (AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Udp));
+				Assert.Fail ("#3");
+			} catch (SocketException e) {
+				// Only work on OSX
+				// Assert.AreEqual(SocketError.ProtocolType, e.SocketErrorCode, "#4");
+			}
 		}
  	}
 }

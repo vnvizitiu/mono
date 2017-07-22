@@ -67,6 +67,7 @@ namespace Mono.Btls
 		IntPtr instance;
 		BySubjectFunc bySubjectFunc;
 		IntPtr bySubjectFuncPtr;
+		MonoBtlsX509Lookup lookup;
 
 		internal MonoBtlsX509LookupMono ()
 			: base (new BoringX509LookupMonoHandle (mono_btls_x509_lookup_mono_new ()))
@@ -78,11 +79,21 @@ namespace Mono.Btls
 			mono_btls_x509_lookup_mono_init (Handle.DangerousGetHandle (), instance, bySubjectFuncPtr);
 		}
 
+		internal void Install (MonoBtlsX509Lookup lookup)
+		{
+			if (this.lookup != null)
+				throw new InvalidOperationException ();
+			this.lookup = lookup;
+		}
+
+		protected void AddCertificate (MonoBtlsX509 certificate)
+		{
+			lookup.AddCertificate (certificate);
+		}
+
 		protected abstract MonoBtlsX509 OnGetBySubject (MonoBtlsX509Name name);
 
-#if MONOTOUCH
-		[MonoTouch.MonoPInvokeCallback (typeof (BySubjectFunc))]
-#endif
+		[Mono.Util.MonoPInvokeCallback (typeof (BySubjectFunc))]
 		static int OnGetBySubject (IntPtr instance, IntPtr name_ptr, out IntPtr x509_ptr)
 		{
 			try {

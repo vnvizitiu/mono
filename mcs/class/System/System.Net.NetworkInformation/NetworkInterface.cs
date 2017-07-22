@@ -82,6 +82,22 @@ namespace System.Net.NetworkInformation {
 	{
 		internal abstract class UnixNetworkInterfaceAPI : NetworkInterfaceFactory
 		{
+#if ORBIS
+			public static int if_nametoindex(string ifname)
+			{
+				throw new PlatformNotSupportedException ();
+			}
+
+			protected static int getifaddrs (out IntPtr ifap)
+			{
+				throw new PlatformNotSupportedException ();
+			}
+
+			protected static void freeifaddrs (IntPtr ifap)
+			{
+				throw new PlatformNotSupportedException ();
+			}
+#else
 			[DllImport("libc")]
 			public static extern int if_nametoindex(string ifname);
 
@@ -90,6 +106,7 @@ namespace System.Net.NetworkInformation {
 
 			[DllImport ("libc")]
 			protected static extern void freeifaddrs (IntPtr ifap);
+#endif
 		}
 
 		class MacOsNetworkInterfaceAPI : UnixNetworkInterfaceAPI
@@ -290,8 +307,6 @@ namespace System.Net.NetworkInformation {
 							} else if (sockaddr.sin_family == AF_PACKET) {
 								sockaddr_ll sockaddrll = (sockaddr_ll) Marshal.PtrToStructure (addr.ifa_addr, typeof (sockaddr_ll));
 								if (((int)sockaddrll.sll_halen) > sockaddrll.sll_addr.Length){
-									Console.Error.WriteLine ("Got a bad hardware address length for an AF_PACKET {0} {1}",
-												 sockaddrll.sll_halen, sockaddrll.sll_addr.Length);
 									next = addr.ifa_next;
 									continue;
 								}
@@ -435,36 +450,34 @@ namespace System.Net.NetworkInformation {
 			}
 		}
 
-#if !MOBILE
+#if WIN_PLATFORM
 		class Win32NetworkInterfaceAPI : NetworkInterfaceFactory
 		{
 			private const string IPHLPAPI = "iphlpapi.dll";
 
 			[DllImport (IPHLPAPI, SetLastError = true)]
-			static extern int GetAdaptersAddresses (uint family, uint flags, IntPtr reserved, byte [] info, ref int size);
+			static extern int GetAdaptersAddresses (uint family, uint flags, IntPtr reserved, IntPtr info, ref int size);
 
 			[DllImport (IPHLPAPI)]
 			static extern uint GetBestInterfaceEx (byte[] ipAddress, out int index);
 
-			unsafe static Win32_IP_ADAPTER_ADDRESSES [] GetAdaptersAddresses ()
+			static Win32_IP_ADAPTER_ADDRESSES [] GetAdaptersAddresses ()
 			{
-				byte [] bytes = null;
+				IntPtr ptr = IntPtr.Zero;
 				int len = 0;
-				GetAdaptersAddresses (0, 0, IntPtr.Zero, bytes, ref len);
-				bytes = new byte [len];
-				int ret = GetAdaptersAddresses (0, 0, IntPtr.Zero, bytes, ref len);
+				GetAdaptersAddresses (0, 0, IntPtr.Zero, ptr, ref len);
+				ptr = Marshal.AllocHGlobal(len);
+				int ret = GetAdaptersAddresses (0, 0, IntPtr.Zero, ptr, ref len);
 				if (ret != 0)
 					throw new NetworkInformationException (ret);
 
 				List<Win32_IP_ADAPTER_ADDRESSES> l = new List<Win32_IP_ADAPTER_ADDRESSES> ();
-				fixed (byte* ptr = bytes) {
-					Win32_IP_ADAPTER_ADDRESSES info;
-					for (IntPtr p = (IntPtr) ptr; p != IntPtr.Zero; p = info.Next) {
-						info = new Win32_IP_ADAPTER_ADDRESSES ();
-						Marshal.PtrToStructure (p, info);
-						l.Add (info);
-					}
+				Win32_IP_ADAPTER_ADDRESSES info;
+				for (IntPtr p = ptr; p != IntPtr.Zero; p = info.Next) {
+					info = Marshal.PtrToStructure<Win32_IP_ADAPTER_ADDRESSES> (p);
+					l.Add (info);
 				}
+
 				return l.ToArray ();
 			}
 
@@ -519,7 +532,7 @@ namespace System.Net.NetworkInformation {
 				return new LinuxNetworkInterfaceAPI ();
 			}
 
-#if !MOBILE
+#if WIN_PLATFORM
 			Version windowsVer51 = new Version (5, 1);
 			if (Environment.OSVersion.Version >= windowsVer51)
 				return new Win32NetworkInterfaceAPI ();
@@ -807,11 +820,11 @@ namespace System.Net.NetworkInformation {
 		}
 	}
 
-#if !MOBILE
+#if WIN_PLATFORM
 	class Win32NetworkInterface2 : NetworkInterface
 	{
 		[DllImport ("iphlpapi.dll", SetLastError = true)]
-		static extern int GetAdaptersInfo (byte [] info, ref int size);
+		static extern int GetAdaptersInfo (IntPtr info, ref int size);
 
 		[DllImport ("iphlpapi.dll", SetLastError = true)]
 		static extern int GetIfEntry (ref Win32_MIB_IFROW row);
@@ -821,28 +834,25 @@ namespace System.Net.NetworkInformation {
 			foreach (Win32_IP_ADAPTER_INFO info in GetAdaptersInfo ())
 				if (info.Index == index)
 					return info;
-			return null;
+			throw new IndexOutOfRangeException ("No adapter found for index " + index);
 		}
 
-		unsafe static Win32_IP_ADAPTER_INFO [] GetAdaptersInfo ()
+		static Win32_IP_ADAPTER_INFO [] GetAdaptersInfo ()
 		{
-			byte [] bytes = null;
 			int len = 0;
-			GetAdaptersInfo (bytes, ref len);
-			bytes = new byte [len];
-			int ret = GetAdaptersInfo (bytes, ref len);
+			IntPtr ptr = IntPtr.Zero;
+			GetAdaptersInfo (ptr, ref len);
+			ptr = Marshal.AllocHGlobal(len);
+			int ret = GetAdaptersInfo (ptr, ref len);
 
 			if (ret != 0)
 				throw new NetworkInformationException (ret);
 
 			List<Win32_IP_ADAPTER_INFO> l = new List<Win32_IP_ADAPTER_INFO> ();
-			fixed (byte* ptr = bytes) {
-				Win32_IP_ADAPTER_INFO info;
-				for (IntPtr p = (IntPtr) ptr; p != IntPtr.Zero; p = info.Next) {
-					info = new Win32_IP_ADAPTER_INFO ();
-					Marshal.PtrToStructure (p, info);
-					l.Add (info);
-				}
+			Win32_IP_ADAPTER_INFO info;
+			for (IntPtr p = ptr; p != IntPtr.Zero; p = info.Next) {
+				info = Marshal.PtrToStructure<Win32_IP_ADAPTER_INFO> (p);
+				l.Add (info);
 			}
 			return l.ToArray ();
 		}

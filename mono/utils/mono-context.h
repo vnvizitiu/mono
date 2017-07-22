@@ -1,5 +1,6 @@
-/*
- * mono-context.h: plat independent machine state definitions
+/**
+ * \file
+ * plat independent machine state definitions
  *
  *
  * Copyright (c) 2011 Novell, Inc (http://www.novell.com)
@@ -43,8 +44,11 @@ typedef struct __darwin_xmm_reg MonoContextSimdReg;
 #endif
 #endif
 
-#if defined(__native_client__)
-#undef MONO_SIGNAL_USE_UCONTEXT_T
+#ifdef __HAIKU__
+/* sigcontext surrogate */
+struct sigcontext {
+	vregs regs;
+};
 #endif
 
 #ifdef HOST_WIN32
@@ -74,14 +78,14 @@ struct sigcontext {
 # define SC_ESI sc_esi
 #elif defined(__HAIKU__)
 # define SC_EAX regs.eax
-# define SC_EBX regs._reserved_2[2]
+# define SC_EBX regs.ebx
 # define SC_ECX regs.ecx
 # define SC_EDX regs.edx
 # define SC_EBP regs.ebp
 # define SC_EIP regs.eip
 # define SC_ESP regs.esp
-# define SC_EDI regs._reserved_2[0]
-# define SC_ESI regs._reserved_2[1]
+# define SC_EDI regs.edi
+# define SC_ESI regs.esi
 #else
 # define SC_EAX eax
 # define SC_EBX ebx
@@ -139,7 +143,8 @@ typedef struct {
 		 }																\
 	} while (0)
 #else
-#define MONO_CONTEXT_GET_CURRENT(ctx) \
+
+#define MONO_CONTEXT_GET_CURRENT_GREGS(ctx) \
 	__asm__ __volatile__(   \
 	"movl $0x0, %c[eax](%0)\n" \
 	"mov %%ebx, %c[ebx](%0)\n" \
@@ -162,6 +167,40 @@ typedef struct {
 		[esi] MONO_CONTEXT_OFFSET (esi, 0, mgreg_t), \
 		[edi] MONO_CONTEXT_OFFSET (edi, 0, mgreg_t) \
 	: "memory")
+
+#ifdef UCONTEXT_REG_XMM
+#define MONO_CONTEXT_GET_CURRENT_FREGS(ctx) \
+	do { \
+		__asm__ __volatile__ ( \
+			"movups %%xmm0, %c[xmm0](%0)\n"	\
+			"movups %%xmm1, %c[xmm1](%0)\n"	\
+			"movups %%xmm2, %c[xmm2](%0)\n"	\
+			"movups %%xmm3, %c[xmm3](%0)\n"	\
+			"movups %%xmm4, %c[xmm4](%0)\n"	\
+			"movups %%xmm5, %c[xmm5](%0)\n"	\
+			"movups %%xmm6, %c[xmm6](%0)\n"	\
+			"movups %%xmm7, %c[xmm7](%0)\n"	\
+			: \
+			: "a" (&(ctx)),	\
+				[xmm0] MONO_CONTEXT_OFFSET (fregs, X86_XMM0, MonoContextSimdReg), \
+				[xmm1] MONO_CONTEXT_OFFSET (fregs, X86_XMM1, MonoContextSimdReg), \
+				[xmm2] MONO_CONTEXT_OFFSET (fregs, X86_XMM2, MonoContextSimdReg), \
+				[xmm3] MONO_CONTEXT_OFFSET (fregs, X86_XMM3, MonoContextSimdReg), \
+				[xmm4] MONO_CONTEXT_OFFSET (fregs, X86_XMM4, MonoContextSimdReg), \
+				[xmm5] MONO_CONTEXT_OFFSET (fregs, X86_XMM5, MonoContextSimdReg), \
+				[xmm6] MONO_CONTEXT_OFFSET (fregs, X86_XMM6, MonoContextSimdReg), \
+				[xmm7] MONO_CONTEXT_OFFSET (fregs, X86_XMM7, MonoContextSimdReg)); \
+	} while (0)
+#else
+#define MONO_CONTEXT_GET_CURRENT_FREGS(ctx)
+#endif
+
+#define MONO_CONTEXT_GET_CURRENT(ctx) \
+    do {	\
+		MONO_CONTEXT_GET_CURRENT_GREGS(ctx);	\
+		MONO_CONTEXT_GET_CURRENT_FREGS(ctx);	\
+	} while (0)
+
 #endif
 
 #define MONO_ARCH_HAS_MONO_CONTEXT 1
@@ -170,7 +209,7 @@ typedef struct {
 
 #include <mono/arch/amd64/amd64-codegen.h>
 
-#if !defined( HOST_WIN32 ) && !defined(__native_client__) && !defined(__native_client_codegen__)
+#if !defined( HOST_WIN32 )
 
 #if defined(HAVE_SIGACTION) || defined(__APPLE__)  // the __APPLE__ check is required for the tvos simulator, which has ucontext_t but not sigaction
 #define MONO_SIGNAL_USE_UCONTEXT_T 1
@@ -200,30 +239,6 @@ typedef struct {
 extern void mono_context_get_current (void *);
 #define MONO_CONTEXT_GET_CURRENT(ctx) do { mono_context_get_current((void*)&(ctx)); } while (0)
 
-#elif defined(__native_client__)
-#define MONO_CONTEXT_GET_CURRENT(ctx)	\
-	__asm__ __volatile__(	\
-		"movq $0x0,  %%nacl:0x00(%%r15, %0, 1)\n"	\
-		"movq %%rcx, %%nacl:0x08(%%r15, %0, 1)\n"	\
-		"movq %%rdx, %%nacl:0x10(%%r15, %0, 1)\n"	\
-		"movq %%rbx, %%nacl:0x18(%%r15, %0, 1)\n"	\
-		"movq %%rsp, %%nacl:0x20(%%r15, %0, 1)\n"	\
-		"movq %%rbp, %%nacl:0x28(%%r15, %0, 1)\n"	\
-		"movq %%rsi, %%nacl:0x30(%%r15, %0, 1)\n"	\
-		"movq %%rdi, %%nacl:0x38(%%r15, %0, 1)\n"	\
-		"movq %%r8,  %%nacl:0x40(%%r15, %0, 1)\n"	\
-		"movq %%r9,  %%nacl:0x48(%%r15, %0, 1)\n"	\
-		"movq %%r10, %%nacl:0x50(%%r15, %0, 1)\n"	\
-		"movq %%r11, %%nacl:0x58(%%r15, %0, 1)\n"	\
-		"movq %%r12, %%nacl:0x60(%%r15, %0, 1)\n"	\
-		"movq %%r13, %%nacl:0x68(%%r15, %0, 1)\n"	\
-		"movq %%r14, %%nacl:0x70(%%r15, %0, 1)\n"	\
-		"movq %%r15, %%nacl:0x78(%%r15, %0, 1)\n"	\
-		"leaq (%%rip), %%rdx\n"	\
-		"movq %%rdx, %%nacl:0x80(%%r15, %0, 1)\n"	\
-		: 	\
-		: "a" ((int64_t)&(ctx))	\
-		: "rdx", "memory")
 #else
 
 #define MONO_CONTEXT_GET_CURRENT_GREGS(ctx) \
@@ -434,12 +449,28 @@ typedef struct {
 		"stp x24, x25, [x16], #16\n"	\
 		"stp x26, x27, [x16], #16\n"	\
 		"stp x28, x29, [x16], #16\n"	\
-		"stp x30, xzr, [x16]\n"	\
+		"stp x30, xzr, [x16], #8\n"	\
 		"mov x30, sp\n"				\
-		"str x30, [x16, #8]\n"		\
+		"str x30, [x16], #8\n"		\
+		"stp d0, d1, [x16], #16\n"	\
+		"stp d2, d3, [x16], #16\n"	\
+		"stp d4, d5, [x16], #16\n"	\
+		"stp d6, d7, [x16], #16\n"	\
+		"stp d8, d9, [x16], #16\n"	\
+		"stp d10, d11, [x16], #16\n"	\
+		"stp d12, d13, [x16], #16\n"	\
+		"stp d14, d15, [x16], #16\n"	\
+		"stp d16, d17, [x16], #16\n"	\
+		"stp d18, d19, [x16], #16\n"	\
+		"stp d20, d21, [x16], #16\n"	\
+		"stp d22, d23, [x16], #16\n"	\
+		"stp d24, d25, [x16], #16\n"	\
+		"stp d26, d27, [x16], #16\n"	\
+		"stp d28, d29, [x16], #16\n"	\
+		"stp d30, d31, [x16], #16\n"	\
 		:							\
 		: "r" (&ctx.regs)			\
-		: "x30", "memory"			\
+		: "x16", "x30", "memory"		\
 	);								\
 	__asm__ __volatile__( \
 		"adr %0, L0%=\n" \
@@ -477,7 +508,7 @@ typedef struct {
 #define MONO_CONTEXT_SET_SP(ctx,sp) do { (ctx)->sc_sp = (gulong)sp; } while (0);
 
 #define MONO_CONTEXT_GET_IP(ctx) ((gpointer)((ctx)->sc_ir))
-#define MONO_CONTEXT_GET_BP(ctx) ((gpointer)((ctx)->regs [ppc_r31-13]))
+#define MONO_CONTEXT_GET_BP(ctx) ((gpointer)((ctx)->regs [ppc_r31]))
 #define MONO_CONTEXT_GET_SP(ctx) ((gpointer)((ctx)->sc_sp))
 
 #define MONO_CONTEXT_GET_CURRENT(ctx)	\
@@ -568,7 +599,7 @@ typedef struct {
 #define MONO_CONTEXT_SET_SP(ctx,sp) do { (ctx)->sc_sp = (mgreg_t)sp; } while (0);
 
 #define MONO_CONTEXT_GET_IP(ctx) ((gpointer)((ctx)->sc_ir))
-#define MONO_CONTEXT_GET_BP(ctx) ((gpointer)((ctx)->regs [ppc_r31-13]))
+#define MONO_CONTEXT_GET_BP(ctx) ((gpointer)((ctx)->regs [ppc_r31]))
 #define MONO_CONTEXT_GET_SP(ctx) ((gpointer)((ctx)->sc_sp))
 
 #define MONO_CONTEXT_GET_CURRENT(ctx)	\
@@ -712,89 +743,7 @@ typedef struct MonoContext {
 
 #define MONO_ARCH_HAS_MONO_CONTEXT 1
 
-#elif defined(__ia64__) /*defined(__sparc__) || defined(sparc) */
-
-#ifndef UNW_LOCAL_ONLY
-
-#define UNW_LOCAL_ONLY
-#include <libunwind.h>
-
-#endif
-
-typedef struct MonoContext {
-	unw_cursor_t cursor;
-	/* Whenever the ip in 'cursor' points to the ip where the exception happened */
-	/* This is true for the initial context for exceptions thrown from signal handlers */
-	gboolean precise_ip;
-} MonoContext;
-
-/*XXX SET_BP is missing*/
-#define MONO_CONTEXT_SET_IP(ctx,eip) do { int err = unw_set_reg (&(ctx)->cursor, UNW_IA64_IP, (unw_word_t)(eip)); g_assert (err == 0); } while (0)
-#define MONO_CONTEXT_SET_SP(ctx,esp) do { int err = unw_set_reg (&(ctx)->cursor, UNW_IA64_SP, (unw_word_t)(esp)); g_assert (err == 0); } while (0)
-
-#define MONO_CONTEXT_GET_IP(ctx) ((gpointer)(mono_ia64_context_get_ip ((ctx))))
-#define MONO_CONTEXT_GET_BP(ctx) ((gpointer)(mono_ia64_context_get_fp ((ctx))))
-#define MONO_CONTEXT_GET_SP(ctx) ((gpointer)(mono_ia64_context_get_sp ((ctx))))
-
-static inline unw_word_t
-mono_ia64_context_get_ip (MonoContext *ctx)
-{
-	unw_word_t ip;
-	int err;
-
-	err = unw_get_reg (&ctx->cursor, UNW_IA64_IP, &ip);
-	g_assert (err == 0);
-
-	if (ctx->precise_ip) {
-		return ip;
-	} else {
-		/* Subtrack 1 so ip points into the actual instruction */
-		return ip - 1;
-	}
-}
-
-static inline unw_word_t
-mono_ia64_context_get_sp (MonoContext *ctx)
-{
-	unw_word_t sp;
-	int err;
-
-	err = unw_get_reg (&ctx->cursor, UNW_IA64_SP, &sp);
-	g_assert (err == 0);
-
-	return sp;
-}
-
-static inline unw_word_t
-mono_ia64_context_get_fp (MonoContext *ctx)
-{
-	unw_cursor_t new_cursor;
-	unw_word_t fp;
-	int err;
-
-	{
-		unw_word_t ip, sp;
-
-		err = unw_get_reg (&ctx->cursor, UNW_IA64_SP, &sp);
-		g_assert (err == 0);
-
-		err = unw_get_reg (&ctx->cursor, UNW_IA64_IP, &ip);
-		g_assert (err == 0);
-	}
-
-	/* fp is the SP of the parent frame */
-	new_cursor = ctx->cursor;
-
-	err = unw_step (&new_cursor);
-	g_assert (err >= 0);
-
-	err = unw_get_reg (&new_cursor, UNW_IA64_SP, &fp);
-	g_assert (err == 0);
-
-	return fp;
-}
-
-#elif ((defined(__mips__) && !defined(MONO_CROSS_COMPILE)) || (defined(TARGET_MIPS))) && SIZEOF_REGISTER == 4 /* defined(__ia64__) */
+#elif ((defined(__mips__) && !defined(MONO_CROSS_COMPILE)) || (defined(TARGET_MIPS))) && SIZEOF_REGISTER == 4
 
 #define MONO_ARCH_HAS_MONO_CONTEXT 1
 

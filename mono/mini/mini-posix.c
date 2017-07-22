@@ -1,5 +1,6 @@
-/*
- * mini-posix.c: POSIX signal handling support for Mono.
+/**
+ * \file
+ * POSIX signal handling support for Mono.
  *
  * Authors:
  *   Mono Team (mono-list@lists.ximian.com)
@@ -39,8 +40,6 @@
 #include <mono/metadata/threads.h>
 #include <mono/metadata/appdomain.h>
 #include <mono/metadata/debug-helpers.h>
-#include <mono/io-layer/io-layer.h>
-#include "mono/metadata/profiler.h"
 #include <mono/metadata/profiler-private.h>
 #include <mono/metadata/mono-config.h>
 #include <mono/metadata/environment.h>
@@ -75,7 +74,7 @@
 #include <mach/clock.h>
 #endif
 
-#if defined(__native_client__) || defined(HOST_WATCHOS)
+#if defined(HOST_WATCHOS)
 
 void
 mono_runtime_setup_stat_profiler (void)
@@ -119,20 +118,6 @@ void
 mono_runtime_cleanup_handlers (void)
 {
 }
-
-#if !defined(PLATFORM_MACOSX)
-pid_t
-mono_runtime_syscall_fork (void)
-{
-	g_assert_not_reached();
-	return 0;
-}
-
-void
-mono_gdb_render_native_backtraces (pid_t crashed_pid)
-{
-}
-#endif
 
 #else
 
@@ -220,104 +205,15 @@ MONO_SIG_HANDLER_FUNC (static, sigabrt_signal_handler)
 	if (!ji) {
         if (mono_chain_signal (MONO_SIG_HANDLER_PARAMS))
 			return;
-		mono_handle_native_sigsegv (SIGABRT, ctx, info);
+		mono_handle_native_crash ("SIGABRT", ctx, info);
 	}
 }
-
-#if defined(__i386__) || defined(__x86_64__)
-#define FULL_STAT_PROFILER_BACKTRACE 1
-#define CURRENT_FRAME_GET_BASE_POINTER(f) (* (gpointer*)(f))
-#define CURRENT_FRAME_GET_RETURN_ADDRESS(f) (* (((gpointer*)(f)) + 1))
-#if MONO_ARCH_STACK_GROWS_UP
-#define IS_BEFORE_ON_STACK <
-#define IS_AFTER_ON_STACK >
-#else
-#define IS_BEFORE_ON_STACK >
-#define IS_AFTER_ON_STACK <
-#endif
-#else
-#define FULL_STAT_PROFILER_BACKTRACE 0
-#endif
 
 #if (defined (USE_POSIX_BACKEND) && defined (SIGRTMIN)) || defined (SIGPROF)
 #define HAVE_PROFILER_SIGNAL
 #endif
 
 #ifdef HAVE_PROFILER_SIGNAL
-
-static void
-per_thread_profiler_hit (void *ctx)
-{
-	int call_chain_depth = mono_profiler_stat_get_call_chain_depth ();
-	MonoProfilerCallChainStrategy call_chain_strategy = mono_profiler_stat_get_call_chain_strategy ();
-
-	if (call_chain_depth == 0) {
-		mono_profiler_stat_hit ((guchar *)mono_arch_ip_from_context (ctx), ctx);
-	} else {
-		MonoJitTlsData *jit_tls = (MonoJitTlsData *)mono_native_tls_get_value (mono_jit_tls_id);
-		int current_frame_index = 1;
-		MonoContext mono_context;
-		guchar *ips [call_chain_depth + 1];
-
-		mono_sigctx_to_monoctx (ctx, &mono_context);
-		ips [0] = (guchar *)MONO_CONTEXT_GET_IP (&mono_context);
-		
-		if (jit_tls != NULL) {
-			if (call_chain_strategy == MONO_PROFILER_CALL_CHAIN_NATIVE) {
-#if FULL_STAT_PROFILER_BACKTRACE
-			guchar *current_frame;
-			guchar *stack_bottom;
-			guchar *stack_top;
-			
-			stack_bottom = (guchar *)jit_tls->end_of_stack;
-			stack_top = (guchar *)MONO_CONTEXT_GET_SP (&mono_context);
-			current_frame = (guchar *)MONO_CONTEXT_GET_BP (&mono_context);
-			
-			while ((current_frame_index <= call_chain_depth) &&
-					(stack_bottom IS_BEFORE_ON_STACK (guchar*) current_frame) &&
-					((guchar*) current_frame IS_BEFORE_ON_STACK stack_top)) {
-				ips [current_frame_index] = (guchar *)CURRENT_FRAME_GET_RETURN_ADDRESS (current_frame);
-				current_frame_index ++;
-				stack_top = current_frame;
-				current_frame = (guchar *)CURRENT_FRAME_GET_BASE_POINTER (current_frame);
-			}
-#else
-				call_chain_strategy = MONO_PROFILER_CALL_CHAIN_GLIBC;
-#endif
-			}
-			
-			if (call_chain_strategy == MONO_PROFILER_CALL_CHAIN_GLIBC) {
-#if GLIBC_PROFILER_BACKTRACE
-				current_frame_index = backtrace ((void**) & ips [1], call_chain_depth);
-#else
-				call_chain_strategy = MONO_PROFILER_CALL_CHAIN_MANAGED;
-#endif
-			}
-
-			if (call_chain_strategy == MONO_PROFILER_CALL_CHAIN_MANAGED) {
-				MonoDomain *domain = mono_domain_get ();
-				if (domain != NULL) {
-					MonoLMF *lmf = NULL;
-					MonoJitInfo *ji;
-					MonoJitInfo res;
-					MonoContext new_mono_context;
-					int native_offset;
-					ji = mono_find_jit_info (domain, jit_tls, &res, NULL, &mono_context,
-							&new_mono_context, NULL, &lmf, &native_offset, NULL);
-					while ((ji != NULL) && (current_frame_index <= call_chain_depth)) {
-						ips [current_frame_index] = (guchar *)MONO_CONTEXT_GET_IP (&new_mono_context);
-						current_frame_index ++;
-						mono_context = new_mono_context;
-						ji = mono_find_jit_info (domain, jit_tls, &res, NULL, &mono_context,
-								&new_mono_context, NULL, &lmf, &native_offset, NULL);
-					}
-				}
-			}
-		}
-		
-		mono_profiler_stat_call_chain (current_frame_index, & ips [0], ctx);
-	}
-}
 
 static MonoNativeThreadId sampling_thread;
 
@@ -329,7 +225,7 @@ static gint32 profiler_interrupt_signals_received;
 MONO_SIG_HANDLER_FUNC (static, profiler_signal_handler)
 {
 	int old_errno = errno;
-	int hp_save_index;
+
 	MONO_SIG_HANDLER_GET_CONTEXT;
 
 	/* See the comment in mono_runtime_shutdown_stat_profiler (). */
@@ -340,21 +236,29 @@ MONO_SIG_HANDLER_FUNC (static, profiler_signal_handler)
 
 	InterlockedIncrement (&profiler_signals_received);
 
-	if (mono_thread_info_get_small_id () == -1)
-		return; //an non-attached thread got the signal
+	// Did a non-attached or detaching thread get the signal?
+	if (mono_thread_info_get_small_id () == -1 ||
+	    !mono_domain_get () ||
+	    !mono_tls_get_jit_tls ()) {
+		errno = old_errno;
+		return;
+	}
 
-	if (!mono_domain_get () || !mono_native_tls_get_value (mono_jit_tls_id))
-		return; //thread in the process of dettaching
+	// See the comment in sampling_thread_func ().
+	InterlockedWrite (&mono_thread_info_current ()->profiler_signal_ack, 1);
 
 	InterlockedIncrement (&profiler_signals_accepted);
 
-	hp_save_index = mono_hazard_pointer_save_for_signal_handler ();
+	int hp_save_index = mono_hazard_pointer_save_for_signal_handler ();
 
 	mono_thread_info_set_is_async_context (TRUE);
-	per_thread_profiler_hit (ctx);
+
+	MONO_PROFILER_RAISE (sample_hit, (mono_arch_ip_from_context (ctx), ctx));
+
 	mono_thread_info_set_is_async_context (FALSE);
 
 	mono_hazard_pointer_restore_for_signal_handler (hp_save_index);
+
 	errno = old_errno;
 
 	mono_chain_signal (MONO_SIG_HANDLER_PARAMS);
@@ -529,7 +433,7 @@ static volatile gint32 sampling_thread_running;
 static clock_serv_t sampling_clock_service;
 
 static void
-clock_init (void)
+clock_init (MonoProfilerSampleMode mode)
 {
 	kern_return_t ret;
 
@@ -592,20 +496,32 @@ clock_sleep_ns_abs (guint64 ns_abs)
 clockid_t sampling_posix_clock;
 
 static void
-clock_init (void)
+clock_init (MonoProfilerSampleMode mode)
 {
-	switch (mono_profiler_get_sampling_mode ()) {
-	case MONO_PROFILER_STAT_MODE_PROCESS:
+	switch (mode) {
+	case MONO_PROFILER_SAMPLE_MODE_PROCESS: {
+	/*
+	 * If we don't have clock_nanosleep (), measuring the process time
+	 * makes very little sense as we can only use nanosleep () to sleep on
+	 * real time.
+	 */
 #ifdef HAVE_CLOCK_NANOSLEEP
+		struct timespec ts = { 0 };
+
 		/*
-		 * If we don't have clock_nanosleep (), measuring the process time
-		 * makes very little sense as we can only use nanosleep () to sleep on
-		 * real time.
+		 * Some systems (e.g. Windows Subsystem for Linux) declare the
+		 * CLOCK_PROCESS_CPUTIME_ID clock but don't actually support it. For
+		 * those systems, we fall back to CLOCK_MONOTONIC if we get EINVAL.
 		 */
-		sampling_posix_clock = CLOCK_PROCESS_CPUTIME_ID;
-		break;
+		if (clock_nanosleep (CLOCK_PROCESS_CPUTIME_ID, TIMER_ABSTIME, &ts, NULL) != EINVAL) {
+			sampling_posix_clock = CLOCK_PROCESS_CPUTIME_ID;
+			break;
+		}
 #endif
-	case MONO_PROFILER_STAT_MODE_REAL: sampling_posix_clock = CLOCK_MONOTONIC; break;
+
+		// fallthrough
+	}
+	case MONO_PROFILER_SAMPLE_MODE_REAL: sampling_posix_clock = CLOCK_MONOTONIC; break;
 	default: g_assert_not_reached (); break;
 	}
 }
@@ -697,8 +613,6 @@ sampling_thread_func (void *data)
 	mono_threads_attach_tools_thread ();
 	mono_native_thread_set_name (mono_native_thread_id_get (), "Profiler sampler");
 
-	gint64 rate = 1000000000 / mono_profiler_get_sampling_rate ();
-
 	int old_policy;
 	struct sched_param old_sched;
 	pthread_getschedparam (pthread_self (), &old_policy, &old_sched);
@@ -720,27 +634,56 @@ sampling_thread_func (void *data)
 	struct sched_param sched = { .sched_priority = sched_get_priority_max (SCHED_FIFO) };
 	pthread_setschedparam (pthread_self (), SCHED_FIFO, &sched);
 
-	clock_init ();
+	MonoProfilerSampleMode mode;
 
-	guint64 sleep = clock_get_time_ns ();
+init:
+	mono_profiler_get_sample_mode (NULL, &mode, NULL);
 
-	while (InterlockedRead (&sampling_thread_running)) {
-		sleep += rate;
+	if (mode == MONO_PROFILER_SAMPLE_MODE_NONE) {
+		mono_profiler_sampling_thread_wait ();
+
+		if (!InterlockedRead (&sampling_thread_running))
+			goto done;
+
+		goto init;
+	}
+
+	clock_init (mode);
+
+	for (guint64 sleep = clock_get_time_ns (); InterlockedRead (&sampling_thread_running); clock_sleep_ns_abs (sleep)) {
+		uint32_t freq;
+		MonoProfilerSampleMode new_mode;
+
+		mono_profiler_get_sample_mode (NULL, &new_mode, &freq);
+
+		if (new_mode != mode) {
+			clock_cleanup ();
+			goto init;
+		}
+
+		sleep += 1000000000 / freq;
 
 		FOREACH_THREAD_SAFE (info) {
 			/* info should never be this thread as we're a tools thread. */
 			g_assert (mono_thread_info_get_tid (info) != mono_native_thread_id_get ());
 
+			/*
+			 * Require an ack for the last sampling signal sent to the thread
+			 * so that we don't overflow the signal queue, leading to all sorts
+			 * of problems (e.g. GC STW failing).
+			 */
+			if (profiler_signal != SIGPROF && !InterlockedCompareExchange (&info->profiler_signal_ack, 0, 1))
+				continue;
+
 			mono_threads_pthread_kill (info, profiler_signal);
 			InterlockedIncrement (&profiler_signals_sent);
 		} FOREACH_THREAD_SAFE_END
-
-		clock_sleep_ns_abs (sleep);
 	}
 
-	InterlockedWrite (&sampling_thread_exiting, 1);
-
 	clock_cleanup ();
+
+done:
+	InterlockedWrite (&sampling_thread_exiting, 1);
 
 	pthread_setschedparam (pthread_self (), old_policy, &old_sched);
 
@@ -753,6 +696,8 @@ void
 mono_runtime_shutdown_stat_profiler (void)
 {
 	InterlockedWrite (&sampling_thread_running, 0);
+
+	mono_profiler_sampling_thread_post ();
 
 #ifndef PLATFORM_MACOSX
 	/*
@@ -842,77 +787,102 @@ mono_runtime_setup_stat_profiler (void)
 
 #endif
 
-#if !defined(PLATFORM_MACOSX)
-pid_t
-mono_runtime_syscall_fork ()
+#endif /* defined(HOST_WATCHOS) */
+
+static gboolean
+native_stack_with_gdb (pid_t crashed_pid, const char **argv, FILE *commands, char* commands_filename)
 {
-#if defined(PLATFORM_ANDROID)
-	/* SYS_fork is defined to be __NR_fork which is not defined in some ndk versions */
-	g_assert_not_reached ();
-	return 0;
-#elif defined(SYS_fork)
-	return (pid_t) syscall (SYS_fork);
-#else
-	g_assert_not_reached ();
-	return 0;
-#endif
+	gchar *gdb;
+
+	gdb = g_find_program_in_path ("gdb");
+	if (!gdb)
+		return FALSE;
+
+	argv [0] = gdb;
+	argv [1] = "-batch";
+	argv [2] = "-x";
+	argv [3] = commands_filename;
+	argv [4] = "-nx";
+
+	fprintf (commands, "attach %ld\n", (long) crashed_pid);
+	fprintf (commands, "info threads\n");
+	fprintf (commands, "thread apply all bt\n");
+
+	return TRUE;
+}
+
+
+static gboolean
+native_stack_with_lldb (pid_t crashed_pid, const char **argv, FILE *commands, char* commands_filename)
+{
+	gchar *lldb;
+
+	lldb = g_find_program_in_path ("lldb");
+	if (!lldb)
+		return FALSE;
+
+	argv [0] = lldb;
+	argv [1] = "--batch";
+	argv [2] = "--source";
+	argv [3] = commands_filename;
+	argv [4] = "--no-lldbinit";
+
+	fprintf (commands, "process attach --pid %ld\n", (long) crashed_pid);
+	fprintf (commands, "thread list\n");
+	fprintf (commands, "thread backtrace all\n");
+	fprintf (commands, "detach\n");
+	fprintf (commands, "quit\n");
+
+	return TRUE;
 }
 
 void
 mono_gdb_render_native_backtraces (pid_t crashed_pid)
 {
-	const char *argv [9];
-	char template_ [] = "/tmp/mono-lldb-commands.XXXXXX";
-	char buf1 [128];
+#ifdef HAVE_EXECV
+	const char *argv [10];
 	FILE *commands;
-	gboolean using_lldb = FALSE;
+	char commands_filename [] = "/tmp/mono-gdb-commands.XXXXXX";
 
-	argv [0] = g_find_program_in_path ("gdb");
-	if (argv [0] == NULL) {
-		argv [0] = g_find_program_in_path ("lldb");
-		using_lldb = TRUE;
-	}
-
-	if (argv [0] == NULL)
+	if (mkstemp (commands_filename) == -1)
 		return;
 
-	if (using_lldb) {
-		if (mkstemp (template_) == -1)
-			return;
-
-		commands = fopen (template_, "w");
-
-		fprintf (commands, "process attach --pid %ld\n", (long) crashed_pid);
-		fprintf (commands, "thread list\n");
-		fprintf (commands, "thread backtrace all\n");
-		fprintf (commands, "detach\n");
-		fprintf (commands, "quit\n");
-
-		fflush (commands);
-		fclose (commands);
-
-		argv [1] = "--source";
-		argv [2] = template_;
-		argv [3] = 0;
-	} else {
-		argv [1] = "-ex";
-		sprintf (buf1, "attach %ld", (long) crashed_pid);
-		argv [2] = buf1;
-		argv [3] = "--ex";
-		argv [4] = "info threads";
-		argv [5] = "--ex";
-		argv [6] = "thread apply all bt";
-		argv [7] = "--batch";
-		argv [8] = 0;
+	commands = fopen (commands_filename, "w");
+	if (!commands) {
+		unlink (commands_filename);
+		return;
 	}
 
+	memset (argv, 0, sizeof (char*) * 10);
+
+#if defined(PLATFORM_MACOSX)
+	if (native_stack_with_lldb (crashed_pid, argv, commands, commands_filename))
+		goto exec;
+#endif
+
+	if (native_stack_with_gdb (crashed_pid, argv, commands, commands_filename))
+		goto exec;
+
+#if !defined(PLATFORM_MACOSX)
+	if (native_stack_with_lldb (crashed_pid, argv, commands, commands_filename))
+		goto exec;
+#endif
+
+	fprintf (stderr, "mono_gdb_render_native_backtraces not supported on this platform, unable to find gdb or lldb\n");
+
+	fclose (commands);
+	unlink (commands_filename);
+	return;
+
+exec:
+	fclose (commands);
 	execv (argv [0], (char**)argv);
 
-	if (using_lldb)
-		unlink (template_);
+	_exit (-1);
+#else
+	fprintf (stderr, "mono_gdb_render_native_backtraces not supported on this platform\n");
+#endif // HAVE_EXECV
 }
-#endif
-#endif /* __native_client__ */
 
 #if !defined (__MACH__)
 

@@ -1,5 +1,6 @@
-/*
- * w32process.h: System.Diagnostics.Process support
+/**
+ * \file
+ * System.Diagnostics.Process support
  *
  * Author:
  *	Dick Porter (dick@ximian.com)
@@ -34,10 +35,9 @@ typedef struct
 {
 	gpointer process_handle;
 	gpointer thread_handle;
-	guint32 pid; /* Contains GetLastError () on failure */
+	guint32 pid; /* Contains mono_w32error_get_last () on failure */
 	guint32 tid;
-	MonoArray *env_keys;
-	MonoArray *env_values;
+	MonoArray *env_variables;
 	MonoString *username;
 	MonoString *domain;
 	gpointer password; /* BSTR from SecureString in 2.0 profile */
@@ -75,6 +75,9 @@ mono_w32process_init (void);
 
 void
 mono_w32process_cleanup (void);
+
+void
+mono_w32process_signal_finished (void);
 
 #ifndef HOST_WIN32
 

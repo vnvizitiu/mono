@@ -16,7 +16,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-#if !MONOTOUCH && !MOBILE_STATIC
+#if !MONOTOUCH && !FULL_AOT_RUNTIME
 using System.Reflection.Emit;
 #endif
 using System.Runtime.InteropServices;
@@ -261,7 +261,7 @@ namespace MonoTests.System
 	[TestFixture]
 	public class TypeTest
 	{
-#if !MONOTOUCH && !MOBILE_STATIC
+#if !MONOTOUCH && !FULL_AOT_RUNTIME
 		private ModuleBuilder module;
 #endif
 		const string ASSEMBLY_NAME = "MonoTests.System.TypeTest";
@@ -273,7 +273,7 @@ namespace MonoTests.System
 		{
 			AssemblyName assemblyName = new AssemblyName ();
 			assemblyName.Name = ASSEMBLY_NAME;
-#if !MONOTOUCH && !MOBILE_STATIC
+#if !MONOTOUCH && !FULL_AOT_RUNTIME
 			var assembly = AppDomain.CurrentDomain.DefineDynamicAssembly (
 					assemblyName, AssemblyBuilderAccess.RunAndSave, Path.GetTempPath ());
 			module = assembly.DefineDynamicModule ("module1");
@@ -2261,11 +2261,14 @@ namespace MonoTests.System
 
 		[Test]
 		public void GetGenericMethodDefinitionOverInflatedMethodOnGTD () {
+			var s = new List<int> () { 1, 2, 3 }.ConvertAll ( i => i.ToString () );
+			Assert.AreEqual (3, s.Count);
 			var l = typeof (List<>);
 			var m = l.GetMethod ("ConvertAll");
 			var infl = m.MakeGenericMethod (typeof (int));
 			var res = m.GetGenericMethodDefinition ();
 			Assert.AreEqual (m, res, "#1");
+			Assert.AreEqual (1, infl.GetGenericArguments().Length, "#2");
 		}
 
 		[Test]
@@ -3068,6 +3071,14 @@ namespace MonoTests.System
 			object o = Array.CreateInstance (typeof (global::System.TypedReference), 1);
 		}
 
+		[Test]
+		public void MakeArrayTypeLargeRank ()
+		{
+			Assert.Throws<TypeLoadException> (delegate () {
+					typeof (int).MakeArrayType (33);
+				});
+		}
+
 		[ComVisible (true)]
 		public class ComFoo<T> {
 		}
@@ -3157,7 +3168,7 @@ namespace MonoTests.System
 		}
 
 		[Test]
-#if MONOTOUCH || MOBILE_STATIC
+#if MONOTOUCH || FULL_AOT_RUNTIME
 		[ExpectedException (typeof (NotSupportedException))]
 #endif
 		public void MakeGenericType_UserDefinedType ()
@@ -3174,7 +3185,7 @@ namespace MonoTests.System
 		}
 
 		[Test]
-#if MONOTOUCH || MOBILE_STATIC
+#if MONOTOUCH || FULL_AOT_RUNTIME
 		[ExpectedException (typeof (NotSupportedException))]
 #endif
 		public void MakeGenericType_NestedUserDefinedType ()
@@ -3191,7 +3202,7 @@ namespace MonoTests.System
 		}
 		
 		[Test]
-#if MONOTOUCH || MOBILE_STATIC
+#if MONOTOUCH || FULL_AOT_RUNTIME
 		[ExpectedException (typeof (NotSupportedException))]
 #endif
 		public void TestMakeGenericType_UserDefinedType_DotNet20SP1 () 
@@ -3204,7 +3215,7 @@ namespace MonoTests.System
 		}
 		
 		[Test]
-#if MONOTOUCH || MOBILE_STATIC
+#if MONOTOUCH || FULL_AOT_RUNTIME
 		[ExpectedException (typeof (NotSupportedException))]
 #endif
 		public void MakeGenericType_BadUserType ()
@@ -3261,6 +3272,38 @@ namespace MonoTests.System
 			MethodInfo m = typeof (Type).GetMethod ("GetType",  BindingFlags.Public | BindingFlags.Static, null, new Type [] { typeof (string) },  null);
 			object r = m.Invoke (null, BindingFlags.Default, null, new object [] { "NoNamespaceClass" }, CultureInfo.InvariantCulture);
 			Assert.AreSame (expectedType, r, "#2");
+		}
+
+		public class BConstrained<Y> where Y : BConstrained<Y> {
+		}
+
+		public class AConstrained<X> : BConstrained<AConstrained<X>> {
+		}
+
+		[Test] // Bug https://bugzilla.xamarin.com/show_bug.cgi?id=54485
+		public void MakeGenericType_GTD_Constraint ()
+		{
+			// This is pretty weird, but match .NET behavior (note
+			// that typeof(BConstrained<AConstrained<>>) is a
+			// compile-time error with roslyn, but it's apparently
+			// an ok thing to make with reflection.
+			var tb = typeof (BConstrained<>);
+			var ta = typeof (AConstrained<>);
+			var result = tb.MakeGenericType (ta);
+			Assert.IsNotNull (result, "#1");
+			// lock down the answer to match what .NET makes
+			Assert.IsTrue (result.IsGenericType, "#2");
+			Assert.AreEqual (tb, result.GetGenericTypeDefinition (), "#3");
+			var bargs = result.GetGenericArguments ();
+			Assert.AreEqual (1, bargs.Length, "#4");
+			var arg = bargs [0];
+			Assert.IsTrue (arg.IsGenericType, "#5");
+			// N.B. evidently AConstrained`1 and AConstrained`1<!0> are the same type
+			Assert.IsTrue (arg.IsGenericTypeDefinition, "#6");
+			Assert.AreEqual (ta, arg.GetGenericTypeDefinition (), "#7");
+			var aargs = arg.GetGenericArguments ();
+			Assert.AreEqual (1, aargs.Length, "#8");
+			Assert.AreEqual (ta.GetGenericArguments () [0], aargs [0], "#9");
 		}
 
 	[Test]
@@ -3340,7 +3383,7 @@ namespace MonoTests.System
 			Assert.AreEqual (t1, t2);
 		}
 
-#if !MONOTOUCH && !MOBILE_STATIC
+#if !MONOTOUCH && !FULL_AOT_RUNTIME
 		[Test]
 		public void SpaceAfterComma () {
 			string strType = "System.Collections.Generic.Dictionary`2[[System.Int32,mscorlib], [System.String,mscorlib]],mscorlib";
@@ -3348,7 +3391,7 @@ namespace MonoTests.System
 		}
 #endif
 
-#if !MONOTOUCH && !MOBILE_STATIC
+#if !MONOTOUCH && !FULL_AOT_RUNTIME
 		[Test]
 		public void Bug506757 ()
 		{
@@ -4289,7 +4332,7 @@ namespace MonoTests.System
 
 		}
 
-#if !MONOTOUCH && !MOBILE_STATIC
+#if !MONOTOUCH && !FULL_AOT_RUNTIME && !MONOMAC
 		[Test]
 		[Category ("AndroidNotWorking")] // requires symbol writer
 		public void FullNameGetTypeParseEscapeRoundtrip () // bug #26384
@@ -4297,7 +4340,7 @@ namespace MonoTests.System
 			var nm = new AssemblyName ("asm");
 			var ab = AssemblyBuilder.DefineDynamicAssembly (nm,
 									AssemblyBuilderAccess.Run);
-			var mb = ab.DefineDynamicModule("m", true);
+			var mb = ab.DefineDynamicModule("m", false);
 			var tb = mb.DefineType ("NameSpace,+*&[]\\.Type,+*&[]\\",
 						TypeAttributes.Class | TypeAttributes.Public);
 

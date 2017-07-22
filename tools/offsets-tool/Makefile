@@ -20,7 +20,7 @@ else
 	endif
 	ifeq ($(UNAME_S),Darwin)
 		CPPSHARP_OS=osx
-		CPPSHARP_ARCH=32
+		CPPSHARP_ARCH=64
 	endif
 endif
 
@@ -36,12 +36,12 @@ SRC_ROOT = ../..
 
 MONO_OPTIONS_SRC = $(SRC_ROOT)/mcs/class/Mono.Options/Mono.Options/Options.cs
 
-.stamp-clone:
-	@if [ ! -d $(CPPSHARP_BASE_DIR) ]; then \
-		git clone -b 60f763a9 --depth 1 git://github.com/xamarin/CppSharpBinaries.git $(CPPSHARP_BASE_DIR) && touch $@; \
-	fi
+HASH=9dc880dd
+.stamp-clone-$(HASH):
+	rm -Rf $(CPPSHARP_BASE_DIR)
+	git clone -b $(HASH) --depth 1 git://github.com/xamarin/CppSharpBinaries.git $(CPPSHARP_BASE_DIR) && touch $@
 
-MonoAotOffsetsDumper.exe: .stamp-clone MonoAotOffsetsDumper.cs $(MONO_OPTIONS_SRC)
+MonoAotOffsetsDumper.exe: .stamp-clone-$(HASH) MonoAotOffsetsDumper.cs $(MONO_OPTIONS_SRC)
 	mcs MonoAotOffsetsDumper.cs /debug /nowarn:0436 $(MONO_OPTIONS_SRC) $(CPPSHARP_REFS)
 
 .PHONY: clean

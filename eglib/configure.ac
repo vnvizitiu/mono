@@ -94,6 +94,9 @@ arm*-darwin*|aarch64*-*)
 i*86-*-darwin*)
     ORDER=G_LITTLE_ENDIAN
     ;;
+*-*-haiku*)
+    LDFLAGS="$LDFLAGS -ltextencoding"
+    ;;
 *-*-openbsd*)
     CFLAGS="$CFLAGS -pthread"
     LDFLAGS="$LDFLAGS -pthread"
@@ -138,7 +141,7 @@ AC_CHECK_SIZEOF(int)
 AC_CHECK_SIZEOF(void *)
 AC_CHECK_SIZEOF(long)
 AC_CHECK_SIZEOF(long long)
-AC_CHECK_FUNCS(strlcpy stpcpy strtok_r rewinddir vasprintf)
+AC_CHECK_FUNCS(strlcpy stpcpy strtok_r rewinddir vasprintf strerror_r)
 AC_CHECK_FUNCS(getrlimit)
 AC_CHECK_FUNCS(fork execv execve)
 

@@ -46,11 +46,16 @@ class MonoMasterPackage(Package):
         self.configure = './autogen.sh --prefix="%{package_prefix}"'
 
         self.extra_stage_files = ['etc/mono/config']
+        self.custom_version_str = None
 
     def build(self):
         self.make = '%s EXTERNAL_MCS=%s EXTERNAL_RUNTIME=%s' % (
             self.make, self.profile.env.system_mcs, self.profile.env.system_mono)
-        Package.build(self)
+        Package.configure(self)
+
+        if self.custom_version_str is not None:
+            replace_in_file(os.path.join (self.workspace, 'config.h'), {self.version : self.custom_version_str})
+        Package.make(self)
 
     def prep(self):
         Package.prep(self)
@@ -58,13 +63,12 @@ class MonoMasterPackage(Package):
             self.sh('patch -p1 < "%{local_sources[' + str(p) + ']}"')
 
     def arch_build(self, arch):
+        Package.profile.arch_build(arch, self)
         if arch == 'darwin-64':  # 64-bit build pass
-            self.local_gcc_flags = ['-m64']
-            self.local_configure_flags = ['--build=x86_64-apple-darwin11.2.0']
+            self.local_configure_flags.extend (['--build=x86_64-apple-darwin11.2.0', '--disable-boehm'])
 
         if arch == 'darwin-32':  # 32-bit build pass
-            self.local_gcc_flags = ['-m32']
-            self.local_configure_flags = ['--build=i386-apple-darwin11.2.0']
+            self.local_configure_flags.extend (['--build=i386-apple-darwin11.2.0'])
 
         self.local_configure_flags.extend(
             ['--cache-file=%s/%s-%s.cache' % (self.profile.bockbuild.build_root, self.name, arch)])
@@ -80,16 +84,16 @@ class MonoMasterPackage(Package):
             "LocalMachine")
         ensure_dir(registry_dir)
 
-        # Add ImportBefore/ImportAfter files from xbuild to the msbuild
-        # directories
+        # Add ImportBefore files from xbuild 14.0 toolsVersion directory to msbuild's
+        # 15.0 directory
         xbuild_dir = os.path.join(self.staged_prefix, 'lib/mono/xbuild')
-        new_xbuild_tv_dir = os.path.join(xbuild_dir, self.version)
+        new_xbuild_tv_dir = os.path.join(xbuild_dir, '15.0')
         os.makedirs(new_xbuild_tv_dir)
 
         self.sh('cp -R %s/14.0/Imports %s' % (xbuild_dir, new_xbuild_tv_dir))
-        self.sh(
-            'cp -R %s/14.0/Microsoft.Common.targets %s' %
-            (xbuild_dir, new_xbuild_tv_dir))
+
+        for dep in glob.glob("%s/Microsoft/NuGet/*" % xbuild_dir):
+            self.sh('ln -s %s %s' % (dep, xbuild_dir))
 
     def deploy(self):
         if bockbuild.cmd_options.arch == 'darwin-universal':

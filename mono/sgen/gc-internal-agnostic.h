@@ -1,5 +1,6 @@
-/*
- * gc-internal-agnostic.h: Mono-agnostic GC interface.
+/**
+ * \file
+ * Mono-agnostic GC interface.
  *
  * Copyright (C) 2015 Xamarin Inc
  *
@@ -79,12 +80,6 @@ typedef void* MonoGCDescriptor;
 #define MONO_GC_DESCRIPTOR_NULL NULL
 #endif
 
-/*
- * Try to register a foreign thread with the GC, if we fail or the backend
- * can't cope with this concept - we return FALSE.
- */
-extern gboolean mono_gc_register_thread (void *baseptr);
-
 gboolean mono_gc_parse_environment_string_extract_number (const char *str, size_t *out);
 
 MonoGCDescriptor mono_gc_make_descr_for_object (gsize *bitmap, int numbits, size_t obj_size);
@@ -92,6 +87,9 @@ MonoGCDescriptor mono_gc_make_descr_for_array (int vector, gsize *elem_bitmap, i
 
 /* simple interface for data structures needed in the runtime */
 MonoGCDescriptor mono_gc_make_descr_from_bitmap (gsize *bitmap, int numbits);
+
+/* Return a root descriptor for a vector with repeating refs bitmap */
+MonoGCDescriptor mono_gc_make_vector_descr (void);
 
 /* Return a root descriptor for a root with all refs */
 MonoGCDescriptor mono_gc_make_root_descr_all_refs (int numbits);

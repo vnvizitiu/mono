@@ -1,5 +1,6 @@
-/*
- * mini-posix.c: POSIX signal handling support for Mono.
+/**
+ * \file
+ * POSIX signal handling support for Mono.
  *
  * Authors:
  *   Mono Team (mono-list@lists.ximian.com)
@@ -26,8 +27,6 @@
 #include <mono/metadata/threads.h>
 #include <mono/metadata/appdomain.h>
 #include <mono/metadata/debug-helpers.h>
-#include <mono/io-layer/io-layer.h>
-#include "mono/metadata/profiler.h"
 #include <mono/metadata/profiler-private.h>
 #include <mono/metadata/mono-config.h>
 #include <mono/metadata/environment.h>
@@ -255,7 +254,7 @@ mono_runtime_cleanup_handlers (void)
 gboolean
 MONO_SIG_HANDLER_SIGNATURE (mono_chain_signal)
 {
-	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
+	MonoJitTlsData *jit_tls = mono_tls_get_jit_tls ();
 	jit_tls->mono_win_chained_exception_needs_run = TRUE;
 	return TRUE;
 }
@@ -271,11 +270,15 @@ thread_timer_expired (HANDLE thread)
 
 	context.ContextFlags = CONTEXT_CONTROL;
 	if (GetThreadContext (thread, &context)) {
+		guchar *ip;
+
 #ifdef _WIN64
-		mono_profiler_stat_hit ((guchar *) context.Rip, &context);
+		ip = (guchar *) context.Rip;
 #else
-		mono_profiler_stat_hit ((guchar *) context.Eip, &context);
+		ip = (guchar *) context.Eip;
 #endif
+
+		MONO_PROFILER_RAISE (sample_hit, (ip, &context));
 	}
 }
 

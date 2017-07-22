@@ -1,5 +1,6 @@
-/*
- * file-mmap-posix.c: File mmap internal calls
+/**
+ * \file
+ * File mmap internal calls
  *
  * Author:
  *	Rodrigo Kumpera
@@ -32,7 +33,7 @@
 
 
 #include <mono/metadata/object.h>
-#include <mono/metadata/file-io.h>
+#include <mono/metadata/w32file.h>
 #include <mono/metadata/file-mmap.h>
 #include <mono/utils/atomic.h>
 #include <mono/utils/mono-memory-model.h>
@@ -302,7 +303,7 @@ static void*
 open_memory_map (const char *c_mapName, int mode, gint64 *capacity, int access, int options, int *ioerror)
 {
 	MmapHandle *handle;
-	if (*capacity <= 0) {
+	if (*capacity <= 0 && mode != FILE_MODE_OPEN) {
 		*ioerror = CAPACITY_MUST_BE_POSITIVE;
 		return NULL;
 	}

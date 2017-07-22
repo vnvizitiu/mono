@@ -89,6 +89,7 @@ TEST_DISTFILES = \
 	Test/System.Resources/compat_1_1.resx \
 	Test/System.Resources/compat_2_0.resx \
 	Test/System.Windows.Forms/bitmaps/a.png \
+	Test/simple/Program.cs \
 	Test/DummyAssembly/AnotherSerializable.cs \
 	Test/DummyAssembly/Convertable.cs \
 	Test/DummyAssembly/Properties/AssemblyInfo.cs \
@@ -113,7 +114,7 @@ test-local: DummyAssembly.dll
 
 include ../../build/library.make
 
-TEST_HARNESS_EXCLUDES = -exclude=Interactive,NotWorking,ValueAdd,CAS,InetAccess
+TEST_HARNESS_EXCLUDES = -exclude=Interactive,NotWorking,CAS
 TEST_HARNESS_EXCLUDES_ONDOTNET = -exclude=Interactive,NotDotNet,CAS
 
 $(the_lib): $(RESOURCES)
@@ -127,3 +128,9 @@ $(PREBUILT): %.prebuilt: %
 	cp $* $@
 
 dist-default: $(PREBUILT)
+
+simple-test.exe: Test/simple/Program.cs $(topdir)/class/lib/$(PROFILE)/System.Windows.Forms.dll
+	$(CSCOMPILE) -out:$@ Test/simple/Program.cs -r:$(topdir)/class/lib/$(PROFILE)/System.Windows.Forms.dll
+
+test-simple: simple-test.exe
+	$(TEST_RUNTIME) simple-test.exe

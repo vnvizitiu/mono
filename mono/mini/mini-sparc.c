@@ -1,5 +1,6 @@
-/*
- * mini-sparc.c: Sparc backend for the Mono code generator
+/**
+ * \file
+ * Sparc backend for the Mono code generator
  *
  * Authors:
  *   Paolo Molaro (lupus@ximian.com)
@@ -215,6 +216,12 @@ mono_arch_init (void)
 void
 mono_arch_cleanup (void)
 {
+}
+
+gboolean
+mono_arch_have_fast_tls (void)
+{
+	return FALSE;
 }
 
 /*
@@ -1330,7 +1337,7 @@ mono_arch_emit_outarg_vt (MonoCompile *cfg, MonoInst *ins, MonoInst *src)
 	ArgInfo *ainfo = (ArgInfo*)ins->inst_p1;
 	int size = ins->backend.size;
 
-	mini_emit_memcpy (cfg, sparc_sp, ainfo->offset, src->dreg, 0, size, 0);
+	mini_emit_memcpy (cfg, sparc_sp, ainfo->offset, src->dreg, 0, size, SIZEOF_VOID_P);
 }
 
 void
@@ -2399,10 +2406,6 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 		g_print ("Basic block %d starting at offset 0x%x\n", bb->block_num, bb->native_offset);
 
 	cpos = bb->max_offset;
-
-	if (cfg->prof_options & MONO_PROFILE_COVERAGE) {
-		NOT_IMPLEMENTED;
-	}
 
 	MONO_BB_FOR_EACH_INS (bb, ins) {
 		guint8* code_start;
@@ -3676,7 +3679,7 @@ mono_arch_patch_code (MonoCompile *cfg, MonoMethod *method, MonoDomain *domain, 
 {
 	MonoJumpInfo *patch_info;
 
-	mono_error_init (error);
+	error_init (error);
 
 	/* FIXME: Move part of this to arch independent code */
 	for (patch_info = ji; patch_info; patch_info = patch_info->next) {
@@ -4096,9 +4099,6 @@ mono_arch_emit_epilog (MonoCompile *cfg)
 		max_epilog_size += 128;
 	
 	if (mono_jit_trace_calls != NULL)
-		max_epilog_size += 50;
-
-	if (cfg->prof_options & MONO_PROFILE_ENTER_LEAVE)
 		max_epilog_size += 50;
 
 	while (cfg->code_len + max_epilog_size > (cfg->code_size - 16)) {

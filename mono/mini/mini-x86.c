@@ -1,5 +1,6 @@
-/*
- * mini-x86.c: x86 backend for the Mono code generator
+/**
+ * \file
+ * x86 backend for the Mono code generator
  *
  * Authors:
  *   Paolo Molaro (lupus@ximian.com)
@@ -356,11 +357,7 @@ get_call_info_internal (CallInfo *cinfo, MonoMethodSignature *sig)
 		case MONO_TYPE_U:
 		case MONO_TYPE_PTR:
 		case MONO_TYPE_FNPTR:
-		case MONO_TYPE_CLASS:
 		case MONO_TYPE_OBJECT:
-		case MONO_TYPE_SZARRAY:
-		case MONO_TYPE_ARRAY:
-		case MONO_TYPE_STRING:
 			cinfo->ret.storage = ArgInIReg;
 			cinfo->ret.reg = X86_EAX;
 			break;
@@ -485,11 +482,7 @@ get_call_info_internal (CallInfo *cinfo, MonoMethodSignature *sig)
 		case MONO_TYPE_U:
 		case MONO_TYPE_PTR:
 		case MONO_TYPE_FNPTR:
-		case MONO_TYPE_CLASS:
 		case MONO_TYPE_OBJECT:
-		case MONO_TYPE_STRING:
-		case MONO_TYPE_SZARRAY:
-		case MONO_TYPE_ARRAY:
 			add_general (&gr, param_regs, &stack_size, ainfo);
 			break;
 		case MONO_TYPE_GENERICINST:
@@ -978,8 +971,7 @@ needs_stack_frame (MonoCompile *cfg)
 		result = TRUE;
 	else if (!sig->pinvoke && (sig->call_convention == MONO_CALL_VARARG))
 		result = TRUE;
-	else if ((mono_jit_trace_calls != NULL && mono_trace_eval (cfg->method)) ||
-		(cfg->prof_options & MONO_PROFILE_ENTER_LEAVE))
+	else if ((mono_jit_trace_calls != NULL && mono_trace_eval (cfg->method)))
 		result = TRUE;
 
 	set_needs_stack_frame (cfg, result);
@@ -1073,8 +1065,11 @@ mono_arch_allocate_vars (MonoCompile *cfg)
 	 * have locals larger than 8 bytes we need to make sure that
 	 * they have the appropriate offset.
 	 */
-	if (MONO_ARCH_FRAME_ALIGNMENT > 8 && locals_stack_align > 8)
-		offset += MONO_ARCH_FRAME_ALIGNMENT - sizeof (gpointer) * 2;
+	if (MONO_ARCH_FRAME_ALIGNMENT > 8 && locals_stack_align > 8) {
+		int extra_size = MONO_ARCH_FRAME_ALIGNMENT - sizeof (gpointer) * 2;
+		offset += extra_size;
+		locals_stack_size += extra_size;
+	}
 	for (i = cfg->locals_start; i < cfg->num_varinfo; i++) {
 		if (offsets [i] != -1) {
 			MonoInst *inst = cfg->varinfo [i];
@@ -1180,9 +1175,6 @@ mono_arch_create_vars (MonoCompile *cfg)
 	if (cfg->method->save_lmf) {
 		cfg->create_lmf_var = TRUE;
 		cfg->lmf_ir = TRUE;
-#ifndef HOST_WIN32
-		cfg->lmf_ir_mono_lmf = TRUE;
-#endif
 	}
 
 	cfg->arch_eh_jit_info = 1;
@@ -2001,6 +1993,12 @@ mono_arch_peephole_pass_2 (MonoCompile *cfg, MonoBasicBlock *bb)
 	}
 }
 
+#define NEW_INS(cfg,ins,dest,op) do {	\
+		MONO_INST_NEW ((cfg), (dest), (op)); \
+		(dest)->cil_code = (ins)->cil_code;				 \
+		mono_bblock_insert_before_ins (bb, ins, (dest)); \
+	} while (0)
+
 /*
  * mono_arch_lowering_pass:
  *
@@ -2031,6 +2029,31 @@ mono_arch_lowering_pass (MonoCompile *cfg, MonoBasicBlock *bb)
 				break;
 			mono_decompose_op_imm (cfg, bb, ins);
 			break;
+#ifdef MONO_ARCH_SIMD_INTRINSICS
+		case OP_EXPAND_I1: {
+			MonoInst *temp;
+			int temp_reg1 = mono_alloc_ireg (cfg);
+			int temp_reg2 = mono_alloc_ireg (cfg);
+			int original_reg = ins->sreg1;
+
+			NEW_INS (cfg, ins, temp, OP_ICONV_TO_U1);
+			temp->sreg1 = original_reg;
+			temp->dreg = temp_reg1;
+
+			NEW_INS (cfg, ins, temp, OP_SHL_IMM);
+			temp->sreg1 = temp_reg1;
+			temp->dreg = temp_reg2;
+			temp->inst_imm = 8;
+
+			NEW_INS (cfg, ins, temp, OP_IOR);
+			temp->sreg1 = temp->dreg = temp_reg2;
+			temp->sreg2 = temp_reg1;
+
+			ins->opcode = OP_EXPAND_I2;
+			ins->sreg1 = temp_reg2;
+		}
+			break;
+#endif
 		default:
 			break;
 		}
@@ -2239,22 +2262,22 @@ emit_move_return_value (MonoCompile *cfg, MonoInst *ins, guint8 *code)
 	return code;
 }
 
-#ifdef __APPLE__
+#ifdef TARGET_MACH
 static int tls_gs_offset;
 #endif
 
 gboolean
-mono_x86_have_tls_get (void)
+mono_arch_have_fast_tls (void)
 {
 #ifdef TARGET_MACH
-	static gboolean have_tls_get = FALSE;
+	static gboolean have_fast_tls = FALSE;
 	static gboolean inited = FALSE;
-
-	if (inited)
-		return have_tls_get;
-
-#ifdef MONO_HAVE_FAST_TLS
 	guint32 *ins;
+
+	if (mini_get_debug_options ()->use_fallback_tls)
+		return FALSE;
+	if (inited)
+		return have_fast_tls;
 
 	ins = (guint32*)pthread_getspecific;
 	/*
@@ -2263,56 +2286,29 @@ mono_x86_have_tls_get (void)
 	 * mov    0x4(%esp),%eax
 	 * mov    %gs:[offset](,%eax,4),%eax
 	 */
-	have_tls_get = ins [0] == 0x0424448b && ins [1] == 0x85048b65;
+	have_fast_tls = ins [0] == 0x0424448b && ins [1] == 0x85048b65;
 	tls_gs_offset = ins [2];
-#endif
-
 	inited = TRUE;
 
-	return have_tls_get;
+	return have_fast_tls;
 #elif defined(TARGET_ANDROID)
 	return FALSE;
 #else
+	if (mini_get_debug_options ()->use_fallback_tls)
+		return FALSE;
 	return TRUE;
 #endif
 }
 
 static guint8*
-mono_x86_emit_tls_set (guint8* code, int sreg, int tls_offset)
-{
-#if defined(__APPLE__)
-	x86_prefix (code, X86_GS_PREFIX);
-	x86_mov_mem_reg (code, tls_gs_offset + (tls_offset * 4), sreg, 4);
-#elif defined(TARGET_WIN32)
-	g_assert_not_reached ();
-#else
-	x86_prefix (code, X86_GS_PREFIX);
-	x86_mov_mem_reg (code, tls_offset, sreg, 4);
-#endif
-	return code;
-}
-
-/*
- * mono_x86_emit_tls_get:
- * @code: buffer to store code to
- * @dreg: hard register where to place the result
- * @tls_offset: offset info
- *
- * mono_x86_emit_tls_get emits in @code the native code that puts in
- * the dreg register the item in the thread local storage identified
- * by tls_offset.
- *
- * Returns: a pointer to the end of the stored code
- */
-guint8*
 mono_x86_emit_tls_get (guint8* code, int dreg, int tls_offset)
 {
-#if defined(__APPLE__)
+#if defined(TARGET_MACH)
 	x86_prefix (code, X86_GS_PREFIX);
 	x86_mov_reg_mem (code, dreg, tls_gs_offset + (tls_offset * 4), 4);
 #elif defined(TARGET_WIN32)
-	/* 
-	 * See the Under the Hood article in the May 1996 issue of Microsoft Systems 
+	/*
+	 * See the Under the Hood article in the May 1996 issue of Microsoft Systems
 	 * Journal and/or a disassembly of the TlsGet () function.
 	 */
 	x86_prefix (code, X86_FS_PREFIX);
@@ -2345,54 +2341,18 @@ mono_x86_emit_tls_get (guint8* code, int dreg, int tls_offset)
 }
 
 static guint8*
-emit_tls_get_reg (guint8* code, int dreg, int offset_reg)
+mono_x86_emit_tls_set (guint8* code, int sreg, int tls_offset)
 {
-	/* offset_reg contains a value translated by mono_arch_translate_tls_offset () */
-#if defined(__APPLE__) || defined(__linux__)
-	if (dreg != offset_reg)
-		x86_mov_reg_reg (code, dreg, offset_reg, sizeof (mgreg_t));
+#if defined(TARGET_MACH)
 	x86_prefix (code, X86_GS_PREFIX);
-	x86_mov_reg_membase (code, dreg, dreg, 0, sizeof (mgreg_t));
-#else
+	x86_mov_mem_reg (code, tls_gs_offset + (tls_offset * 4), sreg, 4);
+#elif defined(TARGET_WIN32)
 	g_assert_not_reached ();
+#else
+	x86_prefix (code, X86_GS_PREFIX);
+	x86_mov_mem_reg (code, tls_offset, sreg, 4);
 #endif
 	return code;
-}
-
-guint8*
-mono_x86_emit_tls_get_reg (guint8* code, int dreg, int offset_reg)
-{
-	return emit_tls_get_reg (code, dreg, offset_reg);
-}
-
-static guint8*
-emit_tls_set_reg (guint8* code, int sreg, int offset_reg)
-{
-	/* offset_reg contains a value translated by mono_arch_translate_tls_offset () */
-#ifdef HOST_WIN32
-	g_assert_not_reached ();
-#elif defined(__APPLE__) || defined(__linux__)
-	x86_prefix (code, X86_GS_PREFIX);
-	x86_mov_membase_reg (code, offset_reg, 0, sreg, sizeof (mgreg_t));
-#else
-	g_assert_not_reached ();
-#endif
-	return code;
-}
- 
- /*
- * mono_arch_translate_tls_offset:
- *
- *   Translate the TLS offset OFFSET computed by MONO_THREAD_VAR_OFFSET () into a format usable by OP_TLS_GET_REG/OP_TLS_SET_REG.
- */
-int
-mono_arch_translate_tls_offset (int offset)
-{
-#ifdef __APPLE__
-	return tls_gs_offset + (offset * 4);
-#else
-	return offset;
-#endif
 }
 
 /*
@@ -2466,16 +2426,6 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 		g_print ("Basic block %d starting at offset 0x%x\n", bb->block_num, bb->native_offset);
 
 	cpos = bb->max_offset;
-
-	if ((cfg->prof_options & MONO_PROFILE_COVERAGE) && cfg->coverage_info) {
-		MonoProfileCoverageInfo *cov = cfg->coverage_info;
-		g_assert (!cfg->compile_aot);
-		cpos += 6;
-
-		cov->data [bb->dfn].cil_code = bb->cil_code;
-		/* this is not thread save, but good enough */
-		x86_inc_mem (code, &cov->data [bb->dfn].count); 
-	}
 
 	offset = code - cfg->native_code;
 
@@ -2709,9 +2659,10 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 				/* Load ss_tramp_var */
 				/* This is equal to &ss_trampoline */
 				x86_mov_reg_membase (code, X86_ECX, var->inst_basereg, var->inst_offset, sizeof (mgreg_t));
-				x86_alu_membase_imm (code, X86_CMP, X86_ECX, 0, 0);
+				x86_mov_reg_membase (code, X86_ECX, X86_ECX, 0, sizeof (mgreg_t));
+				x86_alu_reg_imm (code, X86_CMP, X86_ECX, 0);
 				br[0] = code; x86_branch8 (code, X86_CC_EQ, 0, FALSE);
-				x86_call_membase (code, X86_ECX, 0);
+				x86_call_reg (code, X86_ECX);
 				x86_patch (br [0], code);
 			}
 
@@ -4151,16 +4102,8 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			code = mono_x86_emit_tls_get (code, ins->dreg, ins->inst_offset);
 			break;
 		}
-		case OP_TLS_GET_REG: {
-			code = emit_tls_get_reg (code, ins->dreg, ins->sreg1);
-			break;
-		}
 		case OP_TLS_SET: {
 			code = mono_x86_emit_tls_set (code, ins->sreg1, ins->inst_offset);
-			break;
-		}
-		case OP_TLS_SET_REG: {
-			code = emit_tls_set_reg (code, ins->sreg1, ins->sreg2);
 			break;
 		}
 		case OP_MEMORY_BARRIER: {
@@ -4872,6 +4815,9 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 		case OP_XZERO:
 			x86_sse_alu_pd_reg_reg (code, X86_SSE_PXOR, ins->dreg, ins->dreg);
 			break;
+		case OP_XONES:
+			x86_sse_alu_pd_reg_reg (code, X86_SSE_PCMPEQB, ins->dreg, ins->dreg);
+			break;
 
 		case OP_FCONV_TO_R8_X:
 			x86_fst_membase (code, ins->backend.spill_var->inst_basereg, ins->backend.spill_var->inst_offset, TRUE, TRUE);
@@ -4896,14 +4842,6 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			}			
 			break;
 
-		case OP_EXPAND_I1:
-			/*FIXME this causes a partial register stall, maybe it would not be that bad to use shift + mask + or*/
-			/*The +4 is to get a mov ?h, ?l over the same reg.*/
-			x86_mov_reg_reg (code, ins->dreg + 4, ins->dreg, 1);
-			x86_sse_alu_pd_reg_reg_imm (code, X86_SSE_PINSRW, ins->dreg, ins->sreg1, 0);
-			x86_sse_alu_pd_reg_reg_imm (code, X86_SSE_PINSRW, ins->dreg, ins->sreg1, 1);
-			x86_sse_shift_reg_imm (code, X86_SSE_PSHUFD, ins->dreg, ins->dreg, 0);
-			break;
 		case OP_EXPAND_I2:
 			x86_sse_alu_pd_reg_reg_imm (code, X86_SSE_PINSRW, ins->dreg, ins->sreg1, 0);
 			x86_sse_alu_pd_reg_reg_imm (code, X86_SSE_PINSRW, ins->dreg, ins->sreg1, 1);
@@ -5070,9 +5008,6 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 
 	cfg->code_size = MAX (cfg->header->code_size * 4, 10240);
 
-	if (cfg->prof_options & MONO_PROFILE_ENTER_LEAVE)
-		cfg->code_size += 512;
-
 	code = cfg->native_code = g_malloc (cfg->code_size);
 
 #if 0
@@ -5220,8 +5155,6 @@ mono_arch_emit_prolog (MonoCompile *cfg)
 			MonoInst *ins;
 			bb->max_offset = max_offset;
 
-			if (cfg->prof_options & MONO_PROFILE_COVERAGE)
-				max_offset += 6;
 			/* max alignment for loops */
 			if ((cfg->opt & MONO_OPT_LOOP) && bb_is_loop_start (bb))
 				max_offset += LOOP_ALIGNMENT;
@@ -5325,25 +5258,10 @@ mono_arch_emit_epilog (MonoCompile *cfg)
 	if (method->save_lmf) {
 		gint32 lmf_offset = cfg->lmf_var->inst_offset;
 		guint8 *patch;
-		gboolean supported = FALSE;
-
-		if (cfg->compile_aot) {
-#if defined(MONO_HAVE_FAST_TLS)
-			supported = TRUE;
-#endif
-		} else if (mono_get_jit_tls_offset () != -1) {
-			supported = TRUE;
-		}
 
 		/* check if we need to restore protection of the stack after a stack overflow */
-		if (supported) {
-			if (cfg->compile_aot) {
-				code = emit_load_aotconst (NULL, code, cfg, NULL, X86_ECX, MONO_PATCH_INFO_TLS_OFFSET, GINT_TO_POINTER (TLS_KEY_JIT_TLS));
-
-				code = emit_tls_get_reg (code, X86_ECX, X86_ECX);
-			} else {
-				code = mono_x86_emit_tls_get (code, X86_ECX, mono_get_jit_tls_offset ());
-			}
+		if (!cfg->compile_aot && mono_arch_have_fast_tls () && mono_tls_get_tls_offset (TLS_KEY_JIT_TLS) != -1) {
+			code = mono_x86_emit_tls_get (code, X86_ECX, mono_tls_get_tls_offset (TLS_KEY_JIT_TLS));
 
 			/* we load the value in a separate instruction: this mechanism may be
 			 * used later as a safer way to do thread interruption
@@ -5351,12 +5269,10 @@ mono_arch_emit_epilog (MonoCompile *cfg)
 			x86_mov_reg_membase (code, X86_ECX, X86_ECX, MONO_STRUCT_OFFSET (MonoJitTlsData, restore_stack_prot), 4);
 			x86_alu_reg_imm (code, X86_CMP, X86_ECX, 0);
 			patch = code;
-		        x86_branch8 (code, X86_CC_Z, 0, FALSE);
+			x86_branch8 (code, X86_CC_Z, 0, FALSE);
 			/* note that the call trampoline will preserve eax/edx */
 			x86_call_reg (code, X86_ECX);
 			x86_patch (patch, code);
-		} else {
-			/* FIXME: maybe save the jit tls in the prolog */
 		}
 
 		/* restore caller saved regs */
@@ -5573,13 +5489,16 @@ mono_arch_is_inst_imm (gint64 imm)
 void
 mono_arch_finish_init (void)
 {
-	if (!g_getenv ("MONO_NO_TLS")) {
+	char *mono_no_tls = g_getenv ("MONO_NO_TLS");
+	if (!mono_no_tls) {
 #ifndef TARGET_WIN32
 #if MONO_XEN_OPT
 		optimize_for_xen = access ("/proc/xen", F_OK) == 0;
 #endif
 #endif
-	}		
+	} else {
+		g_free (mono_no_tls);
+	}
 }
 
 void
@@ -5735,7 +5654,7 @@ mono_arch_build_imt_trampoline (MonoVTable *vtable, MonoDomain *domain, MonoIMTC
 		g_free (buff);
 	}
 
-	mono_profiler_code_buffer_new (start, code - start, MONO_PROFILER_CODE_BUFFER_IMT_TRAMPOLINE, NULL);
+	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_IMT_TRAMPOLINE, NULL));
 
 	mono_tramp_info_register (mono_tramp_info_create (NULL, start, code - start, NULL, unwind_ops), domain);
 
@@ -5871,12 +5790,10 @@ mono_arch_get_patch_offset (guint8 *code)
 }
 
 /**
- * mono_breakpoint_clean_code:
+ * \return TRUE if no sw breakpoint was present.
  *
- * Copy @size bytes from @code - @offset to the buffer @buf. If the debugger inserted software
+ * Copy \p size bytes from \p code - \p offset to the buffer \p buf. If the debugger inserted software
  * breakpoints in the original code, they are removed in the copy.
- *
- * Returns TRUE if no sw breakpoint was present.
  */
 gboolean
 mono_breakpoint_clean_code (guint8 *method_start, guint8 *code, int offset, guint8 *buf, int size)
@@ -6008,7 +5925,7 @@ get_delegate_invoke_impl (MonoTrampInfo **info, gboolean has_target, guint32 par
 		if (!has_target)
 			g_free (buff);
 	}
-	mono_profiler_code_buffer_new (start, code - start, MONO_PROFILER_CODE_BUFFER_DELEGATE_INVOKE, NULL);
+	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_DELEGATE_INVOKE, NULL));
 
 	return start;
 }
@@ -6048,7 +5965,7 @@ get_delegate_virtual_invoke_impl (MonoTrampInfo **info, gboolean load_imt_reg, i
 	/* Load the vtable */
 	x86_mov_reg_membase (code, X86_EAX, X86_ECX, MONO_STRUCT_OFFSET (MonoObject, vtable), 4);
 	x86_jump_membase (code, X86_EAX, offset);
-	mono_profiler_code_buffer_new (start, code - start, MONO_PROFILER_CODE_BUFFER_DELEGATE_INVOKE, NULL);
+	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_DELEGATE_INVOKE, NULL));
 
 	tramp_name = mono_get_delegate_virtual_invoke_impl_name (load_imt_reg, offset);
 	*info = mono_tramp_info_create (tramp_name, start, code - start, NULL, unwind_ops);
